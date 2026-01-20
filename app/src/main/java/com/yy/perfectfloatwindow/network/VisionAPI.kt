@@ -14,29 +14,39 @@ class VisionAPI(private val config: AIConfig) {
     private val gson = Gson()
 
     companion object {
-        val OCR_SYSTEM_PROMPT = """你是一个专业的题目识别助手。请分析图片中的内容，提取所有题目信息。
+        val OCR_SYSTEM_PROMPT = """你是一个专业的题目识别助手。请仔细分析图片中的所有内容，完整提取每道题目的全部信息。
 
-要求：
-1. 识别图片中的所有题目，包括选择题、填空题、计算题、问答题等
-2. 如果有数学公式，请转换为LaTeX格式
-3. 保留题目的原始编号（如"1."、"第一题"等）
-4. 如果有选项，保留完整的选项内容
+重要要求：
+1. 必须完整识别题目的所有内容，包括：
+   - 题目编号（如"1."、"第一题"、"Question 1"等）
+   - 题目正文（完整的问题描述）
+   - 所有选项（A、B、C、D等，必须包含每个选项的完整内容）
+   - 填空题的空格位置用____表示
+   - 图表描述（如果题目包含图表，简要描述）
+
+2. 数学公式处理：
+   - 识别所有数学符号和公式
+   - 转换为LaTeX格式
+
+3. 多道题目处理：
+   - 如果图片中有多道题目，每道题单独识别
+   - 保持题目原始顺序
 
 请以JSON格式返回，格式如下：
 {
   "questions": [
     {
       "id": 1,
-      "text": "完整的题目文本内容，包括选项",
-      "latex": "如果有数学公式则填写LaTeX表达式，否则为null",
-      "type": "TEXT"
+      "text": "完整的题目内容，包括所有选项。例如：下列哪个是正确的？\nA. 选项一的完整内容\nB. 选项二的完整内容\nC. 选项三的完整内容\nD. 选项四的完整内容",
+      "latex": "如果有数学公式则填写，否则为null",
+      "type": "MULTIPLE_CHOICE"
     }
   ]
 }
 
-type可选值：TEXT（普通文字题）、MATH（数学题）、MULTIPLE_CHOICE（选择题）、FILL_BLANK（填空题）
+type可选值：TEXT、MATH、MULTIPLE_CHOICE、FILL_BLANK
 
-如果无法识别任何题目，返回：{"questions": []}
+重要：选择题必须包含所有选项的完整文字！
 只返回JSON，不要有其他文字。""".trimIndent()
     }
 

@@ -1,5 +1,7 @@
 package com.yy.perfectfloatwindow.ui
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -12,10 +14,13 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -37,21 +42,31 @@ import kotlinx.coroutines.withContext
 class AnswerPopupService : Service() {
 
     private lateinit var windowManager: WindowManager
+    private var overlayView: View? = null
     private var popupView: View? = null
-    private lateinit var windowParams: WindowManager.LayoutParams
+    private lateinit var popupParams: WindowManager.LayoutParams
+    private lateinit var overlayParams: WindowManager.LayoutParams
     private val handler = Handler(Looper.getMainLooper())
     private var job = Job()
     private val coroutineScope = CoroutineScope(Dispatchers.Main + job)
 
     private var currentBitmap: Bitmap? = null
     private var currentQuestions: List<Question> = emptyList()
-    private var answers: MutableMap<Int, Answer> = mutableMapOf()
-    private var answerViews: MutableMap<Int, View> = mutableMapOf()
+
+    // Cache answers for both modes
+    private var fastAnswers: MutableMap<Int, Answer> = mutableMapOf()
+    private var deepAnswers: MutableMap<Int, Answer> = mutableMapOf()
+    private var fastAnswerViews: MutableMap<Int, View> = mutableMapOf()
+    private var deepAnswerViews: MutableMap<Int, View> = mutableMapOf()
+
     private var isFastMode = true
     private var isPopupShowing = false
+    private var isFastSolving = false
+    private var isDeepSolving = false
 
     private var initialTouchY = 0f
     private var initialHeight = 0
+    private var screenHeight = 0
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -82,11 +97,11 @@ class AnswerPopupService : Service() {
         super.onCreate()
         isServiceRunning = true
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        screenHeight = resources.displayMetrics.heightPixels
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Must call startForeground immediately for Android 8+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForeground(NOTIFICATION_ID, createNotification())
         }
@@ -94,7 +109,8 @@ class AnswerPopupService : Service() {
         when (intent?.getStringExtra("action")) {
             "show" -> {
                 if (!isPopupShowing) {
-                    setupPopupView()
+                    setupViews()
+                    showWithAnimation()
                 }
                 pendingBitmap?.let {
                     processBitmap(it)
@@ -102,7 +118,7 @@ class AnswerPopupService : Service() {
                 }
             }
             "dismiss" -> {
-                dismissPopup()
+                dismissWithAnimation()
             }
         }
         return START_NOT_STICKY
@@ -130,17 +146,47 @@ class AnswerPopupService : Service() {
         .setOngoing(true)
         .build()
 
-    private fun setupPopupView() {
+    private fun setupViews() {
         if (isPopupShowing) return
 
         try {
+            // Create overlay (semi-transparent background)
+            overlayView = FrameLayout(this).apply {
+                setBackgroundColor(0x80000000.toInt())
+                setOnClickListener { dismissWithAnimation() }
+            }
+
+            overlayParams = WindowManager.LayoutParams().apply {
+                type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.TYPE_PHONE
+                }
+                format = PixelFormat.TRANSLUCENT
+                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                width = WindowManager.LayoutParams.MATCH_PARENT
+                height = WindowManager.LayoutParams.MATCH_PARENT
+            }
+
+            // Create popup
             popupView = LayoutInflater.from(this).inflate(R.layout.layout_answer_popup, null)
 
-            val displayMetrics = resources.displayMetrics
-            val screenHeight = displayMetrics.heightPixels
+            // Handle back key
+            popupView?.isFocusableInTouchMode = true
+            popupView?.setOnKeyListener { _, keyCode, event ->
+                if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    dismissWithAnimation()
+                    true
+                } else {
+                    false
+                }
+            }
+
             val popupHeight = (screenHeight * 2 / 3)
 
-            windowParams = WindowManager.LayoutParams().apply {
+            popupParams = WindowManager.LayoutParams().apply {
                 type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 } else {
@@ -149,14 +195,19 @@ class AnswerPopupService : Service() {
                 }
                 format = PixelFormat.TRANSLUCENT
                 flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                        WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                 gravity = Gravity.BOTTOM
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = popupHeight
+                y = popupHeight // Start off screen
             }
 
-            windowManager.addView(popupView, windowParams)
+            windowManager.addView(overlayView, overlayParams)
+            windowManager.addView(popupView, popupParams)
             isPopupShowing = true
+
+            // Request focus for back key handling
+            popupView?.requestFocus()
 
             setupDragHandle()
             setupTabs()
@@ -167,6 +218,53 @@ class AnswerPopupService : Service() {
         }
     }
 
+    private fun showWithAnimation() {
+        // Fade in overlay
+        overlayView?.alpha = 0f
+        overlayView?.animate()?.alpha(1f)?.setDuration(250)?.start()
+
+        // Slide up popup
+        val animator = ValueAnimator.ofInt(popupParams.height, 0)
+        animator.duration = 300
+        animator.interpolator = DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            popupParams.y = animation.animatedValue as Int
+            try {
+                windowManager.updateViewLayout(popupView, popupParams)
+            } catch (e: Exception) {
+                // View might be detached
+            }
+        }
+        animator.start()
+    }
+
+    private fun dismissWithAnimation() {
+        // Fade out overlay
+        overlayView?.animate()?.alpha(0f)?.setDuration(200)?.start()
+
+        // Slide down popup
+        val animator = ValueAnimator.ofInt(0, popupParams.height)
+        animator.duration = 250
+        animator.interpolator = DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            popupParams.y = animation.animatedValue as Int
+            try {
+                windowManager.updateViewLayout(popupView, popupParams)
+            } catch (e: Exception) {
+                // View might be detached
+            }
+        }
+        animator.addListener(object : android.animation.Animator.AnimatorListener {
+            override fun onAnimationStart(animation: android.animation.Animator) {}
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                dismissPopup()
+            }
+            override fun onAnimationCancel(animation: android.animation.Animator) {}
+            override fun onAnimationRepeat(animation: android.animation.Animator) {}
+        })
+        animator.start()
+    }
+
     private fun setupDragHandle() {
         val view = popupView ?: return
         val dragHandle = view.findViewById<View>(R.id.dragHandle)
@@ -174,19 +272,19 @@ class AnswerPopupService : Service() {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialTouchY = event.rawY
-                    initialHeight = windowParams.height
+                    initialHeight = popupParams.height
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val deltaY = initialTouchY - event.rawY
                     val newHeight = (initialHeight + deltaY).toInt()
-                    val screenHeight = resources.displayMetrics.heightPixels
                     val minHeight = screenHeight / 3
                     val maxHeight = (screenHeight * 0.9).toInt()
 
-                    windowParams.height = newHeight.coerceIn(minHeight, maxHeight)
+                    popupParams.height = newHeight.coerceIn(minHeight, maxHeight)
+                    popupParams.y = 0
                     try {
-                        windowManager.updateViewLayout(popupView, windowParams)
+                        windowManager.updateViewLayout(popupView, popupParams)
                     } catch (e: Exception) {
                         // View might be detached
                     }
@@ -210,10 +308,8 @@ class AnswerPopupService : Service() {
                 tabDeep.setBackgroundResource(R.drawable.bg_tab_unselected)
                 tabDeep.setTextColor(0xFF757575.toInt())
 
-                if (currentQuestions.isNotEmpty()) {
-                    clearAnswers()
-                    startSolving(currentQuestions)
-                }
+                // Switch to fast mode display
+                displayAnswersForMode(true)
             }
         }
 
@@ -225,10 +321,8 @@ class AnswerPopupService : Service() {
                 tabFast.setBackgroundResource(R.drawable.bg_tab_unselected)
                 tabFast.setTextColor(0xFF757575.toInt())
 
-                if (currentQuestions.isNotEmpty()) {
-                    clearAnswers()
-                    startSolving(currentQuestions)
-                }
+                // Switch to deep mode display
+                displayAnswersForMode(false)
             }
         }
     }
@@ -237,10 +331,10 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         view.findViewById<View>(R.id.btnRetake).setOnClickListener {
             if (ScreenshotService.isServiceRunning) {
-                dismissPopup()
+                dismissWithAnimation()
                 handler.postDelayed({
                     ScreenshotService.requestScreenshot()
-                }, 300)
+                }, 400)
             } else {
                 Toast.makeText(this, "Please enable screenshot first", Toast.LENGTH_SHORT).show()
             }
@@ -249,6 +343,14 @@ class AnswerPopupService : Service() {
 
     fun processBitmap(bitmap: Bitmap) {
         currentBitmap = bitmap
+        // Reset cached answers
+        fastAnswers.clear()
+        deepAnswers.clear()
+        fastAnswerViews.clear()
+        deepAnswerViews.clear()
+        isFastSolving = false
+        isDeepSolving = false
+
         showLoading("正在识别题目...")
 
         coroutineScope.launch {
@@ -268,7 +370,8 @@ class AnswerPopupService : Service() {
                     } else {
                         currentQuestions = questions
                         displayQuestions(questions)
-                        startSolving(questions)
+                        // Start solving for both modes simultaneously
+                        startSolvingBothModes(questions)
                     }
                 }
             } catch (e: Exception) {
@@ -308,7 +411,6 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
         container.removeAllViews()
-        answerViews.clear()
 
         questions.forEachIndexed { index, question ->
             val itemView = LayoutInflater.from(this)
@@ -319,82 +421,143 @@ class AnswerPopupService : Service() {
             itemView.findViewById<TextView>(R.id.tvAnswerText).text = ""
 
             container.addView(itemView)
-            answerViews[question.id] = itemView
+
+            // Store views for both modes
+            fastAnswerViews[question.id] = itemView
         }
     }
 
-    private fun clearAnswers() {
-        answers.clear()
-        answerViews.forEach { (_, view) ->
-            view.findViewById<TextView>(R.id.tvAnswerText)?.text = ""
+    private fun displayAnswersForMode(isFast: Boolean) {
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+
+        val answers = if (isFast) fastAnswers else deepAnswers
+
+        // Update answer text for current mode
+        currentQuestions.forEach { question ->
+            val answer = answers[question.id]
+            val answerView = container.findViewWithTag<View>("answer_${question.id}")
+                ?: container.getChildAt(currentQuestions.indexOf(question))
+
+            answerView?.findViewById<TextView>(R.id.tvAnswerText)?.text = answer?.text ?: ""
         }
     }
 
-    private fun startSolving(questions: List<Question>) {
+    private fun startSolvingBothModes(questions: List<Question>) {
         showLoading("正在解答...")
 
-        val config = if (isFastMode) {
-            AISettings.getFastConfig(this)
-        } else {
-            AISettings.getDeepConfig(this)
-        }
+        val fastConfig = AISettings.getFastConfig(this)
+        val deepConfig = AISettings.getDeepConfig(this)
 
-        if (!config.isValid() || config.apiKey.isBlank()) {
+        if (!fastConfig.isValid() || fastConfig.apiKey.isBlank()) {
             showError("请先在设置中配置API")
             return
         }
 
-        val chatAPI = ChatAPI(config)
+        // Initialize answers for both modes
+        questions.forEach { question ->
+            fastAnswers[question.id] = Answer(question.id)
+            deepAnswers[question.id] = Answer(question.id)
+        }
 
+        // Start fast mode solving
+        isFastSolving = true
+        val fastChatAPI = ChatAPI(fastConfig)
         questions.forEachIndexed { index, question ->
-            answers[question.id] = Answer(question.id)
-
             handler.postDelayed({
-                if (index == 0) {
-                    hideLoading()
-                }
+                if (index == 0) hideLoading()
 
-                chatAPI.solveQuestion(question, object : StreamingCallback {
+                fastChatAPI.solveQuestion(question, object : StreamingCallback {
                     override fun onChunk(text: String) {
                         handler.post {
-                            val answer = answers[question.id]
-                            if (answer != null) {
+                            fastAnswers[question.id]?.let { answer ->
                                 answer.text += text
-                                updateAnswerText(question.id, answer.text)
+                                if (isFastMode) {
+                                    updateAnswerText(question.id, answer.text)
+                                }
                             }
                         }
                     }
 
                     override fun onComplete() {
                         handler.post {
-                            answers[question.id]?.isComplete = true
+                            fastAnswers[question.id]?.isComplete = true
                         }
                     }
 
                     override fun onError(error: Exception) {
                         handler.post {
-                            answers[question.id]?.error = error.message
-                            updateAnswerText(question.id, "错误: ${error.message}")
+                            fastAnswers[question.id]?.let { answer ->
+                                answer.error = error.message
+                                if (isFastMode) {
+                                    updateAnswerText(question.id, "错误: ${error.message}")
+                                }
+                            }
                         }
                     }
                 })
-            }, index * 500L)
+            }, index * 300L)
+        }
+
+        // Start deep mode solving (in parallel)
+        if (deepConfig.isValid() && deepConfig.apiKey.isNotBlank()) {
+            isDeepSolving = true
+            val deepChatAPI = ChatAPI(deepConfig)
+            questions.forEachIndexed { index, question ->
+                handler.postDelayed({
+                    deepChatAPI.solveQuestion(question, object : StreamingCallback {
+                        override fun onChunk(text: String) {
+                            handler.post {
+                                deepAnswers[question.id]?.let { answer ->
+                                    answer.text += text
+                                    if (!isFastMode) {
+                                        updateAnswerText(question.id, answer.text)
+                                    }
+                                }
+                            }
+                        }
+
+                        override fun onComplete() {
+                            handler.post {
+                                deepAnswers[question.id]?.isComplete = true
+                            }
+                        }
+
+                        override fun onError(error: Exception) {
+                            handler.post {
+                                deepAnswers[question.id]?.let { answer ->
+                                    answer.error = error.message
+                                    if (!isFastMode) {
+                                        updateAnswerText(question.id, "错误: ${error.message}")
+                                    }
+                                }
+                            }
+                        }
+                    })
+                }, index * 300L)
+            }
         }
     }
 
     private fun updateAnswerText(questionId: Int, text: String) {
-        answerViews[questionId]?.let { view ->
-            view.findViewById<TextView>(R.id.tvAnswerText)?.text = text
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+
+        val index = currentQuestions.indexOfFirst { it.id == questionId }
+        if (index >= 0 && index < container.childCount) {
+            container.getChildAt(index)?.findViewById<TextView>(R.id.tvAnswerText)?.text = text
         }
     }
 
     private fun dismissPopup() {
         isPopupShowing = false
         try {
+            overlayView?.let { windowManager.removeView(it) }
             popupView?.let { windowManager.removeView(it) }
         } catch (e: Exception) {
             // View might not be attached
         }
+        overlayView = null
         popupView = null
         currentBitmap?.recycle()
         currentBitmap = null
@@ -410,6 +573,7 @@ class AnswerPopupService : Service() {
         isServiceRunning = false
         isPopupShowing = false
         try {
+            overlayView?.let { windowManager.removeView(it) }
             popupView?.let { windowManager.removeView(it) }
         } catch (e: Exception) {
             // Already removed
