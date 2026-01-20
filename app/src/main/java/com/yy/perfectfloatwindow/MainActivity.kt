@@ -7,6 +7,9 @@ import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +26,8 @@ class MainActivity : AppCompatActivity() {
 
     private var floatHelper: FloatHelper? = null
     private var isFloatShowing = false
+    private lateinit var floatView: View
+    private var currentSize = 32 // default size in dp
 
     private val mediaProjectionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -39,11 +44,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val view = View.inflate(this, R.layout.float_view, null)
+        floatView = View.inflate(this, R.layout.float_view, null)
 
         floatHelper = FloatClient.Builder()
             .with(this)
-            .addView(view)
+            .addView(floatView)
             .enableDefaultPermissionDialog(true)
             .setClickListener(object : IFloatClickListener {
                 override fun onFloatClick() {
@@ -64,6 +69,7 @@ class MainActivity : AppCompatActivity() {
 
         setupSwitch()
         setupButtons()
+        setupSizeAdjustment()
     }
 
     private fun requestScreenshotPermission() {
@@ -129,6 +135,43 @@ class MainActivity : AppCompatActivity() {
 
         btnJump.setOnClickListener {
             startActivity(Intent(this, SecondActivity::class.java))
+        }
+    }
+
+    private fun setupSizeAdjustment() {
+        val seekBar = findViewById<SeekBar>(R.id.seekBarSize)
+        val tvSizeValue = findViewById<TextView>(R.id.tvSizeValue)
+
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                currentSize = progress
+                tvSizeValue.text = "${progress}dp"
+                updateFloatSize(progress)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+    }
+
+    private fun updateFloatSize(sizeDp: Int) {
+        val density = resources.displayMetrics.density
+        val sizePx = (sizeDp * density).toInt()
+        val iconSizePx = (sizeDp * 0.5625 * density).toInt() // icon is ~56.25% of container
+
+        val container = floatView.findViewById<FrameLayout>(R.id.llContainer)
+        val icon = floatView.findViewById<ImageView>(R.id.ivIcon)
+
+        container?.layoutParams?.let {
+            it.width = sizePx
+            it.height = sizePx
+            container.layoutParams = it
+        }
+
+        icon?.layoutParams?.let {
+            it.width = iconSizePx
+            it.height = iconSizePx
+            icon.layoutParams = it
         }
     }
 

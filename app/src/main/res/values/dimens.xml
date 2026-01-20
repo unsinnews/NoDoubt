@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Float window sizes - can be modified to resize the float button -->
-    <!-- Original size was ~48dp button, 28dp icon. Current is 1/3 of original -->
-    <dimen name="float_button_size">16dp</dimen>
-    <dimen name="float_icon_size">9dp</dimen>
+    <!-- Float window sizes - default is 2x of 1/3 original -->
+    <dimen name="float_button_size">32dp</dimen>
+    <dimen name="float_icon_size">18dp</dimen>
+
+    <!-- Size adjustment range -->
+    <integer name="float_size_min">24</integer>
+    <integer name="float_size_max">80</integer>
+    <integer name="float_size_default">32</integer>
 </resources>
