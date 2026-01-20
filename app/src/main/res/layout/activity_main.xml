@@ -86,36 +86,6 @@
 
         </LinearLayout>
 
-        <!-- Timer Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="vertical"
-            android:background="@drawable/card_background"
-            android:padding="20dp"
-            android:elevation="4dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Running Time"
-                android:textSize="14sp"
-                android:textColor="#757575"/>
-
-            <TextView
-                android:id="@+id/tvTimer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="00:00:00"
-                android:textSize="36sp"
-                android:textColor="#7C4DFF"
-                android:textStyle="bold"
-                android:fontFamily="monospace"/>
-
-        </LinearLayout>
-
         <!-- Actions -->
         <LinearLayout
             android:layout_width="match_parent"
