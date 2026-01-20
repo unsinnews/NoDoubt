@@ -7,7 +7,6 @@ import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,8 +22,6 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     private var floatHelper: FloatHelper? = null
-    private lateinit var floatContainer: LinearLayout
-    private lateinit var tvStatus: TextView
     private var isFloatShowing = false
 
     private val mediaProjectionLauncher = registerForActivityResult(
@@ -43,9 +40,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val view = View.inflate(this, R.layout.float_view, null)
-
-        floatContainer = view.findViewById(R.id.llContainer)
-        tvStatus = view.findViewById(R.id.tvStatus)
 
         floatHelper = FloatClient.Builder()
             .with(this)
