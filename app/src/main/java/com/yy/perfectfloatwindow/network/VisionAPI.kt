@@ -9,6 +9,12 @@ import com.yy.perfectfloatwindow.data.QuestionType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+interface OCRStreamingCallback {
+    fun onChunk(text: String)
+    fun onQuestionsReady(questions: List<Question>)
+    fun onError(error: Exception)
+}
+
 class VisionAPI(private val config: AIConfig) {
 
     private val gson = Gson()
@@ -48,6 +54,47 @@ type可选值：TEXT、MATH、MULTIPLE_CHOICE、FILL_BLANK
 
 重要：选择题必须包含所有选项的完整文字！
 只返回JSON，不要有其他文字。""".trimIndent()
+    }
+
+    fun extractQuestionsStreaming(bitmap: Bitmap, callback: OCRStreamingCallback) {
+        val base64Image = BitmapUtils.toDataUrl(bitmap)
+        val client = OpenAIClient(config)
+
+        val messages = listOf(
+            mapOf("role" to "system", "content" to OCR_SYSTEM_PROMPT),
+            mapOf(
+                "role" to "user",
+                "content" to listOf(
+                    mapOf(
+                        "type" to "image_url",
+                        "image_url" to mapOf("url" to base64Image)
+                    ),
+                    mapOf(
+                        "type" to "text",
+                        "text" to "请识别图片中的所有题目，按JSON格式返回。"
+                    )
+                )
+            )
+        )
+
+        val accumulatedText = StringBuilder()
+
+        client.streamChatCompletion(messages, object : StreamingCallback {
+            override fun onChunk(text: String) {
+                accumulatedText.append(text)
+                callback.onChunk(text)
+            }
+
+            override fun onComplete() {
+                val fullText = accumulatedText.toString()
+                val questions = parseQuestionsFromJson(fullText)
+                callback.onQuestionsReady(questions)
+            }
+
+            override fun onError(error: Exception) {
+                callback.onError(error)
+            }
+        })
     }
 
     suspend fun extractQuestions(bitmap: Bitmap): List<Question> = withContext(Dispatchers.IO) {

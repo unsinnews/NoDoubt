@@ -14,7 +14,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.view.Gravity
-import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -30,6 +29,7 @@ import com.yy.perfectfloatwindow.data.AISettings
 import com.yy.perfectfloatwindow.data.Answer
 import com.yy.perfectfloatwindow.data.Question
 import com.yy.perfectfloatwindow.network.ChatAPI
+import com.yy.perfectfloatwindow.network.OCRStreamingCallback
 import com.yy.perfectfloatwindow.network.StreamingCallback
 import com.yy.perfectfloatwindow.network.VisionAPI
 import com.yy.perfectfloatwindow.screenshot.ScreenshotService
@@ -37,7 +37,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class AnswerPopupService : Service() {
 
@@ -67,6 +66,8 @@ class AnswerPopupService : Service() {
     private var initialTouchY = 0f
     private var initialHeight = 0
     private var screenHeight = 0
+    private var isDismissing = false
+    private var initialPopupHeight = 0
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -173,18 +174,7 @@ class AnswerPopupService : Service() {
             // Create popup
             popupView = LayoutInflater.from(this).inflate(R.layout.layout_answer_popup, null)
 
-            // Handle back key
-            popupView?.isFocusableInTouchMode = true
-            popupView?.setOnKeyListener { _, keyCode, event ->
-                if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                    dismissWithAnimation()
-                    true
-                } else {
-                    false
-                }
-            }
-
-            val popupHeight = (screenHeight * 2 / 3)
+            initialPopupHeight = (screenHeight * 2 / 3)
 
             popupParams = WindowManager.LayoutParams().apply {
                 type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -194,20 +184,18 @@ class AnswerPopupService : Service() {
                     WindowManager.LayoutParams.TYPE_PHONE
                 }
                 format = PixelFormat.TRANSLUCENT
-                flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                 gravity = Gravity.BOTTOM
                 width = WindowManager.LayoutParams.MATCH_PARENT
-                height = popupHeight
-                y = popupHeight // Start off screen
+                height = initialPopupHeight
+                y = initialPopupHeight // Start off screen (below bottom)
             }
 
             windowManager.addView(overlayView, overlayParams)
             windowManager.addView(popupView, popupParams)
             isPopupShowing = true
-
-            // Request focus for back key handling
-            popupView?.requestFocus()
+            isDismissing = false
 
             setupDragHandle()
             setupTabs()
@@ -223,35 +211,45 @@ class AnswerPopupService : Service() {
         overlayView?.alpha = 0f
         overlayView?.animate()?.alpha(1f)?.setDuration(250)?.start()
 
-        // Slide up popup
-        val animator = ValueAnimator.ofInt(popupParams.height, 0)
+        // Slide up popup from bottom
+        val startY = initialPopupHeight
+        val animator = ValueAnimator.ofInt(startY, 0)
         animator.duration = 300
         animator.interpolator = DecelerateInterpolator()
         animator.addUpdateListener { animation ->
-            popupParams.y = animation.animatedValue as Int
-            try {
-                windowManager.updateViewLayout(popupView, popupParams)
-            } catch (e: Exception) {
-                // View might be detached
+            if (popupView != null && isPopupShowing) {
+                popupParams.y = animation.animatedValue as Int
+                try {
+                    windowManager.updateViewLayout(popupView, popupParams)
+                } catch (e: Exception) {
+                    // View might be detached
+                }
             }
         }
         animator.start()
     }
 
     private fun dismissWithAnimation() {
+        if (isDismissing || !isPopupShowing) return
+        isDismissing = true
+
         // Fade out overlay
         overlayView?.animate()?.alpha(0f)?.setDuration(200)?.start()
 
-        // Slide down popup
-        val animator = ValueAnimator.ofInt(0, popupParams.height)
+        // Slide down popup - use current y position as start
+        val currentY = popupParams.y
+        val targetY = popupParams.height
+        val animator = ValueAnimator.ofInt(currentY, targetY)
         animator.duration = 250
         animator.interpolator = DecelerateInterpolator()
         animator.addUpdateListener { animation ->
-            popupParams.y = animation.animatedValue as Int
-            try {
-                windowManager.updateViewLayout(popupView, popupParams)
-            } catch (e: Exception) {
-                // View might be detached
+            if (popupView != null) {
+                popupParams.y = animation.animatedValue as Int
+                try {
+                    windowManager.updateViewLayout(popupView, popupParams)
+                } catch (e: Exception) {
+                    // View might be detached
+                }
             }
         }
         animator.addListener(object : android.animation.Animator.AnimatorListener {
@@ -259,7 +257,9 @@ class AnswerPopupService : Service() {
             override fun onAnimationEnd(animation: android.animation.Animator) {
                 dismissPopup()
             }
-            override fun onAnimationCancel(animation: android.animation.Animator) {}
+            override fun onAnimationCancel(animation: android.animation.Animator) {
+                dismissPopup()
+            }
             override fun onAnimationRepeat(animation: android.animation.Animator) {}
         })
         animator.start()
@@ -351,20 +351,24 @@ class AnswerPopupService : Service() {
         isFastSolving = false
         isDeepSolving = false
 
-        showLoading("正在识别题目...")
+        showOCRStreaming()
 
-        coroutineScope.launch {
-            try {
-                val config = AISettings.getOCRConfig(this@AnswerPopupService)
-                if (!config.isValid() || config.apiKey.isBlank()) {
-                    showError("请先在设置中配置API")
-                    return@launch
+        val config = AISettings.getOCRConfig(this@AnswerPopupService)
+        if (!config.isValid() || config.apiKey.isBlank()) {
+            showError("请先在设置中配置API")
+            return
+        }
+
+        val visionAPI = VisionAPI(config)
+        visionAPI.extractQuestionsStreaming(bitmap, object : OCRStreamingCallback {
+            override fun onChunk(text: String) {
+                handler.post {
+                    appendOCRText(text)
                 }
+            }
 
-                val visionAPI = VisionAPI(config)
-                val questions = visionAPI.extractQuestions(bitmap)
-
-                withContext(Dispatchers.Main) {
+            override fun onQuestionsReady(questions: List<Question>) {
+                handler.post {
                     if (questions.isEmpty()) {
                         showError("未能识别到题目")
                     } else {
@@ -374,12 +378,41 @@ class AnswerPopupService : Service() {
                         startSolvingBothModes(questions)
                     }
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    showError("OCR失败: ${e.message}")
+            }
+
+            override fun onError(error: Exception) {
+                handler.post {
+                    showError("OCR失败: ${error.message}")
                 }
             }
+        })
+    }
+
+    private fun showOCRStreaming() {
+        handler.post {
+            val view = popupView ?: return@post
+            view.findViewById<View>(R.id.loadingView)?.visibility = View.GONE
+            val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return@post
+            container.visibility = View.VISIBLE
+            container.removeAllViews()
+
+            // Add a streaming OCR text view
+            val ocrView = LayoutInflater.from(this)
+                .inflate(R.layout.item_question_answer, container, false)
+            ocrView.tag = "ocr_streaming"
+            ocrView.findViewById<TextView>(R.id.tvQuestionTitle).text = "识别中..."
+            ocrView.findViewById<TextView>(R.id.tvQuestionText).visibility = View.GONE
+            ocrView.findViewById<TextView>(R.id.tvAnswerText).text = ""
+            container.addView(ocrView)
         }
+    }
+
+    private fun appendOCRText(text: String) {
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+        val ocrView = container.findViewWithTag<View>("ocr_streaming") ?: return
+        val tvAnswer = ocrView.findViewById<TextView>(R.id.tvAnswerText)
+        tvAnswer.append(text)
     }
 
     private fun showLoading(text: String) {
