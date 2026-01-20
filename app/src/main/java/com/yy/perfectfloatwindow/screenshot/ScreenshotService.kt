@@ -61,7 +61,7 @@ class ScreenshotService : Service() {
         private var pendingScreenshot = false
         private var screenshotCallback: ScreenshotCallback? = null
         private var needsReauthorization = false
-        private var serviceInstance: ScreenshotService? = null
+        private var appContext: Context? = null
 
         interface ScreenshotCallback {
             fun onScreenshotCaptured(bitmap: Bitmap)
@@ -70,8 +70,8 @@ class ScreenshotService : Service() {
 
         fun requestScreenshot() {
             if (needsReauthorization) {
-                // Launch ReauthorizationActivity directly
-                serviceInstance?.let {
+                // Launch ReauthorizationActivity directly using app context
+                appContext?.let {
                     ReauthorizationActivity.launch(it)
                 }
             } else {
@@ -92,7 +92,7 @@ class ScreenshotService : Service() {
         super.onCreate()
         createNotificationChannel()
         isServiceRunning = true
-        serviceInstance = this
+        appContext = applicationContext
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -165,8 +165,11 @@ class ScreenshotService : Service() {
             imageReader?.surface, null, handler
         )
 
-        // Start checking for screenshot requests
-        startScreenshotCheck()
+        // Wait for VirtualDisplay to warm up before starting screenshot check
+        // This prevents black screen on first capture
+        handler.postDelayed({
+            startScreenshotCheck()
+        }, 500)
     }
 
     private fun startScreenshotCheck() {
@@ -187,8 +190,10 @@ class ScreenshotService : Service() {
         if (!isProjectionValid || needsReauthorization) {
             needsReauthorization = true
             handler.post {
-                // Launch ReauthorizationActivity directly
-                ReauthorizationActivity.launch(this@ScreenshotService)
+                // Launch ReauthorizationActivity directly using app context
+                appContext?.let {
+                    ReauthorizationActivity.launch(it)
+                }
             }
             return
         }
@@ -291,7 +296,7 @@ class ScreenshotService : Service() {
         super.onDestroy()
         isServiceRunning = false
         isProjectionValid = false
-        serviceInstance = null
+        // Don't clear appContext as it's application context
         cleanupProjection()
     }
 }

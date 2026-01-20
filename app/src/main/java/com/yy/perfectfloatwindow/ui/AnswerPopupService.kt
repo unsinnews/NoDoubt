@@ -72,10 +72,10 @@ class AnswerPopupService : Service() {
     // For swipe gesture
     private var gestureDetector: GestureDetector? = null
 
-    // For double back confirmation
-    private var lastBackPressTime = 0L
-    private var confirmDialog: AlertDialog? = null
-    private val BACK_PRESS_INTERVAL = 2000L // 2 seconds
+    // For edge back gesture detection
+    private var edgeSwipeStartX = 0f
+    private var edgeSwipeStartY = 0f
+    private val EDGE_THRESHOLD = 50 // pixels from edge to detect back gesture
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -373,23 +373,80 @@ class AnswerPopupService : Service() {
     }
 
     private fun setupBackGesture() {
-        // Back gesture is handled through overlay click
-        // Double click on overlay will show confirmation dialog
-        overlayView?.setOnClickListener {
-            showExitConfirmDialog()
+        // Normal overlay click = dismiss directly
+        // Edge swipe (back gesture simulation) = show reminder dialog
+        overlayView?.setOnTouchListener { _, event ->
+            val screenWidth = resources.displayMetrics.widthPixels
+
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    edgeSwipeStartX = event.rawX
+                    edgeSwipeStartY = event.rawY
+                    false
+                }
+                MotionEvent.ACTION_UP -> {
+                    val deltaX = event.rawX - edgeSwipeStartX
+                    val deltaY = Math.abs(event.rawY - edgeSwipeStartY)
+
+                    // Check if started from left edge and swiped right (back gesture)
+                    if (edgeSwipeStartX < EDGE_THRESHOLD && deltaX > 100 && deltaY < 100) {
+                        // Back gesture detected - show reminder dialog
+                        showBackGestureReminder()
+                        true
+                    } else if (deltaX < 20 && deltaY < 20) {
+                        // Simple tap - dismiss directly
+                        dismissWithAnimation()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                else -> false
+            }
         }
+    }
+
+    private fun showBackGestureReminder() {
+        val dialog = AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
+            .setTitle("提示")
+            .setMessage("点击灰色区域可以关闭窗口")
+            .setPositiveButton("知道了", null)
+            .create()
+
+        // Need to set window type for showing dialog from service
+        dialog.window?.setType(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+        )
+        dialog.show()
     }
 
     private fun switchToFastMode() {
         val view = popupView ?: return
         val tabFast = view.findViewById<TextView>(R.id.tabFast)
         val tabDeep = view.findViewById<TextView>(R.id.tabDeep)
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer)
 
         isFastMode = true
         tabFast.setBackgroundResource(R.drawable.bg_tab_selected)
         tabFast.setTextColor(0xFFFFFFFF.toInt())
         tabDeep.setBackgroundResource(R.drawable.bg_tab_unselected)
         tabDeep.setTextColor(0xFF757575.toInt())
+
+        // Slide animation from left
+        container?.let {
+            it.translationX = -it.width.toFloat()
+            it.animate()
+                .translationX(0f)
+                .setDuration(200)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
+
         displayAnswersForMode(true)
         Toast.makeText(this, "切换到极速解题", Toast.LENGTH_SHORT).show()
     }
@@ -398,45 +455,26 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         val tabFast = view.findViewById<TextView>(R.id.tabFast)
         val tabDeep = view.findViewById<TextView>(R.id.tabDeep)
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer)
 
         isFastMode = false
         tabDeep.setBackgroundResource(R.drawable.bg_tab_selected)
         tabDeep.setTextColor(0xFFFFFFFF.toInt())
         tabFast.setBackgroundResource(R.drawable.bg_tab_unselected)
         tabFast.setTextColor(0xFF757575.toInt())
+
+        // Slide animation from right
+        container?.let {
+            it.translationX = it.width.toFloat()
+            it.animate()
+                .translationX(0f)
+                .setDuration(200)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
+
         displayAnswersForMode(false)
         Toast.makeText(this, "切换到深度思考", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun showExitConfirmDialog() {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastBackPressTime < BACK_PRESS_INTERVAL) {
-            // Second tap within interval - show confirmation dialog
-            confirmDialog?.dismiss()
-            confirmDialog = AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
-                .setTitle("确认退出")
-                .setMessage("确定要关闭解答窗口吗？")
-                .setPositiveButton("确定") { _, _ ->
-                    dismissWithAnimation()
-                }
-                .setNegativeButton("取消", null)
-                .create()
-
-            // Need to set window type for showing dialog from service
-            confirmDialog?.window?.setType(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    @Suppress("DEPRECATION")
-                    WindowManager.LayoutParams.TYPE_PHONE
-                }
-            )
-            confirmDialog?.show()
-        } else {
-            // First tap - show toast hint
-            lastBackPressTime = currentTime
-            Toast.makeText(this, "再点击一次退出", Toast.LENGTH_SHORT).show()
-        }
     }
 
     fun processBitmap(bitmap: Bitmap) {
@@ -691,8 +729,6 @@ class AnswerPopupService : Service() {
 
     private fun dismissPopup() {
         isPopupShowing = false
-        confirmDialog?.dismiss()
-        confirmDialog = null
         try {
             // Hide views before removing to prevent flash
             overlayView?.visibility = View.GONE
