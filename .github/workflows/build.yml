@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ master ]
+    branches: [ '**' ]
   pull_request:
     branches: [ master ]
   workflow_dispatch:
@@ -31,14 +31,18 @@ jobs:
     - name: Build Release APK
       run: ./gradlew assembleRelease
 
+    - name: Get branch name
+      id: branch
+      run: echo "name=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
+        name: app-debug-${{ steps.branch.outputs.name }}
         path: app/build/outputs/apk/debug/*.apk
 
     - name: Upload Release APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
+        name: app-release-${{ steps.branch.outputs.name }}
         path: app/build/outputs/apk/release/*.apk
