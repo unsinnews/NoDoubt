@@ -22,42 +22,65 @@
     </FrameLayout>
 
     <!-- Tabs -->
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:paddingLeft="16dp"
         android:paddingRight="16dp"
         android:paddingBottom="12dp"
-        android:background="#F5F5F5"
-        android:gravity="center">
+        android:background="#F5F5F5">
 
-        <TextView
-            android:id="@+id/tabFast"
-            android:layout_width="0dp"
+        <!-- Tab Container with indicator -->
+        <LinearLayout
+            android:id="@+id/tabContainer"
+            android:layout_width="match_parent"
             android:layout_height="44dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:gravity="center"
-            android:background="@drawable/bg_tab_selected"
-            android:text="AI 极速解题"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold"/>
+            android:orientation="horizontal"
+            android:background="@drawable/bg_tab_container"
+            android:padding="3dp">
 
-        <TextView
-            android:id="@+id/tabDeep"
-            android:layout_width="0dp"
+            <!-- Sliding Indicator (positioned behind tabs) -->
+            <View
+                android:id="@+id/tabIndicator"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_tab_indicator"/>
+
+        </LinearLayout>
+
+        <!-- Tab texts overlay -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="44dp"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:gravity="center"
-            android:background="@drawable/bg_tab_unselected"
-            android:text="深度思考"
-            android:textColor="#757575"
-            android:textSize="14sp"/>
+            android:orientation="horizontal">
 
-    </LinearLayout>
+            <TextView
+                android:id="@+id/tabFast"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:background="@android:color/transparent"
+                android:text="AI 极速解题"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tabDeep"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:background="@android:color/transparent"
+                android:text="深度思考"
+                android:textColor="#757575"
+                android:textSize="14sp"/>
+
+        </LinearLayout>
+
+    </FrameLayout>
 
     <!-- Content Area -->
     <ScrollView

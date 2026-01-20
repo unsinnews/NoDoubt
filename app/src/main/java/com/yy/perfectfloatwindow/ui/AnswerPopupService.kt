@@ -1,5 +1,7 @@
 package com.yy.perfectfloatwindow.ui
 
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.app.AlertDialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -18,7 +20,9 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -76,6 +80,11 @@ class AnswerPopupService : Service() {
     private var edgeSwipeStartX = 0f
     private var edgeSwipeStartY = 0f
     private val EDGE_THRESHOLD = 50 // pixels from edge to detect back gesture
+
+    // For tab animation
+    private var tabIndicator: View? = null
+    private var tabIndicatorWidth = 0
+    private val TAB_ANIM_DURATION = 250L
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -285,30 +294,22 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         val tabFast = view.findViewById<TextView>(R.id.tabFast)
         val tabDeep = view.findViewById<TextView>(R.id.tabDeep)
+        tabIndicator = view.findViewById(R.id.tabIndicator)
+
+        // Calculate indicator width after layout
+        tabFast.post {
+            tabIndicatorWidth = tabFast.width
+        }
 
         tabFast.setOnClickListener {
             if (!isFastMode) {
-                isFastMode = true
-                tabFast.setBackgroundResource(R.drawable.bg_tab_selected)
-                tabFast.setTextColor(0xFFFFFFFF.toInt())
-                tabDeep.setBackgroundResource(R.drawable.bg_tab_unselected)
-                tabDeep.setTextColor(0xFF757575.toInt())
-
-                // Switch to fast mode display
-                displayAnswersForMode(true)
+                switchToFastMode()
             }
         }
 
         tabDeep.setOnClickListener {
             if (isFastMode) {
-                isFastMode = false
-                tabDeep.setBackgroundResource(R.drawable.bg_tab_selected)
-                tabDeep.setTextColor(0xFFFFFFFF.toInt())
-                tabFast.setBackgroundResource(R.drawable.bg_tab_unselected)
-                tabFast.setTextColor(0xFF757575.toInt())
-
-                // Switch to deep mode display
-                displayAnswersForMode(false)
+                switchToDeepMode()
             }
         }
     }
@@ -432,23 +433,31 @@ class AnswerPopupService : Service() {
         val container = view.findViewById<LinearLayout>(R.id.answersContainer)
 
         isFastMode = true
-        tabFast.setBackgroundResource(R.drawable.bg_tab_selected)
-        tabFast.setTextColor(0xFFFFFFFF.toInt())
-        tabDeep.setBackgroundResource(R.drawable.bg_tab_unselected)
-        tabDeep.setTextColor(0xFF757575.toInt())
 
-        // Slide animation from left
+        // Animate indicator sliding to left
+        tabIndicator?.animate()
+            ?.translationX(0f)
+            ?.setDuration(TAB_ANIM_DURATION)
+            ?.setInterpolator(AccelerateDecelerateInterpolator())
+            ?.start()
+
+        // Animate text colors
+        animateTextColor(tabFast, 0xFF757575.toInt(), 0xFFFFFFFF.toInt())
+        animateTextColor(tabDeep, 0xFFFFFFFF.toInt(), 0xFF757575.toInt())
+
+        // Content slide animation from left with fade
         container?.let {
-            it.translationX = -it.width.toFloat()
+            it.alpha = 0.3f
+            it.translationX = -it.width * 0.3f
             it.animate()
                 .translationX(0f)
-                .setDuration(200)
+                .alpha(1f)
+                .setDuration(TAB_ANIM_DURATION)
                 .setInterpolator(DecelerateInterpolator())
                 .start()
         }
 
         displayAnswersForMode(true)
-        Toast.makeText(this, "切换到极速解题", Toast.LENGTH_SHORT).show()
     }
 
     private fun switchToDeepMode() {
@@ -458,23 +467,41 @@ class AnswerPopupService : Service() {
         val container = view.findViewById<LinearLayout>(R.id.answersContainer)
 
         isFastMode = false
-        tabDeep.setBackgroundResource(R.drawable.bg_tab_selected)
-        tabDeep.setTextColor(0xFFFFFFFF.toInt())
-        tabFast.setBackgroundResource(R.drawable.bg_tab_unselected)
-        tabFast.setTextColor(0xFF757575.toInt())
 
-        // Slide animation from right
+        // Animate indicator sliding to right
+        tabIndicator?.animate()
+            ?.translationX(tabIndicatorWidth.toFloat())
+            ?.setDuration(TAB_ANIM_DURATION)
+            ?.setInterpolator(AccelerateDecelerateInterpolator())
+            ?.start()
+
+        // Animate text colors
+        animateTextColor(tabFast, 0xFFFFFFFF.toInt(), 0xFF757575.toInt())
+        animateTextColor(tabDeep, 0xFF757575.toInt(), 0xFFFFFFFF.toInt())
+
+        // Content slide animation from right with fade
         container?.let {
-            it.translationX = it.width.toFloat()
+            it.alpha = 0.3f
+            it.translationX = it.width * 0.3f
             it.animate()
                 .translationX(0f)
-                .setDuration(200)
+                .alpha(1f)
+                .setDuration(TAB_ANIM_DURATION)
                 .setInterpolator(DecelerateInterpolator())
                 .start()
         }
 
         displayAnswersForMode(false)
-        Toast.makeText(this, "切换到深度思考", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun animateTextColor(textView: TextView, fromColor: Int, toColor: Int) {
+        ValueAnimator.ofObject(ArgbEvaluator(), fromColor, toColor).apply {
+            duration = TAB_ANIM_DURATION
+            addUpdateListener { animator ->
+                textView.setTextColor(animator.animatedValue as Int)
+            }
+            start()
+        }
     }
 
     fun processBitmap(bitmap: Bitmap) {
