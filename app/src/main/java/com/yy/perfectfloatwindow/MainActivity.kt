@@ -106,6 +106,13 @@ class MainActivity : AppCompatActivity() {
                 // Show the answer popup with the captured screenshot
                 AnswerPopupService.show(this@MainActivity, bitmap)
             }
+
+            override fun onScreenshotFailed(error: String) {
+                // Screenshot failed, notify user to re-enable
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, error, Toast.LENGTH_LONG).show()
+                }
+            }
         })
 
         val serviceIntent = Intent(this, ScreenshotService::class.java).apply {

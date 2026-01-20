@@ -1,7 +1,5 @@
 package com.yy.perfectfloatwindow.ui
 
-import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -189,8 +187,11 @@ class AnswerPopupService : Service() {
                 gravity = Gravity.BOTTOM
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = initialPopupHeight
-                y = initialPopupHeight // Start off screen (below bottom)
+                y = 0 // Final position at bottom
             }
+
+            // Start with popup translated off screen
+            popupView?.translationY = initialPopupHeight.toFloat()
 
             windowManager.addView(overlayView, overlayParams)
             windowManager.addView(popupView, popupParams)
@@ -211,22 +212,12 @@ class AnswerPopupService : Service() {
         overlayView?.alpha = 0f
         overlayView?.animate()?.alpha(1f)?.setDuration(250)?.start()
 
-        // Slide up popup from bottom
-        val startY = initialPopupHeight
-        val animator = ValueAnimator.ofInt(startY, 0)
-        animator.duration = 300
-        animator.interpolator = DecelerateInterpolator()
-        animator.addUpdateListener { animation ->
-            if (popupView != null && isPopupShowing) {
-                popupParams.y = animation.animatedValue as Int
-                try {
-                    windowManager.updateViewLayout(popupView, popupParams)
-                } catch (e: Exception) {
-                    // View might be detached
-                }
-            }
-        }
-        animator.start()
+        // Slide up popup using view translation (smoother than WindowManager params)
+        popupView?.animate()
+            ?.translationY(0f)
+            ?.setDuration(300)
+            ?.setInterpolator(DecelerateInterpolator())
+            ?.start()
     }
 
     private fun dismissWithAnimation() {
@@ -236,33 +227,16 @@ class AnswerPopupService : Service() {
         // Fade out overlay
         overlayView?.animate()?.alpha(0f)?.setDuration(200)?.start()
 
-        // Slide down popup - use current y position as start
-        val currentY = popupParams.y
-        val targetY = popupParams.height
-        val animator = ValueAnimator.ofInt(currentY, targetY)
-        animator.duration = 250
-        animator.interpolator = DecelerateInterpolator()
-        animator.addUpdateListener { animation ->
-            if (popupView != null) {
-                popupParams.y = animation.animatedValue as Int
-                try {
-                    windowManager.updateViewLayout(popupView, popupParams)
-                } catch (e: Exception) {
-                    // View might be detached
-                }
-            }
-        }
-        animator.addListener(object : android.animation.Animator.AnimatorListener {
-            override fun onAnimationStart(animation: android.animation.Animator) {}
-            override fun onAnimationEnd(animation: android.animation.Animator) {
+        // Slide down popup using view translation
+        val targetTranslation = popupParams.height.toFloat()
+        popupView?.animate()
+            ?.translationY(targetTranslation)
+            ?.setDuration(250)
+            ?.setInterpolator(DecelerateInterpolator())
+            ?.withEndAction {
                 dismissPopup()
             }
-            override fun onAnimationCancel(animation: android.animation.Animator) {
-                dismissPopup()
-            }
-            override fun onAnimationRepeat(animation: android.animation.Animator) {}
-        })
-        animator.start()
+            ?.start()
     }
 
     private fun setupDragHandle() {
