@@ -114,10 +114,10 @@ class SettingsActivity : AppCompatActivity() {
             val textPrimary = 0xFF202123.toInt()
             val textSecondary = 0xFF6E6E80.toInt()
 
-            window.statusBarColor = backgroundColor
+            window.statusBarColor = surfaceColor
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             rootLayout.setBackgroundColor(surfaceColor)
-            headerLayout.setBackgroundColor(backgroundColor)
+            headerLayout.setBackgroundColor(surfaceColor)
             tvHeaderTitle.setTextColor(textPrimary)
             btnBack.setColorFilter(textPrimary)
 
@@ -177,10 +177,10 @@ class SettingsActivity : AppCompatActivity() {
             val textPrimary = 0xFF141413.toInt()
             val textSecondary = 0xFF666666.toInt()
 
-            window.statusBarColor = 0xFFFFFFFF.toInt()
+            window.statusBarColor = backgroundColor
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             rootLayout.setBackgroundColor(backgroundColor)
-            headerLayout.setBackgroundColor(0xFFFFFFFF.toInt())
+            headerLayout.setBackgroundColor(backgroundColor)
             tvHeaderTitle.setTextColor(textPrimary)
             btnBack.setColorFilter(textPrimary)
 
