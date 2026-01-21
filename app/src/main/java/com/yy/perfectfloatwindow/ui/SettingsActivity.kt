@@ -182,7 +182,7 @@ class SettingsActivity : AppCompatActivity() {
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             rootLayout.setBackgroundColor(backgroundColor)
             headerLayout.setBackgroundColor(backgroundColor)
-            tvHeaderTitle.setTextColor(accentColor)  // Use accent color for header
+            tvHeaderTitle.setTextColor(textPrimary)
             btnBack.setColorFilter(textPrimary)
 
             // Cards
