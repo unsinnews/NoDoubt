@@ -102,11 +102,11 @@ class HomeFragment : Fragment() {
             tvAppDesc.setTextColor(0xFF666666.toInt())
             cardFloatToggle.setBackgroundResource(R.drawable.bg_card_netflix)
             ivFloatIcon.setBackgroundResource(R.drawable.bg_icon_circle_netflix)
-            ivFloatIcon.setColorFilter(0xFF141413.toInt())
+            ivFloatIcon.setColorFilter(0xFFD97757.toInt())  // Warm orange accent
             tvFloatTitle.setTextColor(0xFF141413.toInt())
             tvFloatStatus.setTextColor(0xFF666666.toInt())
             tipLayout.setBackgroundResource(R.drawable.bg_tip_netflix)
-            tvTipTitle.setTextColor(0xFF141413.toInt())
+            tvTipTitle.setTextColor(0xFFD97757.toInt())  // Warm orange accent
             tvTipContent.setTextColor(0xFF666666.toInt())
         }
     }
