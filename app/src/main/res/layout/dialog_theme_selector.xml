@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/tvDialogTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="选择主题"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#202123"
+        android:layout_marginBottom="20dp"/>
+
+    <!-- Theme Option 1: 浅绿灰 -->
+    <LinearLayout
+        android:id="@+id/optionLightGreenGray"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_dialog_item_unselected">
+
+        <View
+            android:id="@+id/colorPreviewLightGreenGray"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/float_bg_light_green_gray"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp">
+
+            <TextView
+                android:id="@+id/tvOption1Title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="浅绿灰"
+                android:textSize="16sp"
+                android:textColor="#202123"/>
+
+            <TextView
+                android:id="@+id/tvOption1Desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="默认主题"
+                android:textSize="13sp"
+                android:textColor="#6E6E80"
+                android:layout_marginTop="2dp"/>
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/ivCheck1"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_check"
+            android:visibility="gone"/>
+
+    </LinearLayout>
+
+    <!-- Theme Option 2: 浅棕黑 -->
+    <LinearLayout
+        android:id="@+id/optionLightBrownBlack"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:background="@drawable/bg_dialog_item_unselected">
+
+        <View
+            android:id="@+id/colorPreviewLightBrownBlack"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/float_bg_light_brown_black"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp">
+
+            <TextView
+                android:id="@+id/tvOption2Title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="浅棕黑"
+                android:textSize="16sp"
+                android:textColor="#202123"/>
+
+            <TextView
+                android:id="@+id/tvOption2Desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="温暖柔和"
+                android:textSize="13sp"
+                android:textColor="#6E6E80"
+                android:layout_marginTop="2dp"/>
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/ivCheck2"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_check"
+            android:visibility="gone"/>
+
+    </LinearLayout>
+
+    <!-- Cancel Button -->
+    <TextView
+        android:id="@+id/btnCancel"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:text="取消"
+        android:textSize="15sp"
+        android:textColor="#6E6E80"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/bg_dialog_item_unselected"/>
+
+</LinearLayout>

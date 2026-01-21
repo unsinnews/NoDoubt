@@ -61,7 +61,7 @@
                     android:layout_weight="1"
                     android:gravity="center"
                     android:background="@android:color/transparent"
-                    android:text="AI 极速解题"
+                    android:text="极速解题"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
                     android:textStyle="bold"/>

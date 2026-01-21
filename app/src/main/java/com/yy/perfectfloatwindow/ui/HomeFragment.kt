@@ -71,6 +71,7 @@ class HomeFragment : Fragment() {
 
         val rootLayout = view.findViewById<LinearLayout>(R.id.rootLayout)
         val iconContainer = view.findViewById<FrameLayout>(R.id.iconContainer)
+        val ivAppIcon = view.findViewById<ImageView>(R.id.ivAppIcon)
         val tvAppName = view.findViewById<TextView>(R.id.tvAppName)
         val tvAppDesc = view.findViewById<TextView>(R.id.tvAppDesc)
         val cardFloatToggle = view.findViewById<LinearLayout>(R.id.cardFloatToggle)
@@ -84,6 +85,7 @@ class HomeFragment : Fragment() {
             // 浅绿灰主题
             rootLayout.setBackgroundColor(0xFFFFFFFF.toInt())
             iconContainer.setBackgroundResource(R.drawable.float_bg_light_green_gray)
+            ivAppIcon.setColorFilter(0xFFFFFFFF.toInt())  // White shield icon
             tvAppName.setTextColor(0xFF202123.toInt())
             tvAppDesc.setTextColor(0xFF6E6E80.toInt())
             cardFloatToggle.setBackgroundResource(R.drawable.bg_card_light_green_gray)
@@ -98,6 +100,7 @@ class HomeFragment : Fragment() {
             // 浅棕黑主题
             rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             iconContainer.setBackgroundResource(R.drawable.float_bg_light_brown_black)
+            ivAppIcon.setColorFilter(0xFFFFFFFF.toInt())  // White shield icon
             tvAppName.setTextColor(0xFF141413.toInt())
             tvAppDesc.setTextColor(0xFF666666.toInt())
             cardFloatToggle.setBackgroundResource(R.drawable.bg_card_light_brown_black)
