@@ -571,8 +571,8 @@ class AnswerPopupService : Service() {
                 .inflate(R.layout.item_question_answer, container, false)
             ocrView.tag = "ocr_streaming"
             ocrView.findViewById<TextView>(R.id.tvQuestionTitle).text = "识别中..."
-            ocrView.findViewById<TextView>(R.id.tvQuestionText).visibility = View.GONE
-            ocrView.findViewById<TextView>(R.id.tvAnswerText).text = ""
+            ocrView.findViewById<TextView>(R.id.tvQuestionText).text = ""
+            ocrView.findViewById<TextView>(R.id.tvAnswerText).visibility = View.GONE
             container.addView(ocrView)
         }
     }
@@ -581,8 +581,8 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
         val ocrView = container.findViewWithTag<View>("ocr_streaming") ?: return
-        val tvAnswer = ocrView.findViewById<TextView>(R.id.tvAnswerText)
-        tvAnswer.append(text)
+        val tvQuestion = ocrView.findViewById<TextView>(R.id.tvQuestionText)
+        tvQuestion.append(text)
     }
 
     private fun showLoading(text: String) {
