@@ -25,14 +25,18 @@ class VisionAPI(private val config: AIConfig) {
    - 所有选项（A、B、C、D等，包含完整内容）
    - 填空题的空格位置用____表示
 
-2. 格式示例：
-   （多选题）1. 下列说法正确的是？
-   A. 选项一
-   B. 选项二
+2. 小题归属：判断小题是否隶属于某道大题，如果是则必须将大题和所有小题作为一道完整题目输出
 
-3. 数学公式用LaTeX格式表示
+3. 表格处理：如果题目包含表格，使用Markdown表格格式放在代码框中，例如：
+```表格名称
+| 列1 | 列2 |
+|-----|-----|
+| 值1 | 值2 |
+```
 
-4. 多道题目之间用三个空行分隔
+4. 数学公式用LaTeX格式表示
+
+5. 不同题目之间用两个空行分隔
 
 只输出题目内容，不输出任何无关内容。""".trimIndent()
     }
@@ -105,7 +109,7 @@ class VisionAPI(private val config: AIConfig) {
     }
 
     /**
-     * 按三个连续换行符分割文本，解析为题目列表
+     * 按两个连续换行符分割文本，解析为题目列表
      */
     private fun parseQuestionsFromText(text: String): List<Question> {
         val trimmedText = text.trim()
@@ -113,8 +117,8 @@ class VisionAPI(private val config: AIConfig) {
             return emptyList()
         }
 
-        // 按三个或更多连续换行符分割题目
-        val questionTexts = trimmedText.split(Regex("\\n{3,}"))
+        // 按两个或更多连续换行符分割题目
+        val questionTexts = trimmedText.split(Regex("\\n{2,}"))
             .map { it.trim() }
             .filter { it.isNotBlank() }
 
