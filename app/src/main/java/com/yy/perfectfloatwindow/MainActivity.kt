@@ -166,15 +166,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun updateFloatViewTheme() {
-        val isChatGPT = ThemeManager.isChatGPTTheme(this)
+        // Keep gray background regardless of theme
         val container = floatView.findViewById<FrameLayout>(R.id.llContainer)
-
-        if (isChatGPT) {
-            container?.setBackgroundResource(R.drawable.float_bg_chatgpt)
-        } else {
-            container?.setBackgroundResource(R.drawable.float_bg_netflix)
-        }
-
+        container?.setBackgroundResource(R.drawable.float_bg_gray)
         updateFloatSize()
     }
 

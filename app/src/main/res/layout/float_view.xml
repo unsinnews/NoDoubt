@@ -7,7 +7,7 @@
         android:id="@+id/llContainer"
         android:layout_width="@dimen/float_button_size"
         android:layout_height="@dimen/float_button_size"
-        android:background="@drawable/float_bg_chatgpt"
+        android:background="@drawable/float_bg_gray"
         android:elevation="4dp">
 
         <ImageView
