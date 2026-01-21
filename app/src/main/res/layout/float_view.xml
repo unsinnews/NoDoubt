@@ -5,17 +5,18 @@
 
     <FrameLayout
         android:id="@+id/llContainer"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
+        android:layout_width="@dimen/float_button_size"
+        android:layout_height="@dimen/float_button_size"
         android:background="@drawable/float_bg_chatgpt"
-        android:elevation="6dp">
+        android:elevation="4dp">
 
         <ImageView
             android:id="@+id/ivIcon"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
+            android:layout_width="@dimen/float_icon_size"
+            android:layout_height="@dimen/float_icon_size"
             android:layout_gravity="center"
-            android:src="@drawable/ic_float_ai"/>
+            android:src="@android:drawable/ic_menu_search"
+            android:tint="#FFFFFF"/>
 
     </FrameLayout>
 
