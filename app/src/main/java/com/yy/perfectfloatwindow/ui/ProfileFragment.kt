@@ -305,10 +305,11 @@ class ProfileFragment : Fragment() {
     private fun updateApiStatus(view: View) {
         val tvApiStatus = view.findViewById<TextView>(R.id.tvApiStatus)
         val apiKey = AISettings.getApiKey(requireContext())
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(requireContext())
 
         if (apiKey.isNotBlank()) {
             tvApiStatus.text = "已配置"
-            tvApiStatus.setTextColor(0xFF4CAF50.toInt())
+            tvApiStatus.setTextColor(if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt())
         } else {
             tvApiStatus.text = "未配置"
             tvApiStatus.setTextColor(0xFFFF5252.toInt())
