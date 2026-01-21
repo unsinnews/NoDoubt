@@ -148,7 +148,7 @@ class ProfileFragment : Fragment() {
             rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             headerLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             avatarContainer.setBackgroundResource(R.drawable.float_bg_light_brown_black)
-            ivAvatar.setColorFilter(0xFFDA7A5A.toInt())  // Warm orange shield icon
+            ivAvatar.setColorFilter(0xFFFAF9F5.toInt())  // Light beige shield icon
             tvTitle.setTextColor(0xFF141413.toInt())
 
             val accentColor = 0xFFDA7A5A.toInt()  // Warm orange accent
@@ -345,7 +345,7 @@ class ProfileFragment : Fragment() {
             btnOk.setBackgroundResource(R.drawable.bg_button_filled)
         } else {
             iconContainer.setBackgroundResource(R.drawable.float_bg_light_brown_black)
-            ivIcon.setColorFilter(0xFFDA7A5A.toInt())  // Warm orange shield icon
+            ivIcon.setColorFilter(0xFFFAF9F5.toInt())  // Light beige shield icon
             btnOk.setBackgroundResource(R.drawable.bg_button_filled_light_brown_black)
         }
         tvDialogTitle.setTextColor(textPrimary)

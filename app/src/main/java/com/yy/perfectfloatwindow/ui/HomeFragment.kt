@@ -100,7 +100,7 @@ class HomeFragment : Fragment() {
             // 浅棕黑主题
             rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             iconContainer.setBackgroundResource(R.drawable.float_bg_light_brown_black)
-            ivAppIcon.setColorFilter(0xFFDA7A5A.toInt())  // Warm orange shield icon
+            ivAppIcon.setColorFilter(0xFFFAF9F5.toInt())  // Light beige shield icon
             tvAppName.setTextColor(0xFF141413.toInt())
             tvAppDesc.setTextColor(0xFF666666.toInt())
             cardFloatToggle.setBackgroundResource(R.drawable.bg_card_light_brown_black)
