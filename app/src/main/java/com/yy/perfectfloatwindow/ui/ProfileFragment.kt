@@ -205,7 +205,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun showThemeDialog() {
-        val themes = arrayOf("ChatGPT (默认)", "Netflix")
+        val themes = arrayOf("浅绿灰 (默认)", "浅棕黑")
         val currentTheme = ThemeManager.getCurrentTheme(requireContext())
         val selectedIndex = if (currentTheme == ThemeManager.THEME_CHATGPT) 0 else 1
 
@@ -230,7 +230,7 @@ class ProfileFragment : Fragment() {
     private fun updateThemeDisplay(view: View) {
         val tvThemeValue = view.findViewById<TextView>(R.id.tvThemeValue)
         val currentTheme = ThemeManager.getCurrentTheme(requireContext())
-        tvThemeValue.text = if (currentTheme == ThemeManager.THEME_CHATGPT) "ChatGPT" else "Netflix"
+        tvThemeValue.text = if (currentTheme == ThemeManager.THEME_CHATGPT) "浅绿灰" else "浅棕黑"
     }
 
     private fun updateApiStatus(view: View) {
