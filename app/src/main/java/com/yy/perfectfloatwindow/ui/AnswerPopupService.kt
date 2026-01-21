@@ -494,24 +494,24 @@ class AnswerPopupService : Service() {
             view.findViewById<TextView>(R.id.btnRetake)?.setBackgroundResource(R.drawable.bg_button_retake_chatgpt)
 
         } else {
-            // Netflix Theme - Dark with red accent
-            val primaryColor = 0xFFE50914.toInt()
-            val backgroundColor = 0xFF141414.toInt()
-            val surfaceColor = 0xFF1F1F1F.toInt()
-            val textPrimary = 0xFFFFFFFF.toInt()
-            val textSecondary = 0xFF808080.toInt()
+            // Claude Theme (浅棕黑)
+            val primaryColor = 0xFF141413.toInt()
+            val backgroundColor = 0xFFFAF9F5.toInt()
+            val surfaceColor = 0xFFE8E5DF.toInt()
+            val textPrimary = 0xFF141413.toInt()
+            val textSecondary = 0xFF666666.toInt()
 
             // Main background
             rootLayout?.setBackgroundResource(R.drawable.bg_answer_popup_netflix)
 
             // Background colors
-            tabAreaBg?.setBackgroundColor(surfaceColor)
-            bottomBar?.setBackgroundColor(surfaceColor)
+            tabAreaBg?.setBackgroundColor(backgroundColor)
+            bottomBar?.setBackgroundColor(backgroundColor)
 
-            // Tab indicator - use red for Netflix theme
+            // Tab indicator - dark for Claude theme
             tabIndicator?.setBackgroundResource(R.drawable.bg_tab_indicator_netflix)
 
-            // Tab container - darker background
+            // Tab container - light background
             tabContainer?.setBackgroundResource(R.drawable.bg_tab_container_netflix)
 
             // Update tab text colors based on current mode

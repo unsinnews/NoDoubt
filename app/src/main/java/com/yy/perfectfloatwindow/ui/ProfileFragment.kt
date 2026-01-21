@@ -130,21 +130,21 @@ class ProfileFragment : Fragment() {
             ivAboutIcon.setColorFilter(textPrimary)
 
         } else {
-            // Netflix Theme - Dark
-            scrollView.setBackgroundColor(0xFF141414.toInt())
-            rootLayout.setBackgroundColor(0xFF141414.toInt())
-            headerLayout.setBackgroundColor(0xFF141414.toInt())
+            // Claude Theme (浅棕黑)
+            scrollView.setBackgroundColor(0xFFFAF9F5.toInt())
+            rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
+            headerLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             avatarContainer.setBackgroundResource(R.drawable.float_bg_netflix)
-            tvTitle.setTextColor(0xFFFFFFFF.toInt())
+            tvTitle.setTextColor(0xFF141413.toInt())
 
-            val primaryColor = 0xFFE50914.toInt()
-            val textPrimary = 0xFFFFFFFF.toInt()
-            val textSecondary = 0xFF808080.toInt()
-            val sectionBg = 0xFF1F1F1F.toInt()
+            val primaryColor = 0xFF141413.toInt()
+            val textPrimary = 0xFF141413.toInt()
+            val textSecondary = 0xFF666666.toInt()
+            val sectionBg = 0xFFFFFFFF.toInt()
 
-            tvSectionAppearance.setTextColor(primaryColor)
-            tvSectionSettings.setTextColor(primaryColor)
-            tvSectionAbout.setTextColor(primaryColor)
+            tvSectionAppearance.setTextColor(0xFFD97757.toInt())  // Warm accent
+            tvSectionSettings.setTextColor(0xFFD97757.toInt())
+            tvSectionAbout.setTextColor(0xFFD97757.toInt())
 
             sectionAppearance.setBackgroundColor(sectionBg)
             sectionSettings.setBackgroundColor(sectionBg)
@@ -153,12 +153,12 @@ class ProfileFragment : Fragment() {
             tvThemeTitle.setTextColor(textPrimary)
             tvThemeValue.setTextColor(textSecondary)
             tvSizeTitle.setTextColor(textPrimary)
-            tvSizeValue.setTextColor(primaryColor)
+            tvSizeValue.setTextColor(0xFFD97757.toInt())
             tvApiTitle.setTextColor(textPrimary)
             tvApiStatus.setTextColor(textSecondary)
             tvAboutTitle.setTextColor(textPrimary)
             tvVersion.setTextColor(textSecondary)
-            tvFooter.setTextColor(0xFF4A4A4A.toInt())
+            tvFooter.setTextColor(0xFFACACAC.toInt())
 
             ivThemeIcon.setColorFilter(textPrimary)
             ivSizeIcon.setColorFilter(textPrimary)

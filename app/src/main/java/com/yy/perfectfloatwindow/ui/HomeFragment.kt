@@ -95,19 +95,19 @@ class HomeFragment : Fragment() {
             tvTipTitle.setTextColor(0xFF10A37F.toInt())
             tvTipContent.setTextColor(0xFF6E6E80.toInt())
         } else {
-            // Netflix Theme
-            rootLayout.setBackgroundColor(0xFF141414.toInt())
+            // Claude Theme (浅棕黑)
+            rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             iconContainer.setBackgroundResource(R.drawable.float_bg_netflix)
-            tvAppName.setTextColor(0xFFFFFFFF.toInt())
-            tvAppDesc.setTextColor(0xFF808080.toInt())
+            tvAppName.setTextColor(0xFF141413.toInt())
+            tvAppDesc.setTextColor(0xFF666666.toInt())
             cardFloatToggle.setBackgroundResource(R.drawable.bg_card_netflix)
             ivFloatIcon.setBackgroundResource(R.drawable.bg_icon_circle_netflix)
-            ivFloatIcon.setColorFilter(0xFFE50914.toInt())
-            tvFloatTitle.setTextColor(0xFFFFFFFF.toInt())
-            tvFloatStatus.setTextColor(0xFF808080.toInt())
+            ivFloatIcon.setColorFilter(0xFF141413.toInt())
+            tvFloatTitle.setTextColor(0xFF141413.toInt())
+            tvFloatStatus.setTextColor(0xFF666666.toInt())
             tipLayout.setBackgroundResource(R.drawable.bg_tip_netflix)
-            tvTipTitle.setTextColor(0xFFE50914.toInt())
-            tvTipContent.setTextColor(0xFF808080.toInt())
+            tvTipTitle.setTextColor(0xFF141413.toInt())
+            tvTipContent.setTextColor(0xFF666666.toInt())
         }
     }
 

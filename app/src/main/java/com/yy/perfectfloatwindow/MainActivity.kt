@@ -206,11 +206,11 @@ class MainActivity : AppCompatActivity() {
             bottomNavigation.setBackgroundColor(0xFFFFFFFF.toInt())
             fragmentContainer.setBackgroundColor(0xFFFFFFFF.toInt())
         } else {
-            // Netflix Theme
-            window.statusBarColor = 0xFF141414.toInt()
-            window.decorView.systemUiVisibility = 0
-            bottomNavigation.setBackgroundColor(0xFF1F1F1F.toInt())
-            fragmentContainer.setBackgroundColor(0xFF141414.toInt())
+            // Claude Theme (浅棕黑)
+            window.statusBarColor = 0xFFFAF9F5.toInt()
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            bottomNavigation.setBackgroundColor(0xFFFAF9F5.toInt())
+            fragmentContainer.setBackgroundColor(0xFFFAF9F5.toInt())
         }
     }
 

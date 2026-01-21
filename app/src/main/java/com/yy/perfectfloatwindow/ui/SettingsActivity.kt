@@ -169,15 +169,15 @@ class SettingsActivity : AppCompatActivity() {
             tvTestResult.setBackgroundResource(R.drawable.bg_card_settings)
 
         } else {
-            // Netflix Theme - Dark
-            val primaryColor = 0xFFE50914.toInt()
-            val backgroundColor = 0xFF141414.toInt()
-            val surfaceColor = 0xFF1F1F1F.toInt()
-            val textPrimary = 0xFFFFFFFF.toInt()
-            val textSecondary = 0xFF808080.toInt()
+            // Claude Theme (浅棕黑)
+            val primaryColor = 0xFF141413.toInt()
+            val backgroundColor = 0xFFFAF9F5.toInt()
+            val surfaceColor = 0xFFFAF9F5.toInt()
+            val textPrimary = 0xFF141413.toInt()
+            val textSecondary = 0xFF666666.toInt()
 
             window.statusBarColor = backgroundColor
-            window.decorView.systemUiVisibility = 0
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             rootLayout.setBackgroundColor(backgroundColor)
             headerLayout.setBackgroundResource(R.drawable.bg_header_frosted_netflix)
             tvHeaderTitle.setTextColor(textPrimary)

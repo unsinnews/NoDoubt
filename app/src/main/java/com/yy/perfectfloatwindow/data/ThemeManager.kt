@@ -45,14 +45,15 @@ object ThemeManager {
         const val NAV_BG = 0xFFFFFFFF.toInt()
     }
 
-    // Netflix Theme Colors
+    // Claude Theme Colors (浅棕黑主题)
     object Netflix {
-        const val BACKGROUND = 0xFF141414.toInt()
-        const val SURFACE = 0xFF1F1F1F.toInt()
-        const val PRIMARY = 0xFFE50914.toInt()  // Netflix red
-        const val TEXT_PRIMARY = 0xFFFFFFFF.toInt()
-        const val TEXT_SECONDARY = 0xFF808080.toInt()
-        const val FLOAT_BG = 0xFFE50914.toInt()
-        const val NAV_BG = 0xFF1F1F1F.toInt()
+        const val BACKGROUND = 0xFFFAF9F5.toInt()  // Cream background
+        const val SURFACE = 0xFFFAF9F5.toInt()     // Cream surface
+        const val PRIMARY = 0xFF141413.toInt()     // Dark brownish-black
+        const val TEXT_PRIMARY = 0xFF141413.toInt()
+        const val TEXT_SECONDARY = 0xFF666666.toInt()
+        const val FLOAT_BG = 0xFF141413.toInt()
+        const val NAV_BG = 0xFFFAF9F5.toInt()
+        const val ACCENT = 0xFFD97757.toInt()      // Warm orange accent (小点缀)
     }
 }

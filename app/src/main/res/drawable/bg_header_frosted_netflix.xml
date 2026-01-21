@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <!-- Semi-transparent dark for Netflix frosted glass effect -->
-    <solid android:color="#E61F1F1F"/>
+    <!-- Semi-transparent cream for frosted glass effect -->
+    <solid android:color="#E6FAF9F5"/>
 </shape>
