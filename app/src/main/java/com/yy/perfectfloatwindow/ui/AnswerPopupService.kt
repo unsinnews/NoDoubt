@@ -572,7 +572,7 @@ class AnswerPopupService : Service() {
             ocrView.tag = "ocr_streaming"
             ocrView.findViewById<TextView>(R.id.tvQuestionTitle).text = "识别中..."
             ocrView.findViewById<TextView>(R.id.tvQuestionText).text = ""
-            ocrView.findViewById<TextView>(R.id.tvAnswerText).visibility = View.GONE
+            ocrView.findViewById<TextView>(R.id.tvAnswerText).text = ""
             container.addView(ocrView)
         }
     }
