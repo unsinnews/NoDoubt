@@ -168,7 +168,7 @@ class ProfileFragment : Fragment() {
             tvThemeValue.setTextColor(textSecondary)
             tvSizeTitle.setTextColor(textPrimary)
             tvSizeValue.setTextColor(accentColor)
-            tvApiTitle.setTextColor(accentColor)  // Use accent color for API 配置
+            tvApiTitle.setTextColor(textPrimary)
             tvApiStatus.setTextColor(textSecondary)
             tvAboutTitle.setTextColor(textPrimary)
             tvVersion.setTextColor(textSecondary)
