@@ -9,6 +9,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.SwitchCompat
+import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import com.yy.floatserver.utils.SettingsCompat
 import com.yy.perfectfloatwindow.MainActivity
@@ -74,7 +75,7 @@ class HomeFragment : Fragment() {
         val ivAppIcon = view.findViewById<ImageView>(R.id.ivAppIcon)
         val tvAppName = view.findViewById<TextView>(R.id.tvAppName)
         val tvAppDesc = view.findViewById<TextView>(R.id.tvAppDesc)
-        val cardFloatToggle = view.findViewById<LinearLayout>(R.id.cardFloatToggle)
+        val cardFloatToggle = view.findViewById<CardView>(R.id.cardFloatToggle)
         val ivFloatIcon = view.findViewById<ImageView>(R.id.ivFloatIcon)
         val tvFloatTitle = view.findViewById<TextView>(R.id.tvFloatTitle)
         val tipLayout = view.findViewById<LinearLayout>(R.id.tipLayout)
@@ -88,7 +89,7 @@ class HomeFragment : Fragment() {
             ivAppIcon.setColorFilter(0xFFFFFFFF.toInt())  // White icon
             tvAppName.setTextColor(0xFF202123.toInt())
             tvAppDesc.setTextColor(0xFF6E6E80.toInt())
-            cardFloatToggle.setBackgroundResource(R.drawable.bg_card_light_green_gray)
+            cardFloatToggle.setCardBackgroundColor(0xFFF7F7F8.toInt())
             ivFloatIcon.setBackgroundResource(R.drawable.bg_icon_circle)
             ivFloatIcon.setColorFilter(0xFF10A37F.toInt())
             tvFloatTitle.setTextColor(0xFF202123.toInt())
@@ -103,7 +104,7 @@ class HomeFragment : Fragment() {
             ivAppIcon.setColorFilter(0xFFFAF9F5.toInt())  // Light beige icon
             tvAppName.setTextColor(0xFF141413.toInt())
             tvAppDesc.setTextColor(0xFF666666.toInt())
-            cardFloatToggle.setBackgroundResource(R.drawable.bg_card_light_brown_black)
+            cardFloatToggle.setCardBackgroundColor(0xFFF5F4F0.toInt())
             ivFloatIcon.setBackgroundResource(R.drawable.bg_icon_circle_light_brown_black)
             ivFloatIcon.setColorFilter(0xFFDA7A5A.toInt())  // Warm orange accent
             tvFloatTitle.setTextColor(0xFF141413.toInt())

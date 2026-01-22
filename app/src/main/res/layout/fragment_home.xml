@@ -6,13 +6,13 @@
     android:orientation="vertical"
     android:background="#FFFFFF">
 
-    <!-- Spacer top -->
+    <!-- Spacer top - smaller -->
     <View
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_weight="0.6"/>
 
-    <!-- Header Area -->
+    <!-- Header Area - more compact -->
     <LinearLayout
         android:id="@+id/headerLayout"
         android:layout_width="match_parent"
@@ -22,17 +22,17 @@
         android:paddingEnd="24dp"
         android:gravity="center_horizontal">
 
-        <!-- App Icon -->
+        <!-- App Icon - smaller -->
         <FrameLayout
             android:id="@+id/iconContainer"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
             android:background="@drawable/float_bg_light_green_gray">
 
             <ImageView
                 android:id="@+id/ivAppIcon"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_float_ai"/>
 
@@ -42,9 +42,9 @@
             android:id="@+id/tvAppName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:text="AI 解题助手"
-            android:textSize="26sp"
+            android:textSize="24sp"
             android:textColor="#202123"
             android:textStyle="bold"/>
 
@@ -52,17 +52,18 @@
             android:id="@+id/tvAppDesc"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="4dp"
             android:text="截图识别，智能解答"
-            android:textSize="15sp"
+            android:textSize="14sp"
             android:textColor="#6E6E80"/>
 
     </LinearLayout>
 
-    <!-- Spacer between header and content -->
+    <!-- Spacer between header and content - larger -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="32dp"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
 
     <!-- Main Content -->
     <LinearLayout
@@ -72,20 +73,23 @@
         android:paddingStart="20dp"
         android:paddingEnd="20dp">
 
-        <!-- Float Window Toggle Card -->
-        <LinearLayout
+        <!-- Float Window Toggle Card - with elevation for emphasis -->
+        <androidx.cardview.widget.CardView
             android:id="@+id/cardFloatToggle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_card_light_green_gray"
-            android:padding="24dp">
+            android:elevation="8dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="#F7F7F8"
+            xmlns:app="http://schemas.android.com/apk/res-auto">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:padding="24dp">
 
                 <ImageView
                     android:id="@+id/ivFloatIcon"
@@ -130,14 +134,14 @@
 
             </LinearLayout>
 
-        </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
-        <!-- Usage Tip -->
+        <!-- Usage Tip - lighter weight -->
         <LinearLayout
             android:id="@+id/tipLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="20dp"
             android:orientation="vertical"
             android:background="@drawable/bg_tip_light_green_gray"
             android:padding="16dp">
@@ -147,7 +151,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="使用提示"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textColor="#10A37F"
                 android:textStyle="bold"/>
 
@@ -155,20 +159,20 @@
                 android:id="@+id/tvTipContent"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:text="1. 开启悬浮球后，切换到题目页面\n2. 点击悬浮球截取屏幕\n3. AI 将自动识别并解答题目"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:textColor="#6E6E80"
-                android:lineSpacingMultiplier="1.4"/>
+                android:lineSpacingMultiplier="1.3"/>
 
         </LinearLayout>
 
     </LinearLayout>
 
-    <!-- Spacer bottom - larger to account for bottom nav -->
+    <!-- Spacer bottom -->
     <View
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1.5"/>
+        android:layout_weight="1.2"/>
 
 </LinearLayout>
