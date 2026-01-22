@@ -134,12 +134,19 @@ class VisionAPI(private val config: AIConfig) {
                     // 从questionStartIndex开始搜索，确保能找到跨chunk的\n||
                     val separatorIndex = content.indexOf("\n||", questionStartIndex)
 
-                    if (separatorIndex == -1 || separatorIndex >= content.length - 2) {
-                        // 没有完整的分隔符，发送所有未显示的内容到当前题目
-                        val newContent = content.substring(displayedLength)
-                        if (newContent.isNotEmpty()) {
+                    if (separatorIndex == -1) {
+                        // 没有完整的分隔符，发送内容但保留可能是分隔符开头的字符
+                        // 避免发送 \n 或 \n| 到UI（可能是 \n|| 的开头）
+                        val holdBack = when {
+                            content.endsWith("\n|") -> 2
+                            content.endsWith("\n") -> 1
+                            else -> 0
+                        }
+                        val safeEndIndex = content.length - holdBack
+                        if (safeEndIndex > displayedLength) {
+                            val newContent = content.substring(displayedLength, safeEndIndex)
                             callback.onChunk(newContent, questionIndex)
-                            displayedLength = content.length
+                            displayedLength = safeEndIndex
                         }
                         break
                     }
@@ -172,6 +179,15 @@ class VisionAPI(private val config: AIConfig) {
             override fun onComplete() {
                 // 处理最后剩余的内容（从当前题目起始位置到末尾）
                 val content = accumulatedText.toString()
+
+                // 发送之前保留的字符（流结束时不再需要保留）
+                if (content.length > displayedLength) {
+                    val remainingChunk = content.substring(displayedLength)
+                    if (remainingChunk.isNotEmpty()) {
+                        callback.onChunk(remainingChunk, questionIndex)
+                    }
+                }
+
                 val remainingText = content.substring(questionStartIndex).trim()
                 if (remainingText.isNotBlank()) {
                     val question = Question(id = questionIndex, text = remainingText)
