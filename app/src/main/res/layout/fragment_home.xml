@@ -1,169 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/scrollView"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
-    android:fillViewport="true">
+    android:orientation="vertical"
+    android:background="#FFFFFF">
 
+    <!-- Spacer top -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <!-- Header Area -->
     <LinearLayout
-        android:id="@+id/rootLayout"
+        android:id="@+id/headerLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#FFFFFF">
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:gravity="center_horizontal">
 
-        <!-- Header Area - reduced padding -->
+        <!-- App Icon - white background with dark icon -->
+        <FrameLayout
+            android:id="@+id/iconContainer"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:background="@drawable/bg_app_icon_circle">
+
+            <ImageView
+                android:id="@+id/ivAppIcon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_float_ai"
+                android:tint="#202123"/>
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tvAppName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="AI 解题助手"
+            android:textSize="26sp"
+            android:textColor="#202123"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/tvAppDesc"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="截图识别，智能解答"
+            android:textSize="15sp"
+            android:textColor="#6E6E80"/>
+
+    </LinearLayout>
+
+    <!-- Spacer between header and content -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="32dp"/>
+
+    <!-- Main Content -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp">
+
+        <!-- Float Window Toggle Card -->
         <LinearLayout
-            android:id="@+id/headerLayout"
+            android:id="@+id/cardFloatToggle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingTop="40dp"
-            android:paddingBottom="24dp"
-            android:paddingStart="24dp"
-            android:paddingEnd="24dp"
-            android:gravity="center_horizontal">
+            android:background="@drawable/bg_card_light_green_gray"
+            android:padding="24dp">
 
-            <!-- App Icon -->
-            <FrameLayout
-                android:id="@+id/iconContainer"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:background="@drawable/float_bg_light_green_gray">
-
-                <ImageView
-                    android:id="@+id/ivAppIcon"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_float_ai"/>
-
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/tvAppName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="AI 解题助手"
-                android:textSize="26sp"
-                android:textColor="#202123"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tvAppDesc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="截图识别，智能解答"
-                android:textSize="15sp"
-                android:textColor="#6E6E80"/>
-
-        </LinearLayout>
-
-        <!-- Main Content - top aligned instead of centered -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:paddingBottom="100dp">
-
-            <!-- Float Window Toggle Card -->
             <LinearLayout
-                android:id="@+id/cardFloatToggle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="@drawable/bg_card_light_green_gray"
-                android:padding="24dp">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/ivFloatIcon"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="10dp"
+                    android:background="@drawable/bg_icon_circle"
+                    android:src="@drawable/ic_float_ai"
+                    android:tint="#10A37F"/>
 
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:layout_weight="1"
+                    android:layout_marginStart="16dp"
+                    android:orientation="vertical">
 
-                    <ImageView
-                        android:id="@+id/ivFloatIcon"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:padding="10dp"
-                        android:background="@drawable/bg_icon_circle"
-                        android:src="@drawable/ic_float_ai"
-                        android:tint="#10A37F"/>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="16dp"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tvFloatTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="悬浮球"
-                            android:textSize="18sp"
-                            android:textColor="#202123"
-                            android:textStyle="bold"/>
-
-                        <TextView
-                            android:id="@+id/tvFloatStatus"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="点击开启后，悬浮球将显示在屏幕上"
-                            android:textSize="13sp"
-                            android:textColor="#6E6E80"/>
-
-                    </LinearLayout>
-
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/switchFloat"
+                    <TextView
+                        android:id="@+id/tvFloatTitle"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"/>
+                        android:layout_height="wrap_content"
+                        android:text="悬浮球"
+                        android:textSize="18sp"
+                        android:textColor="#202123"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/tvFloatStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="点击开启后，悬浮球将显示在屏幕上"
+                        android:textSize="13sp"
+                        android:textColor="#6E6E80"/>
 
                 </LinearLayout>
 
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchFloat"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
             </LinearLayout>
 
-            <!-- Usage Tip -->
-            <LinearLayout
-                android:id="@+id/tipLayout"
-                android:layout_width="match_parent"
+        </LinearLayout>
+
+        <!-- Usage Tip -->
+        <LinearLayout
+            android:id="@+id/tipLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="vertical"
+            android:background="@drawable/bg_tip_light_green_gray"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvTipTitle"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:orientation="vertical"
-                android:background="@drawable/bg_tip_light_green_gray"
-                android:padding="16dp">
+                android:text="使用提示"
+                android:textSize="14sp"
+                android:textColor="#10A37F"
+                android:textStyle="bold"/>
 
-                <TextView
-                    android:id="@+id/tvTipTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="使用提示"
-                    android:textSize="14sp"
-                    android:textColor="#10A37F"
-                    android:textStyle="bold"/>
-
-                <TextView
-                    android:id="@+id/tvTipContent"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="1. 开启悬浮球后，切换到题目页面\n2. 点击悬浮球截取屏幕\n3. AI 将自动识别并解答题目"
-                    android:textSize="13sp"
-                    android:textColor="#6E6E80"
-                    android:lineSpacingMultiplier="1.4"/>
-
-            </LinearLayout>
+            <TextView
+                android:id="@+id/tvTipContent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="1. 开启悬浮球后，切换到题目页面\n2. 点击悬浮球截取屏幕\n3. AI 将自动识别并解答题目"
+                android:textSize="13sp"
+                android:textColor="#6E6E80"
+                android:lineSpacingMultiplier="1.4"/>
 
         </LinearLayout>
 
     </LinearLayout>
 
-</ScrollView>
+    <!-- Spacer bottom - larger to account for bottom nav -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.5"/>
+
+</LinearLayout>

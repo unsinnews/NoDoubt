@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.widget.SwitchCompat
 import androidx.fragment.app.Fragment
@@ -70,7 +69,6 @@ class HomeFragment : Fragment() {
     private fun applyTheme(view: View) {
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(requireContext())
 
-        val scrollView = view.findViewById<ScrollView>(R.id.scrollView)
         val rootLayout = view.findViewById<LinearLayout>(R.id.rootLayout)
         val iconContainer = view.findViewById<FrameLayout>(R.id.iconContainer)
         val ivAppIcon = view.findViewById<ImageView>(R.id.ivAppIcon)
@@ -83,12 +81,13 @@ class HomeFragment : Fragment() {
         val tvTipTitle = view.findViewById<TextView>(R.id.tvTipTitle)
         val tvTipContent = view.findViewById<TextView>(R.id.tvTipContent)
 
+        // App icon always uses white background with dark icon
+        iconContainer.setBackgroundResource(R.drawable.bg_app_icon_circle)
+        ivAppIcon.setColorFilter(0xFF202123.toInt())  // Dark icon
+
         if (isLightGreenGray) {
             // 浅绿灰主题
-            scrollView.setBackgroundColor(0xFFFFFFFF.toInt())
             rootLayout.setBackgroundColor(0xFFFFFFFF.toInt())
-            iconContainer.setBackgroundResource(R.drawable.float_bg_light_green_gray)
-            ivAppIcon.setColorFilter(0xFFFFFFFF.toInt())  // White icon
             tvAppName.setTextColor(0xFF202123.toInt())
             tvAppDesc.setTextColor(0xFF6E6E80.toInt())
             cardFloatToggle.setBackgroundResource(R.drawable.bg_card_light_green_gray)
@@ -101,10 +100,7 @@ class HomeFragment : Fragment() {
             tvTipContent.setTextColor(0xFF6E6E80.toInt())
         } else {
             // 浅棕黑主题
-            scrollView.setBackgroundColor(0xFFFAF9F5.toInt())
             rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
-            iconContainer.setBackgroundResource(R.drawable.float_bg_light_brown_black)
-            ivAppIcon.setColorFilter(0xFFFAF9F5.toInt())  // Light beige icon
             tvAppName.setTextColor(0xFF141413.toInt())
             tvAppDesc.setTextColor(0xFF666666.toInt())
             cardFloatToggle.setBackgroundResource(R.drawable.bg_card_light_brown_black)
