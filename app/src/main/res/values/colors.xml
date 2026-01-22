@@ -11,11 +11,11 @@
     <color name="textSecondary">#6E6E80</color>
     <color name="divider">#ECECF1</color>
 
-    <!-- 浅棕黑主题 (Light Brown Black Theme) - 暖橙色 -->
+    <!-- 浅棕黑主题 (Light Brown Black Theme) - 暖橙色按钮，黑色文字 -->
     <color name="light_brown_black_primary">#DA7A5A</color>
     <color name="light_brown_black_background">#FAF9F5</color>
     <color name="light_brown_black_surface">#FAF9F5</color>
-    <color name="light_brown_black_text_primary">#DA7A5A</color>
+    <color name="light_brown_black_text_primary">#141413</color>
     <color name="light_brown_black_text_secondary">#666666</color>
     <color name="light_brown_black_accent">#DA7A5A</color>
 

@@ -498,11 +498,11 @@ class AnswerPopupService : Service() {
             view.findViewById<TextView>(R.id.btnRetake)?.setBackgroundResource(R.drawable.bg_button_retake_light_green_gray)
 
         } else {
-            // 浅棕黑主题 - 暖橙色
-            val primaryColor = 0xFFDA7A5A.toInt()
+            // 浅棕黑主题 - 暖橙色按钮，黑色文字
+            val primaryColor = 0xFFDA7A5A.toInt()  // 暖橙色用于按钮
             val backgroundColor = 0xFFFAF9F5.toInt()
             val surfaceColor = 0xFFE8E5DF.toInt()
-            val textPrimary = 0xFFDA7A5A.toInt()
+            val textPrimary = 0xFF141413.toInt()  // 黑色用于文字
             val textSecondary = 0xFF666666.toInt()
 
             // Main background

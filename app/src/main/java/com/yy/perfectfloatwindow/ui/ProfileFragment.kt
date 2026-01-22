@@ -146,16 +146,16 @@ class ProfileFragment : Fragment() {
             seekBarSize.thumbTintList = ColorStateList.valueOf(primaryColor)
 
         } else {
-            // 浅棕黑主题 - 暖橙色
+            // 浅棕黑主题 - 暖橙色按钮，黑色文字
             scrollView.setBackgroundColor(0xFFFAF9F5.toInt())
             rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             headerLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             avatarContainer.setBackgroundResource(R.drawable.float_bg_light_brown_black)
             ivAvatar.setColorFilter(0xFFFAF9F5.toInt())  // Light beige shield icon
-            tvTitle.setTextColor(0xFFDA7A5A.toInt())
+            tvTitle.setTextColor(0xFF141413.toInt())
 
             val accentColor = 0xFFDA7A5A.toInt()  // Warm orange accent
-            val textPrimary = 0xFFDA7A5A.toInt()
+            val textPrimary = 0xFF141413.toInt()  // 黑色用于文字
             val textSecondary = 0xFF666666.toInt()
             val sectionBg = 0xFFFFFFFF.toInt()
 
@@ -253,7 +253,7 @@ class ProfileFragment : Fragment() {
 
         // Apply theme colors
         val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
-        val textPrimary = if (isLightGreenGray) 0xFF202123.toInt() else 0xFFDA7A5A.toInt()
+        val textPrimary = if (isLightGreenGray) 0xFF202123.toInt() else 0xFF141413.toInt()
 
         tvOption1Title.setTextColor(textPrimary)
         tvOption2Title.setTextColor(textPrimary)
@@ -350,7 +350,7 @@ class ProfileFragment : Fragment() {
 
         // Apply theme colors
         val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
-        val textPrimary = if (isLightGreenGray) 0xFF202123.toInt() else 0xFFDA7A5A.toInt()
+        val textPrimary = if (isLightGreenGray) 0xFF202123.toInt() else 0xFF141413.toInt()
 
         if (isLightGreenGray) {
             // Header with green background, white text
@@ -362,7 +362,7 @@ class ProfileFragment : Fragment() {
             // Header with warm orange background (#DA7A5A), white text
             headerContainer.setBackgroundResource(R.drawable.bg_about_header_light_brown_black)
             iconContainer.setBackgroundResource(R.drawable.float_bg_about_icon_light_brown_black)
-            ivIcon.setColorFilter(0xFFDA7A5A.toInt())  // Warm orange icon on light background
+            ivIcon.setColorFilter(0xFF141413.toInt())  // Black icon on light background
             btnOk.setBackgroundResource(R.drawable.bg_button_filled_light_brown_black)
         }
         // Title and version are always white on the header background
@@ -417,7 +417,7 @@ class ProfileFragment : Fragment() {
 
         // Apply theme colors
         val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
-        val textPrimary = if (isLightGreenGray) 0xFF202123.toInt() else 0xFFDA7A5A.toInt()
+        val textPrimary = if (isLightGreenGray) 0xFF202123.toInt() else 0xFF141413.toInt()
 
         if (isLightGreenGray) {
             titleContainer.setBackgroundResource(R.drawable.bg_dialog_title)

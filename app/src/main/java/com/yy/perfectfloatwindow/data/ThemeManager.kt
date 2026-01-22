@@ -73,14 +73,14 @@ object ThemeManager {
         const val NAV_BG = 0xFFFFFFFF.toInt()
     }
 
-    // 浅棕黑主题颜色 (Light Brown Black Theme) - 暖橙色
+    // 浅棕黑主题颜色 (Light Brown Black Theme) - 暖橙色按钮，黑色文字
     object LightBrownBlack {
         const val BACKGROUND = 0xFFFAF9F5.toInt()
         const val SURFACE = 0xFFFAF9F5.toInt()
-        const val PRIMARY = 0xFFDA7A5A.toInt()
-        const val TEXT_PRIMARY = 0xFFDA7A5A.toInt()
+        const val PRIMARY = 0xFFDA7A5A.toInt()  // 暖橙色用于按钮/强调
+        const val TEXT_PRIMARY = 0xFF141413.toInt()  // 黑色用于文字
         const val TEXT_SECONDARY = 0xFF666666.toInt()
-        const val FLOAT_BG = 0xFFDA7A5A.toInt()
+        const val FLOAT_BG = 0xFFDA7A5A.toInt()  // 暖橙色悬浮球
         const val NAV_BG = 0xFFFAF9F5.toInt()
         const val ACCENT = 0xFFDA7A5A.toInt()
     }

@@ -98,16 +98,16 @@ class HomeFragment : Fragment() {
             tvTipTitle.setTextColor(0xFF10A37F.toInt())
             tvTipContent.setTextColor(0xFF6E6E80.toInt())
         } else {
-            // 浅棕黑主题 - 暖橙色
+            // 浅棕黑主题 - 暖橙色按钮，黑色文字
             rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
             iconContainer.setBackgroundResource(R.drawable.float_bg_light_brown_black)
             ivAppIcon.setColorFilter(0xFFFAF9F5.toInt())  // Light beige icon
-            tvAppName.setTextColor(0xFFDA7A5A.toInt())
+            tvAppName.setTextColor(0xFF141413.toInt())
             tvAppDesc.setTextColor(0xFF666666.toInt())
             cardFloatToggle.setCardBackgroundColor(0xFFF5F4F0.toInt())
             ivFloatIcon.setBackgroundResource(R.drawable.bg_icon_circle_light_brown_black)
             ivFloatIcon.setColorFilter(0xFFDA7A5A.toInt())  // Warm orange accent
-            tvFloatTitle.setTextColor(0xFFDA7A5A.toInt())
+            tvFloatTitle.setTextColor(0xFF141413.toInt())
             tvFloatStatus.setTextColor(0xFF666666.toInt())
             tipLayout.setBackgroundResource(R.drawable.bg_tip_light_brown_black)
             tvTipTitle.setTextColor(0xFFDA7A5A.toInt())  // Warm orange accent
