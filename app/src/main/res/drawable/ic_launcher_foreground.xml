@@ -6,33 +6,49 @@
     android:viewportHeight="108">
 
     <!--
-    Launcher icon based on ic_float_ai.xml
-    - Same lightbulb shape as home page logo
-    - Color changed to dark (#1a1a1a)
-    - Added drop shadow (4dp offset, 12% opacity)
-    - Scale: 2.5x centered in safe zone
+    Launcher icon matching ic_float_ai style
+    - Centered at (54, 54)
+    - Stroke width: 3dp (halved)
+    - Gap between bulb and base: halved
     -->
 
-    <!-- Shadow layer - offset 4dp -->
-    <group
-        android:scaleX="2.5"
-        android:scaleY="2.5"
-        android:translateX="11.6"
-        android:translateY="11.6">
-        <path
-            android:fillColor="#1F000000"
-            android:pathData="M9,21c0,0.55 0.45,1 1,1h4c0.55,0 1,-0.45 1,-1v-1H9V21zM12,2C8.14,2 5,5.14 5,9c0,2.38 1.19,4.47 3,5.74V17c0,0.55 0.45,1 1,1h6c0.55,0 1,-0.45 1,-1v-2.26c1.81,-1.27 3,-3.36 3,-5.74C19,5.14 15.86,2 12,2zM14.85,13.1l-0.85,0.6V16h-4v-2.3l-0.85,-0.6C7.8,12.16 7,10.63 7,9c0,-2.76 2.24,-5 5,-5s5,2.24 5,5C17,10.63 16.2,12.16 14.85,13.1z"/>
-    </group>
+    <!-- Shadow layer - 4dp offset -->
+    <path
+        android:fillColor="#1F000000"
+        android:pathData="M58,30a18,18 0,1,1 0,36a18,18 0,1,1 0,-36z"/>
+    <path
+        android:fillColor="#1F000000"
+        android:pathData="M52,68l12,0l0,4l-12,0z"/>
+    <path
+        android:fillColor="#1F000000"
+        android:pathData="M50,72l16,0l0,10l-16,0z"/>
+    <path
+        android:fillColor="#1F000000"
+        android:pathData="M52,82l12,0l0,4l-12,0z"/>
 
-    <!-- Main icon layer -->
-    <group
-        android:scaleX="2.5"
-        android:scaleY="2.5"
-        android:translateX="10"
-        android:translateY="10">
-        <path
-            android:fillColor="#1a1a1a"
-            android:pathData="M9,21c0,0.55 0.45,1 1,1h4c0.55,0 1,-0.45 1,-1v-1H9V21zM12,2C8.14,2 5,5.14 5,9c0,2.38 1.19,4.47 3,5.74V17c0,0.55 0.45,1 1,1h6c0.55,0 1,-0.45 1,-1v-2.26c1.81,-1.27 3,-3.36 3,-5.74C19,5.14 15.86,2 12,2zM14.85,13.1l-0.85,0.6V16h-4v-2.3l-0.85,-0.6C7.8,12.16 7,10.63 7,9c0,-2.76 2.24,-5 5,-5s5,2.24 5,5C17,10.63 16.2,12.16 14.85,13.1z"/>
-    </group>
+    <!-- Bulb outer circle -->
+    <path
+        android:fillColor="#1a1a1a"
+        android:pathData="M54,26a18,18 0,1,1 0,36a18,18 0,1,1 0,-36z"/>
+
+    <!-- Bulb inner circle (white) - stroke width 3dp -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,29a15,15 0,1,1 0,30a15,15 0,1,1 0,-30z"/>
+
+    <!-- Neck connector - close to bulb -->
+    <path
+        android:fillColor="#1a1a1a"
+        android:pathData="M48,64l12,0l0,4l-12,0z"/>
+
+    <!-- Base -->
+    <path
+        android:fillColor="#1a1a1a"
+        android:pathData="M46,68l16,0l0,10l-16,0z"/>
+
+    <!-- Base bottom cap -->
+    <path
+        android:fillColor="#1a1a1a"
+        android:pathData="M48,78l12,0l0,4l-12,0z"/>
 
 </vector>
