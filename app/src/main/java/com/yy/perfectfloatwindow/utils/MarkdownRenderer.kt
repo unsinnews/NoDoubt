@@ -1,6 +1,7 @@
 package com.yy.perfectfloatwindow.utils
 
 import android.content.Context
+import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -10,6 +11,7 @@ import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.html.HtmlPlugin
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import io.noties.markwon.linkify.LinkifyPlugin
 import java.util.concurrent.Executors
 
@@ -37,11 +39,8 @@ object MarkdownRenderer {
     @Volatile
     private var isLatexAvailable = true
 
-    @Volatile
-    private var isInitializing = false
-
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val executor = Executors.newSingleThreadExecutor()
+    private val latexExecutor = Executors.newCachedThreadPool()
 
     /**
      * Initialize Markwon in the background. Call this early (e.g., in Application.onCreate)
@@ -51,13 +50,14 @@ object MarkdownRenderer {
         if (markwonBasic != null) return
 
         val appContext = context.applicationContext
-        executor.execute {
+        latexExecutor.execute {
             try {
                 // Initialize basic Markwon first (fast)
                 getBasicInstance(appContext)
 
                 // Then try to initialize LaTeX support (slower, may fail)
                 getLatexInstance(appContext)
+                Log.d(TAG, "Markwon initialized successfully, LaTeX available: $isLatexAvailable")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize Markwon", e)
             }
@@ -82,7 +82,10 @@ object MarkdownRenderer {
         return markwonWithLatex ?: synchronized(this) {
             if (!isLatexAvailable) return null
             markwonWithLatex ?: try {
-                createLatexMarkwon(context.applicationContext).also { markwonWithLatex = it }
+                createLatexMarkwon(context.applicationContext).also {
+                    markwonWithLatex = it
+                    Log.d(TAG, "LaTeX Markwon created successfully")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to create LaTeX Markwon, falling back to basic", e)
                 isLatexAvailable = false
@@ -103,13 +106,21 @@ object MarkdownRenderer {
     private fun createLatexMarkwon(context: Context): Markwon {
         val textSize = getTextSizeForLatex(context)
         return Markwon.builder(context)
+            .usePlugin(MarkwonInlineParserPlugin.create())
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
             .usePlugin(HtmlPlugin.create())
             .usePlugin(LinkifyPlugin.create())
             .usePlugin(JLatexMathPlugin.create(textSize) { builder ->
+                // Enable both inline and block math
                 builder.inlinesEnabled(true)
                 builder.blocksEnabled(true)
+                // Use background thread pool for rendering
+                builder.executorService(latexExecutor)
+                // Set text color for formulas
+                builder.theme()
+                    .textColor(Color.BLACK)
+                    .backgroundColor(Color.TRANSPARENT)
             })
             .build()
     }
@@ -119,7 +130,7 @@ object MarkdownRenderer {
      */
     private fun getTextSizeForLatex(context: Context): Float {
         val density = context.resources.displayMetrics.scaledDensity
-        return 14f * density
+        return 16f * density
     }
 
     /**
@@ -180,6 +191,7 @@ object MarkdownRenderer {
 
     /**
      * Preprocess AI response text to handle common formatting issues.
+     * Converts various LaTeX delimiter formats to standard $...$ and $$...$$ format.
      */
     fun preprocessAIResponse(text: String): String {
         if (text.isEmpty()) return text
@@ -187,12 +199,13 @@ object MarkdownRenderer {
         var processed = text
 
         // Convert \[ \] to $$ $$ for block math (common in AI responses)
-        processed = processed.replace("\\[", "$$")
-        processed = processed.replace("\\]", "$$")
+        // Using regex to handle potential whitespace
+        processed = processed.replace(Regex("""\\]\s*"""), "\$\$")
+        processed = processed.replace(Regex("""\s*\\\["""), "\$\$")
 
         // Convert \( \) to $ $ for inline math (common in AI responses)
-        processed = processed.replace("\\(", "$")
-        processed = processed.replace("\\)", "$")
+        processed = processed.replace("\\)", "\$")
+        processed = processed.replace("\\(", "\$")
 
         return processed
     }
@@ -208,6 +221,7 @@ object MarkdownRenderer {
 
         try {
             val processed = preprocessAIResponse(text)
+            Log.d(TAG, "Rendering processed text (first 200 chars): ${processed.take(200)}")
             render(context, textView, processed)
         } catch (e: Exception) {
             Log.e(TAG, "renderAIResponse failed, using plain text", e)
