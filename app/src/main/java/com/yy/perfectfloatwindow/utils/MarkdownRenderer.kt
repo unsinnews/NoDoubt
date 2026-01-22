@@ -8,6 +8,7 @@ import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.html.HtmlPlugin
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import io.noties.markwon.linkify.LinkifyPlugin
 import java.util.concurrent.Executors
 
@@ -54,6 +55,7 @@ object MarkdownRenderer {
                 val textSize = 18f * context.resources.displayMetrics.scaledDensity
 
                 Markwon.builder(context.applicationContext)
+                    .usePlugin(MarkwonInlineParserPlugin.create())
                     .usePlugin(StrikethroughPlugin.create())
                     .usePlugin(TablePlugin.create(context))
                     .usePlugin(HtmlPlugin.create())
@@ -78,13 +80,40 @@ object MarkdownRenderer {
 
     /**
      * Convert \[...\] to $$...$$ and \(...\) to $...$
+     * Using StringBuilder to avoid regex replacement issues with $ character
      */
     private fun preprocessLatex(text: String): String {
-        return text
-            .replace("\\[", "$$")
-            .replace("\\]", "$$")
-            .replace("\\(", "$")
-            .replace("\\)", "$")
+        val sb = StringBuilder(text)
+
+        // Replace \[ with $$
+        var index = sb.indexOf("\\[")
+        while (index != -1) {
+            sb.replace(index, index + 2, "\$\$")
+            index = sb.indexOf("\\[", index + 2)
+        }
+
+        // Replace \] with $$
+        index = sb.indexOf("\\]")
+        while (index != -1) {
+            sb.replace(index, index + 2, "\$\$")
+            index = sb.indexOf("\\]", index + 2)
+        }
+
+        // Replace \( with $
+        index = sb.indexOf("\\(")
+        while (index != -1) {
+            sb.replace(index, index + 2, "\$")
+            index = sb.indexOf("\\(", index + 1)
+        }
+
+        // Replace \) with $
+        index = sb.indexOf("\\)")
+        while (index != -1) {
+            sb.replace(index, index + 2, "\$")
+            index = sb.indexOf("\\)", index + 1)
+        }
+
+        return sb.toString()
     }
 
     /**
