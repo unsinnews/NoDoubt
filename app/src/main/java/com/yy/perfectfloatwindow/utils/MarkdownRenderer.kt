@@ -4,7 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
 import android.text.Spannable
@@ -20,8 +22,66 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import ru.noties.jlatexmath.JLatexMathDrawable
+import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+
+/**
+ * Custom ImageSpan that centers the image vertically with the text.
+ */
+class CenteredImageSpan(drawable: Drawable) : ImageSpan(drawable) {
+
+    override fun getSize(
+        paint: Paint,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        fm: Paint.FontMetricsInt?
+    ): Int {
+        val drawable = drawable
+        val rect = drawable.bounds
+
+        if (fm != null) {
+            val fontMetrics = paint.fontMetricsInt
+            val imageHeight = rect.height()
+            val textHeight = fontMetrics.descent - fontMetrics.ascent
+
+            // Center the image vertically
+            val centerY = fontMetrics.ascent + textHeight / 2
+            fm.ascent = centerY - imageHeight / 2
+            fm.top = fm.ascent
+            fm.descent = centerY + imageHeight / 2
+            fm.bottom = fm.descent
+        }
+
+        return rect.width()
+    }
+
+    override fun draw(
+        canvas: Canvas,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        x: Float,
+        top: Int,
+        y: Int,
+        bottom: Int,
+        paint: Paint
+    ) {
+        val drawable = drawable
+        val fontMetrics = paint.fontMetricsInt
+        val imageHeight = drawable.bounds.height()
+        val textHeight = fontMetrics.descent - fontMetrics.ascent
+
+        // Calculate Y position to center the image
+        val transY = y + fontMetrics.ascent + (textHeight - imageHeight) / 2
+
+        canvas.save()
+        canvas.translate(x, transY.toFloat())
+        drawable.draw(canvas)
+        canvas.restore()
+    }
+}
 
 /**
  * Utility class for rendering Markdown and LaTeX in TextViews.
@@ -29,7 +89,7 @@ import java.util.concurrent.Executors
 object MarkdownRenderer {
 
     private const val TAG = "MarkdownRenderer"
-    private const val DEBOUNCE_DELAY = 150L // ms
+    private const val DEBOUNCE_DELAY = 150L
 
     @Volatile
     private var basicMarkwon: Markwon? = null
@@ -43,13 +103,8 @@ object MarkdownRenderer {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // Cache for rendered LaTeX bitmaps (key: latex string + size, value: bitmap)
     private val latexCache = LruCache<String, Bitmap>(50)
-
-    // Track last rendered content to avoid redundant renders
     private val lastRenderedContent = ConcurrentHashMap<Int, String>()
-
-    // Debounce handlers per TextView
     private val pendingRenders = ConcurrentHashMap<Int, Runnable>()
 
     private fun getBasicMarkwon(context: Context): Markwon {
@@ -98,13 +153,9 @@ object MarkdownRenderer {
         }
     }
 
-    /**
-     * Render a LaTeX formula to a Bitmap with caching.
-     */
     private fun renderLatexToBitmap(latex: String, textSize: Float): Bitmap? {
         val cacheKey = "$latex|$textSize"
 
-        // Check cache first
         latexCache.get(cacheKey)?.let { return it }
 
         return try {
@@ -123,7 +174,6 @@ object MarkdownRenderer {
             drawable.setBounds(0, 0, width, height)
             drawable.draw(canvas)
 
-            // Cache the result
             latexCache.put(cacheKey, bitmap)
             bitmap
         } catch (e: Exception) {
@@ -132,9 +182,6 @@ object MarkdownRenderer {
         }
     }
 
-    /**
-     * Convert \[...\] to $$...$$ and \(...\) to $...$
-     */
     private fun normalizeDelimiters(text: String): String {
         return text
             .replace("\\[", "$$")
@@ -143,16 +190,12 @@ object MarkdownRenderer {
             .replace("\\)", "$")
     }
 
-    /**
-     * Process text with inline LaTeX rendering.
-     */
     private fun processInlineLatex(context: Context, textView: TextView, text: String) {
         val normalized = normalizeDelimiters(text)
         val textSize = textView.textSize
 
         val markwon = getLatexMarkwon(context) ?: getBasicMarkwon(context)
 
-        // Find all inline math $...$ (not $$)
         val inlinePattern = Regex("""(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)""")
         val matches = inlinePattern.findAll(normalized).toList()
 
@@ -161,7 +204,6 @@ object MarkdownRenderer {
             return
         }
 
-        // Replace inline math with placeholders
         var processedText = normalized
         val placeholders = mutableListOf<Pair<String, String>>()
 
@@ -171,22 +213,21 @@ object MarkdownRenderer {
             processedText = processedText.replaceFirst(match.value, placeholder)
         }
 
-        // Render markdown first
         markwon.setMarkdown(textView, processedText)
 
-        // Replace placeholders with rendered LaTeX
         val spannable = SpannableStringBuilder(textView.text)
 
         placeholders.forEach { (placeholder, latex) ->
             val start = spannable.indexOf(placeholder)
             if (start >= 0) {
-                val bitmap = renderLatexToBitmap(latex, textSize * 0.85f)
+                val bitmap = renderLatexToBitmap(latex, textSize * 0.9f)
                 if (bitmap != null) {
                     val drawable = BitmapDrawable(context.resources, bitmap)
                     drawable.setBounds(0, 0, bitmap.width, bitmap.height)
 
                     spannable.replace(start, start + placeholder.length, "\uFFFC")
-                    val imageSpan = ImageSpan(drawable, ImageSpan.ALIGN_BASELINE)
+                    // Use CenteredImageSpan for vertical centering
+                    val imageSpan = CenteredImageSpan(drawable)
                     spannable.setSpan(imageSpan, start, start + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
                 } else {
                     spannable.replace(start, start + placeholder.length, latex)
@@ -197,9 +238,6 @@ object MarkdownRenderer {
         textView.text = spannable
     }
 
-    /**
-     * Render AI response with debouncing and caching.
-     */
     fun renderAIResponse(context: Context, textView: TextView, text: String) {
         if (text.isEmpty()) {
             textView.text = ""
@@ -208,15 +246,12 @@ object MarkdownRenderer {
 
         val viewId = System.identityHashCode(textView)
 
-        // Skip if content hasn't changed
         if (lastRenderedContent[viewId] == text) {
             return
         }
 
-        // Cancel any pending render for this view
         pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
 
-        // Schedule debounced render
         val renderTask = Runnable {
             try {
                 lastRenderedContent[viewId] = text
@@ -237,9 +272,6 @@ object MarkdownRenderer {
         mainHandler.postDelayed(renderTask, DEBOUNCE_DELAY)
     }
 
-    /**
-     * Clear cache (call when memory is low)
-     */
     fun clearCache() {
         latexCache.evictAll()
         lastRenderedContent.clear()
