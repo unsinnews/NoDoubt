@@ -5,50 +5,17 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Cast shadow - projected silhouette from top-left light -->
-    <!-- Shadow starts from lightbulb base and extends to bottom-right -->
+    <!-- Cast shadow - projected from top-left sunlight -->
     <path
         android:fillColor="#10000000"
-        android:pathData="M50,75 L58,75 L72,95 L62,95 Z"/>
+        android:pathData="M48,78 L60,78 L75,98 L63,98 Z"/>
     <path
-        android:fillColor="#08000000"
-        android:pathData="M62,95 L72,95 L76,100 L64,100 Z"/>
+        android:fillColor="#06000000"
+        android:pathData="M63,98 L75,98 L80,103 L66,103 Z"/>
 
-    <!-- Main lightbulb - slim tall design, centered at 54,54 -->
-    <!-- Bulb (oval, taller than wide) -->
+    <!-- Main lightbulb - based on ic_float_ai design, scaled to 108dp -->
+    <!-- Scale factor: 108/24 = 4.5, centered at 54,54 -->
     <path
         android:fillColor="#202123"
-        android:pathData="M54,30a10,12 0,1,1 0,24a10,12 0,1,1 0,-24"/>
-    <!-- Inner cutout for thin stroke effect -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,32a8,10 0,1,1 0,20a8,10 0,1,1 0,-20"/>
-
-    <!-- Neck -->
-    <path
-        android:fillColor="#202123"
-        android:pathData="M48,52l12,0l0,10l-12,0z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M50,52l8,0l0,10l-8,0z"/>
-
-    <!-- Base rings -->
-    <path
-        android:fillColor="#202123"
-        android:pathData="M47,62l14,0l0,4l-14,0z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M49,63.5l10,0l0,1l-10,0z"/>
-
-    <path
-        android:fillColor="#202123"
-        android:pathData="M48,66l12,0l0,4l-12,0z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M50,67.5l8,0l0,1l-8,0z"/>
-
-    <!-- Bottom cap -->
-    <path
-        android:fillColor="#202123"
-        android:pathData="M50,70l8,0l0,5a4,3 0,0,1 -8,0z"/>
+        android:pathData="M45,85.5c0,2.48 2.03,4.5 4.5,4.5h9c2.48,0 4.5,-2.03 4.5,-4.5v-4.5H45V85.5zM54,22.5c-17.37,0 -31.5,14.13 -31.5,31.5c0,10.71 5.36,20.12 13.5,25.83V85.5c0,2.48 2.03,4.5 4.5,4.5h27c2.48,0 4.5,-2.03 4.5,-4.5v-5.67c8.14,-5.71 13.5,-15.12 13.5,-25.83C85.5,36.63 71.37,22.5 54,22.5zM66.83,72.45l-3.83,2.7V81h-18v-5.85l-3.83,-2.7C35.1,68.22 31.5,59.34 31.5,54c0,-12.42 10.08,-22.5 22.5,-22.5s22.5,10.08 22.5,22.5C76.5,59.34 72.9,68.22 66.83,72.45z"/>
 </vector>
