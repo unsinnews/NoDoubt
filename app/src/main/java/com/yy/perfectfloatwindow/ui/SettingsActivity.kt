@@ -161,9 +161,11 @@ class SettingsActivity : AppCompatActivity() {
             tvDeepUrlLabel.setTextColor(textPrimary)
             tvDeepModelLabel.setTextColor(textPrimary)
 
-            // Buttons
+            // Buttons - clear backgroundTintList first to allow drawable to show
+            btnTest.backgroundTintList = null
             btnTest.setBackgroundResource(R.drawable.bg_button_outline)
             btnTest.setTextColor(primaryColor)
+            btnSave.backgroundTintList = null
             btnSave.setBackgroundResource(R.drawable.bg_button_filled)
 
             // Test result
@@ -225,9 +227,11 @@ class SettingsActivity : AppCompatActivity() {
             tvDeepUrlLabel.setTextColor(textPrimary)
             tvDeepModelLabel.setTextColor(textPrimary)
 
-            // Buttons
+            // Buttons - clear backgroundTintList first to allow drawable to show
+            btnTest.backgroundTintList = null
             btnTest.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
             btnTest.setTextColor(primaryColor)
+            btnSave.backgroundTintList = null
             btnSave.setBackgroundResource(R.drawable.bg_button_filled_light_brown_black)
 
             // Test result
