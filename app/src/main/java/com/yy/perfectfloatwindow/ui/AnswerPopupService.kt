@@ -900,7 +900,7 @@ class AnswerPopupService : Service() {
 
         val answers = if (isFast) fastAnswers else deepAnswers
 
-        // Update answer text for current mode with Markdown rendering
+        // Update answer text and title for current mode
         currentQuestions.forEach { question ->
             val answer = answers[question.id]
             val answerView = container.findViewWithTag<View>("answer_${question.id}")
@@ -914,6 +914,10 @@ class AnswerPopupService : Service() {
                     textView.text = ""
                 }
             }
+
+            // Update answer title based on completion status
+            answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text =
+                if (answer?.isComplete == true) "解答${question.id}" else "解答中..."
         }
     }
 
@@ -953,6 +957,9 @@ class AnswerPopupService : Service() {
             override fun onComplete() {
                 handler.post {
                     fastAnswers[question.id]?.isComplete = true
+                    if (isFastMode) {
+                        updateAnswerTitleComplete(question.id)
+                    }
                     checkAllAnswersComplete()
                 }
             }
@@ -988,6 +995,9 @@ class AnswerPopupService : Service() {
                 override fun onComplete() {
                     handler.post {
                         deepAnswers[question.id]?.isComplete = true
+                        if (!isFastMode) {
+                            updateAnswerTitleComplete(question.id)
+                        }
                         checkAllAnswersComplete()
                     }
                 }
@@ -1015,6 +1025,16 @@ class AnswerPopupService : Service() {
             container.getChildAt(index)?.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
                 MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, text)
             }
+        }
+    }
+
+    private fun updateAnswerTitleComplete(questionId: Int) {
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+
+        val index = currentQuestions.indexOfFirst { it.id == questionId }
+        if (index >= 0 && index < container.childCount) {
+            container.getChildAt(index)?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答$questionId"
         }
     }
 

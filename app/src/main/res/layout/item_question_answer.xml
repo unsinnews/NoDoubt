@@ -71,10 +71,11 @@
                 android:background="@drawable/indicator_blue"/>
 
             <TextView
+                android:id="@+id/tvAnswerTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="解答"
+                android:text="解答中..."
                 android:textSize="15sp"
                 android:textColor="#1976D2"
                 android:textStyle="bold"/>
