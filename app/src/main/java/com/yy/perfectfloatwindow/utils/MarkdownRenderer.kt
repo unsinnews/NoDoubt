@@ -208,7 +208,7 @@ object MarkdownRenderer {
         val placeholders = mutableListOf<Pair<String, String>>()
 
         matches.forEachIndexed { index, match ->
-            val placeholder = "\u0000LTEX$index\u0000"
+            val placeholder = "⟦LATEX$index⟧"
             placeholders.add(placeholder to match.groupValues[1])
             processedText = processedText.replaceFirst(match.value, placeholder)
         }
