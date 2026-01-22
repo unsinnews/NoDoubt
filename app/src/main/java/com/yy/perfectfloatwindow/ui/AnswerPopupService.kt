@@ -39,6 +39,7 @@ import com.yy.perfectfloatwindow.network.OCRStreamingCallback
 import com.yy.perfectfloatwindow.network.StreamingCallback
 import com.yy.perfectfloatwindow.network.VisionAPI
 import com.yy.perfectfloatwindow.screenshot.ScreenshotService
+import com.yy.perfectfloatwindow.utils.MarkdownRenderer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -818,13 +819,20 @@ class AnswerPopupService : Service() {
 
         val answers = if (isFast) fastAnswers else deepAnswers
 
-        // Update answer text for current mode
+        // Update answer text for current mode with Markdown rendering
         currentQuestions.forEach { question ->
             val answer = answers[question.id]
             val answerView = container.findViewWithTag<View>("answer_${question.id}")
                 ?: container.getChildAt(currentQuestions.indexOf(question))
 
-            answerView?.findViewById<TextView>(R.id.tvAnswerText)?.text = answer?.text ?: ""
+            answerView?.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
+                val answerText = answer?.text ?: ""
+                if (answerText.isNotEmpty()) {
+                    MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, answerText)
+                } else {
+                    textView.text = ""
+                }
+            }
         }
     }
 
@@ -921,7 +929,9 @@ class AnswerPopupService : Service() {
 
         val index = currentQuestions.indexOfFirst { it.id == questionId }
         if (index >= 0 && index < container.childCount) {
-            container.getChildAt(index)?.findViewById<TextView>(R.id.tvAnswerText)?.text = text
+            container.getChildAt(index)?.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
+                MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, text)
+            }
         }
     }
 
