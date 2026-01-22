@@ -5,10 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
+import android.os.Handler
+import android.os.Looper
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.ImageSpan
 import android.util.Log
+import android.util.LruCache
 import android.widget.TextView
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.latex.JLatexMathPlugin
@@ -17,6 +20,7 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import ru.noties.jlatexmath.JLatexMathDrawable
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 /**
@@ -25,6 +29,7 @@ import java.util.concurrent.Executors
 object MarkdownRenderer {
 
     private const val TAG = "MarkdownRenderer"
+    private const val DEBOUNCE_DELAY = 150L // ms
 
     @Volatile
     private var basicMarkwon: Markwon? = null
@@ -36,6 +41,16 @@ object MarkdownRenderer {
     private var latexFailed = false
 
     private val executor = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Cache for rendered LaTeX bitmaps (key: latex string + size, value: bitmap)
+    private val latexCache = LruCache<String, Bitmap>(50)
+
+    // Track last rendered content to avoid redundant renders
+    private val lastRenderedContent = ConcurrentHashMap<Int, String>()
+
+    // Debounce handlers per TextView
+    private val pendingRenders = ConcurrentHashMap<Int, Runnable>()
 
     private fun getBasicMarkwon(context: Context): Markwon {
         return basicMarkwon ?: synchronized(this) {
@@ -84,9 +99,14 @@ object MarkdownRenderer {
     }
 
     /**
-     * Render a LaTeX formula to a Bitmap for inline display.
+     * Render a LaTeX formula to a Bitmap with caching.
      */
-    private fun renderLatexToBitmap(context: Context, latex: String, textSize: Float): Bitmap? {
+    private fun renderLatexToBitmap(latex: String, textSize: Float): Bitmap? {
+        val cacheKey = "$latex|$textSize"
+
+        // Check cache first
+        latexCache.get(cacheKey)?.let { return it }
+
         return try {
             val drawable = JLatexMathDrawable.builder(latex)
                 .textSize(textSize)
@@ -102,6 +122,9 @@ object MarkdownRenderer {
             val canvas = Canvas(bitmap)
             drawable.setBounds(0, 0, width, height)
             drawable.draw(canvas)
+
+            // Cache the result
+            latexCache.put(cacheKey, bitmap)
             bitmap
         } catch (e: Exception) {
             Log.e(TAG, "Failed to render LaTeX: $latex", e)
@@ -122,14 +145,11 @@ object MarkdownRenderer {
 
     /**
      * Process text with inline LaTeX rendering.
-     * Block math ($$...$$) is handled by Markwon.
-     * Inline math ($...$) is rendered manually as ImageSpan.
      */
     private fun processInlineLatex(context: Context, textView: TextView, text: String) {
         val normalized = normalizeDelimiters(text)
         val textSize = textView.textSize
 
-        // First, let Markwon handle the basic markdown and block LaTeX
         val markwon = getLatexMarkwon(context) ?: getBasicMarkwon(context)
 
         // Find all inline math $...$ (not $$)
@@ -137,45 +157,38 @@ object MarkdownRenderer {
         val matches = inlinePattern.findAll(normalized).toList()
 
         if (matches.isEmpty()) {
-            // No inline math, just use Markwon directly
             markwon.setMarkdown(textView, normalized)
             return
         }
 
-        // Replace inline math with placeholders, render block math with Markwon
+        // Replace inline math with placeholders
         var processedText = normalized
-        val placeholders = mutableMapOf<String, String>()
+        val placeholders = mutableListOf<Pair<String, String>>()
 
         matches.forEachIndexed { index, match ->
-            val placeholder = "%%LATEX_INLINE_${index}%%"
-            placeholders[placeholder] = match.groupValues[1]
+            val placeholder = "\u0000LTEX$index\u0000"
+            placeholders.add(placeholder to match.groupValues[1])
             processedText = processedText.replaceFirst(match.value, placeholder)
         }
 
-        // Render markdown (with block LaTeX) first
+        // Render markdown first
         markwon.setMarkdown(textView, processedText)
 
-        // Now replace placeholders with rendered LaTeX images
+        // Replace placeholders with rendered LaTeX
         val spannable = SpannableStringBuilder(textView.text)
 
         placeholders.forEach { (placeholder, latex) ->
             val start = spannable.indexOf(placeholder)
             if (start >= 0) {
-                val bitmap = renderLatexToBitmap(context, latex, textSize * 0.9f)
+                val bitmap = renderLatexToBitmap(latex, textSize * 0.85f)
                 if (bitmap != null) {
                     val drawable = BitmapDrawable(context.resources, bitmap)
                     drawable.setBounds(0, 0, bitmap.width, bitmap.height)
 
-                    val imageSpan = ImageSpan(drawable, ImageSpan.ALIGN_BASELINE)
-                    spannable.setSpan(
-                        imageSpan,
-                        start,
-                        start + placeholder.length,
-                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
                     spannable.replace(start, start + placeholder.length, "\uFFFC")
+                    val imageSpan = ImageSpan(drawable, ImageSpan.ALIGN_BASELINE)
+                    spannable.setSpan(imageSpan, start, start + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
                 } else {
-                    // Fallback: just show the LaTeX source
                     spannable.replace(start, start + placeholder.length, latex)
                 }
             }
@@ -185,7 +198,7 @@ object MarkdownRenderer {
     }
 
     /**
-     * Render AI response with Markdown and LaTeX support.
+     * Render AI response with debouncing and caching.
      */
     fun renderAIResponse(context: Context, textView: TextView, text: String) {
         if (text.isEmpty()) {
@@ -193,16 +206,42 @@ object MarkdownRenderer {
             return
         }
 
-        try {
-            processInlineLatex(context, textView, text)
-        } catch (e: Throwable) {
-            Log.e(TAG, "Render error", e)
-            // Fallback to basic rendering
+        val viewId = System.identityHashCode(textView)
+
+        // Skip if content hasn't changed
+        if (lastRenderedContent[viewId] == text) {
+            return
+        }
+
+        // Cancel any pending render for this view
+        pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+
+        // Schedule debounced render
+        val renderTask = Runnable {
             try {
-                getBasicMarkwon(context).setMarkdown(textView, text)
-            } catch (e2: Throwable) {
-                textView.text = text
+                lastRenderedContent[viewId] = text
+                processInlineLatex(context, textView, text)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Render error", e)
+                try {
+                    getBasicMarkwon(context).setMarkdown(textView, text)
+                } catch (e2: Throwable) {
+                    textView.text = text
+                }
+            } finally {
+                pendingRenders.remove(viewId)
             }
         }
+
+        pendingRenders[viewId] = renderTask
+        mainHandler.postDelayed(renderTask, DEBOUNCE_DELAY)
+    }
+
+    /**
+     * Clear cache (call when memory is low)
+     */
+    fun clearCache() {
+        latexCache.evictAll()
+        lastRenderedContent.clear()
     }
 }
