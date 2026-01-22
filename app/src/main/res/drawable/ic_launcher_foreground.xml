@@ -6,9 +6,8 @@
     android:viewportHeight="108">
 
     <!--
-    Launcher icon matching ic_float_ai style
-    - Centered at (54, 54)
-    - Stroke width: 3dp
+    Launcher icon - lightbulb
+    - Bulb circle + base rectangle only
     - Shadow offset: 6dp
     -->
 
@@ -18,37 +17,21 @@
         android:pathData="M60,32a18,18 0,1,1 0,36a18,18 0,1,1 0,-36z"/>
     <path
         android:fillColor="#1F000000"
-        android:pathData="M53,70l14,0l0,6l-14,0z"/>
-    <path
-        android:fillColor="#1F000000"
-        android:pathData="M51,76l18,0l0,12l-18,0z"/>
-    <path
-        android:fillColor="#1F000000"
-        android:pathData="M53,88l14,0l0,6l-14,0z"/>
+        android:pathData="M51,70l18,0l0,18l-18,0z"/>
 
     <!-- Bulb outer circle -->
     <path
         android:fillColor="#1a1a1a"
         android:pathData="M54,26a18,18 0,1,1 0,36a18,18 0,1,1 0,-36z"/>
 
-    <!-- Bulb inner circle (white) - stroke width 3dp -->
+    <!-- Bulb inner circle (white) -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M54,29a15,15 0,1,1 0,30a15,15 0,1,1 0,-30z"/>
 
-    <!-- Neck connector -->
+    <!-- Base rectangle only -->
     <path
         android:fillColor="#1a1a1a"
-        android:pathData="M47,64l14,0l0,6l-14,0z"/>
-
-    <!-- Base - larger rectangle -->
-    <path
-        android:fillColor="#1a1a1a"
-        android:pathData="M45,70l18,0l0,12l-18,0z"/>
-
-    <!-- Base bottom cap -->
-    <path
-        android:fillColor="#1a1a1a"
-        android:pathData="M47,82l14,0l0,6l-14,0z"/>
+        android:pathData="M45,64l18,0l0,18l-18,0z"/>
 
 </vector>
