@@ -19,20 +19,49 @@ object MarkdownRenderer {
     @Volatile
     private var markwon: Markwon? = null
 
+    @Volatile
+    private var markwonWithLatex: Markwon? = null
+
+    @Volatile
+    private var latexAvailable: Boolean? = null
+
     /**
-     * Get or create the Markwon instance.
+     * Get basic Markwon instance (always works).
      */
-    private fun getInstance(context: Context): Markwon {
+    private fun getBasicInstance(context: Context): Markwon {
         return markwon ?: synchronized(this) {
-            markwon ?: createMarkwon(context.applicationContext).also {
+            markwon ?: createBasicMarkwon(context.applicationContext).also {
                 markwon = it
-                Log.d(TAG, "Markwon instance created successfully")
+                Log.d(TAG, "Basic Markwon instance created")
             }
         }
     }
 
-    private fun createMarkwon(context: Context): Markwon {
-        Log.d(TAG, "Creating Markwon instance...")
+    /**
+     * Try to get Markwon with LaTeX support.
+     */
+    private fun getLatexInstance(context: Context): Markwon? {
+        // If we already know LaTeX is not available, skip
+        if (latexAvailable == false) return null
+
+        return markwonWithLatex ?: synchronized(this) {
+            if (latexAvailable == false) return null
+
+            try {
+                markwonWithLatex ?: createLatexMarkwon(context.applicationContext).also {
+                    markwonWithLatex = it
+                    latexAvailable = true
+                    Log.d(TAG, "LaTeX Markwon instance created")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create LaTeX Markwon: ${e.message}")
+                latexAvailable = false
+                null
+            }
+        }
+    }
+
+    private fun createBasicMarkwon(context: Context): Markwon {
         return Markwon.builder(context)
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
@@ -41,8 +70,39 @@ object MarkdownRenderer {
             .build()
     }
 
+    private fun createLatexMarkwon(context: Context): Markwon {
+        // Dynamically load LaTeX plugin to avoid crash if not available
+        val latexPluginClass = Class.forName("io.noties.markwon.ext.latex.JLatexMathPlugin")
+        val createMethod = latexPluginClass.getMethod("create", Float::class.java)
+
+        val textSize = 16f * context.resources.displayMetrics.scaledDensity
+        val latexPlugin = createMethod.invoke(null, textSize)
+
+        return Markwon.builder(context)
+            .usePlugin(StrikethroughPlugin.create())
+            .usePlugin(TablePlugin.create(context))
+            .usePlugin(HtmlPlugin.create())
+            .usePlugin(LinkifyPlugin.create())
+            .usePlugin(latexPlugin as io.noties.markwon.MarkwonPlugin)
+            .build()
+    }
+
     /**
-     * Render AI response with Markdown support.
+     * Preprocess text to convert LaTeX delimiters.
+     */
+    private fun preprocessLatex(text: String): String {
+        var processed = text
+        // Convert \[ \] to $$ $$
+        processed = processed.replace("\\[", "$$")
+        processed = processed.replace("\\]", "$$")
+        // Convert \( \) to $ $
+        processed = processed.replace("\\(", "$")
+        processed = processed.replace("\\)", "$")
+        return processed
+    }
+
+    /**
+     * Render AI response with Markdown and optional LaTeX support.
      */
     fun renderAIResponse(context: Context, textView: TextView, text: String) {
         if (text.isEmpty()) {
@@ -51,13 +111,25 @@ object MarkdownRenderer {
         }
 
         try {
-            Log.d(TAG, "renderAIResponse called, text length: ${text.length}")
-            val markwonInstance = getInstance(context)
-            Log.d(TAG, "Got Markwon instance, setting markdown...")
-            markwonInstance.setMarkdown(textView, text)
-            Log.d(TAG, "Markdown set successfully")
+            // Try LaTeX-enabled rendering first
+            val latexMarkwon = getLatexInstance(context)
+            if (latexMarkwon != null) {
+                val processed = preprocessLatex(text)
+                latexMarkwon.setMarkdown(textView, processed)
+                return
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Markdown rendering failed: ${e.message}", e)
+            Log.e(TAG, "LaTeX rendering failed: ${e.message}")
+            latexAvailable = false
+            markwonWithLatex = null
+        }
+
+        // Fallback to basic Markdown
+        try {
+            val basicMarkwon = getBasicInstance(context)
+            basicMarkwon.setMarkdown(textView, text)
+        } catch (e: Exception) {
+            Log.e(TAG, "Basic Markdown rendering failed: ${e.message}")
             textView.text = text
         }
     }
