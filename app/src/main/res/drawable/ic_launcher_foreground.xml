@@ -5,20 +5,58 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Shadow - sunlight from top-left, casting to bottom-right -->
+    <!-- Shadow - sunlight from top-left -->
     <path
-        android:fillColor="#18000000"
-        android:pathData="M58,40c-8.3,0 -15,6.7 -15,15c0,5.1 2.5,9.6 6.4,12.3v4.7c0,1.1 0.9,2 2,2h13.2c1.1,0 2,-0.9 2,-2v-4.7c3.9,-2.7 6.4,-7.2 6.4,-12.3C73,46.7 66.3,40 58,40zM62.4,65l-1.8,1.3v5.7h-9v-5.7L49.8,65c-3,-2.1 -4.8,-5.5 -4.8,-9.5c0,-6.4 5.2,-11.5 11.5,-11.5s11.5,5.2 11.5,11.5C68,59.5 66.2,62.9 62.4,65z"/>
+        android:fillColor="#15000000"
+        android:pathData="M57,32a10,12 0,1,1 0,24a10,12 0,1,1 0,-24"/>
     <path
-        android:fillColor="#18000000"
-        android:pathData="M50,77c0,1.1 0.9,2 2,2h10c1.1,0 2,-0.9 2,-2v-2H50V77z"/>
+        android:fillColor="#15000000"
+        android:pathData="M51,54l12,0l0,10l-12,0z"/>
+    <path
+        android:fillColor="#15000000"
+        android:pathData="M50,64l14,0l0,4l-14,0z"/>
+    <path
+        android:fillColor="#15000000"
+        android:pathData="M51,68l12,0l0,4l-12,0z"/>
+    <path
+        android:fillColor="#15000000"
+        android:pathData="M53,72l8,0l0,5a4,3 0,0,1 -8,0z"/>
 
-    <!-- Main lightbulb - thin strokes, centered at 54,54 -->
+    <!-- Main lightbulb - slim tall design, centered at 54,54 -->
+    <!-- Bulb (oval, taller than wide) -->
     <path
         android:fillColor="#202123"
-        android:pathData="M54,38c-8.3,0 -15,6.7 -15,15c0,5.1 2.5,9.6 6.4,12.3v4.7c0,1.1 0.9,2 2,2h13.2c1.1,0 2,-0.9 2,-2v-4.7c3.9,-2.7 6.4,-7.2 6.4,-12.3C69,44.7 62.3,38 54,38zM58.4,63l-1.8,1.3v5.7h-9v-5.7L45.8,63c-3,-2.1 -4.8,-5.5 -4.8,-9.5c0,-6.4 5.2,-11.5 11.5,-11.5s11.5,5.2 11.5,11.5C64,57.5 62.2,60.9 58.4,63z"/>
-    <!-- Lightbulb base -->
+        android:pathData="M54,30a10,12 0,1,1 0,24a10,12 0,1,1 0,-24"/>
+    <!-- Inner cutout for thin stroke effect -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,32a8,10 0,1,1 0,20a8,10 0,1,1 0,-20"/>
+
+    <!-- Neck -->
     <path
         android:fillColor="#202123"
-        android:pathData="M46,75c0,1.1 0.9,2 2,2h10c1.1,0 2,-0.9 2,-2v-2H46V75z"/>
+        android:pathData="M48,52l12,0l0,10l-12,0z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,52l8,0l0,10l-8,0z"/>
+
+    <!-- Base rings -->
+    <path
+        android:fillColor="#202123"
+        android:pathData="M47,62l14,0l0,4l-14,0z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M49,63.5l10,0l0,1l-10,0z"/>
+
+    <path
+        android:fillColor="#202123"
+        android:pathData="M48,66l12,0l0,4l-12,0z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,67.5l8,0l0,1l-8,0z"/>
+
+    <!-- Bottom cap -->
+    <path
+        android:fillColor="#202123"
+        android:pathData="M50,70l8,0l0,5a4,3 0,0,1 -8,0z"/>
 </vector>
