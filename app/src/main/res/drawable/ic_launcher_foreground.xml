@@ -6,46 +6,63 @@
     android:viewportHeight="108">
 
     <!--
-    Lightbulb Icon Design
-    - Total height: 52dp (y: 26-78)
-    - Centered at x=54
-    - Stroke width: 6dp uniform
-    - Shadow offset: 5dp at 10% opacity
+    Modern Lightbulb Icon
+    - Total height: 54dp (y: 24-78)
+    - Bulb diameter: 36dp
+    - Stroke width: 5dp
+    - Shadow: 12% opacity, 4dp offset
     -->
 
-    <!-- Shadow layer - soft drop shadow -->
+    <!-- Drop shadow - subtle and soft -->
     <path
-        android:fillColor="#1A000000"
-        android:pathData="M59,31a16,16 0,1,1 0,32a16,16 0,1,1 0,-32z"/>
+        android:fillColor="#1F000000"
+        android:pathData="M58,26a18,18 0,1,1 0,36a18,18 0,1,1 0,-36z"/>
     <path
-        android:fillColor="#1A000000"
-        android:pathData="M53,61l12,0l0,8l-12,0z"/>
+        android:fillColor="#1F000000"
+        android:pathData="M50,60l16,0l0,6l-16,0z"/>
     <path
-        android:fillColor="#1A000000"
-        android:pathData="M49,69l20,0l0,14l-20,0z"/>
+        android:fillColor="#1F000000"
+        android:pathData="M46,66l24,0l0,16l-24,0z"/>
 
-    <!-- Bulb - outer circle (stroke effect via layered circles) -->
+    <!-- Bulb glass - outer (dark stroke) -->
     <path
-        android:fillColor="#202123"
-        android:pathData="M54,26a16,16 0,1,1 0,32a16,16 0,1,1 0,-32z"/>
+        android:fillColor="#1a1a1a"
+        android:pathData="M54,22a18,18 0,1,1 0,36a18,18 0,1,1 0,-36z"/>
 
-    <!-- Bulb - inner circle (white glass) -->
+    <!-- Bulb glass - inner (white fill) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,32a10,10 0,1,1 0,20a10,10 0,1,1 0,-20z"/>
+        android:pathData="M54,27a13,13 0,1,1 0,26a13,13 0,1,1 0,-26z"/>
 
-    <!-- Neck connector -->
+    <!-- Filament - tungsten wire detail -->
     <path
-        android:fillColor="#202123"
-        android:pathData="M48,56l12,0l0,8l-12,0z"/>
-
-    <!-- Base (screw cap) -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#1a1a1a"
+        android:strokeWidth="2"
+        android:pathData="M50,44 Q50,36 54,36 Q58,36 58,44"/>
     <path
-        android:fillColor="#202123"
-        android:pathData="M44,64l20,0l0,14l-20,0z"/>
+        android:fillColor="#1a1a1a"
+        android:pathData="M49,44l2,0l0,4l-2,0z"/>
+    <path
+        android:fillColor="#1a1a1a"
+        android:pathData="M57,44l2,0l0,4l-2,0z"/>
 
-    <!-- Base highlight (thread detail) -->
+    <!-- Neck connector - tapered -->
+    <path
+        android:fillColor="#1a1a1a"
+        android:pathData="M46,56l16,0l0,6l-16,0z"/>
+
+    <!-- Screw base - main body -->
+    <path
+        android:fillColor="#1a1a1a"
+        android:pathData="M42,62l24,0l0,16l-24,0z"/>
+
+    <!-- Screw base - thread lines (white stripes) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M48,68l12,0l0,6l-12,0z"/>
+        android:pathData="M46,66l16,0l0,3l-16,0z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,72l16,0l0,3l-16,0z"/>
+
 </vector>
