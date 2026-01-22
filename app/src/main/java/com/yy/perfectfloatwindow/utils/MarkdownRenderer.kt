@@ -203,7 +203,8 @@ object MarkdownRenderer {
 
     private fun normalizeDelimiters(text: String): String {
         return text
-            .replace("\\n", "\n")  // Convert literal \n to actual newline
+            .replace("\\n", "<br>")  // Convert literal \n to HTML line break
+            .replace("\n", "<br>")   // Convert actual newlines to HTML line break
             .replace("\\[", "$$")
             .replace("\\]", "$$")
             .replace("\\(", "$")
