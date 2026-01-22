@@ -76,32 +76,91 @@ object MarkdownRenderer {
     }
 
     /**
-     * Convert LaTeX delimiters to $$ format for reliable rendering.
-     * Since inline $...$ doesn't work reliably, convert all to block format.
+     * Check if a LaTeX expression is simple enough to display as italic text.
+     * Simple means: single letter, or simple variable like x, y, a, b, R, etc.
+     */
+    private fun isSimpleExpression(content: String): Boolean {
+        val trimmed = content.trim()
+        // Single letter or number
+        if (trimmed.length == 1) return true
+        // Simple variable with subscript like x_1, a_n (but not complex)
+        if (trimmed.matches(Regex("^[a-zA-Z](_[a-zA-Z0-9])?$"))) return true
+        // Very short and no complex LaTeX commands
+        if (trimmed.length <= 3 && !trimmed.contains("\\")) return true
+        return false
+    }
+
+    /**
+     * Check if content contains complex LaTeX that needs rendering.
+     */
+    private fun isComplexLatex(content: String): Boolean {
+        // Contains LaTeX commands like \frac, \sqrt, \sum, etc.
+        return content.contains("\\frac") ||
+                content.contains("\\sqrt") ||
+                content.contains("\\sum") ||
+                content.contains("\\int") ||
+                content.contains("\\prod") ||
+                content.contains("\\lim") ||
+                content.contains("\\infty") ||
+                content.contains("\\partial") ||
+                content.contains("\\alpha") ||
+                content.contains("\\beta") ||
+                content.contains("\\gamma") ||
+                content.contains("\\theta") ||
+                content.contains("\\pi") ||
+                content.contains("\\cdot") ||
+                content.contains("\\times") ||
+                content.contains("\\div") ||
+                content.contains("\\pm") ||
+                content.contains("\\leq") ||
+                content.contains("\\geq") ||
+                content.contains("\\neq") ||
+                content.contains("\\approx") ||
+                content.contains("^{") ||
+                content.contains("_{") ||
+                content.contains("\\left") ||
+                content.contains("\\right") ||
+                content.contains("\\begin") ||
+                content.contains("\\end")
+    }
+
+    /**
+     * Convert LaTeX delimiters for rendering.
+     * - Simple inline math: convert to italic *...*
+     * - Complex inline math: convert to block $$...$$
+     * - Block math: keep as $$...$$
      */
     private fun preprocessLatex(text: String): String {
         var result = text
 
-        // First, convert \[...\] to $$...$$
+        // Convert \[...\] to $$...$$ (block math)
         result = result.replace("\\[", "$$")
         result = result.replace("\\]", "$$")
 
-        // Convert \(...\) to $$...$$ (as block, since inline doesn't work)
-        result = result.replace("\\(", "$$")
-        result = result.replace("\\)", "$$")
-
-        // Convert inline $...$ to block $$...$$
-        // Use regex to find $...$ (not $$) and convert to $$...$$
-        val inlinePattern = Regex("""(?<!\$)\$(?!\$)([^\$]+?)(?<!\$)\$(?!\$)""")
-        result = inlinePattern.replace(result) { match ->
+        // Convert \(...\) based on complexity
+        val displayPattern = Regex("""\\\((.*?)\\\)""", RegexOption.DOT_MATCHES_ALL)
+        result = displayPattern.replace(result) { match ->
             val content = match.groupValues[1]
-            // Only convert if it looks like math (contains backslash, numbers, or common math symbols)
-            if (content.contains("\\") || content.matches(Regex(".*[a-zA-Z0-9+\\-=<>^_{}].*"))) {
-                "$$${content}$$"
-            } else {
-                match.value // Keep original if doesn't look like math
+            when {
+                isSimpleExpression(content) -> "*${content.trim()}*"
+                isComplexLatex(content) -> "\n$$${content}$$\n"
+                else -> "*${content.trim()}*"
             }
         }
+
+        // Process inline $...$ (not $$)
+        val inlinePattern = Regex("""(?<!\$)\$(?!\$)(.*?)(?<!\$)\$(?!\$)""")
+        result = inlinePattern.replace(result) { match ->
+            val content = match.groupValues[1]
+            when {
+                isSimpleExpression(content) -> "*${content.trim()}*"
+                isComplexLatex(content) -> "\n$$${content}$$\n"
+                else -> "*${content.trim()}*"
+            }
+        }
+
+        // Clean up extra newlines
+        result = result.replace(Regex("\n{3,}"), "\n\n")
 
         return result
     }
