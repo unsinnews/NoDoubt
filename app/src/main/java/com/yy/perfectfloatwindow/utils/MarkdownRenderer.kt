@@ -53,7 +53,6 @@ object MarkdownRenderer {
                 val textSize = 18f * context.resources.displayMetrics.scaledDensity
 
                 Markwon.builder(context.applicationContext)
-                    // MarkwonInlineParserPlugin must be added first
                     .usePlugin(MarkwonInlineParserPlugin.create())
                     .usePlugin(JLatexMathPlugin.create(textSize) { builder ->
                         builder.inlinesEnabled(true)
@@ -77,40 +76,34 @@ object MarkdownRenderer {
     }
 
     /**
-     * Convert \[...\] to $$...$$ and \(...\) to $...$
+     * Convert LaTeX delimiters to $$ format for reliable rendering.
+     * Since inline $...$ doesn't work reliably, convert all to block format.
      */
     private fun preprocessLatex(text: String): String {
-        val sb = StringBuilder(text)
+        var result = text
 
-        // Replace \[ with $$
-        var index = sb.indexOf("\\[")
-        while (index != -1) {
-            sb.replace(index, index + 2, "$$")
-            index = sb.indexOf("\\[", index + 2)
+        // First, convert \[...\] to $$...$$
+        result = result.replace("\\[", "$$")
+        result = result.replace("\\]", "$$")
+
+        // Convert \(...\) to $$...$$ (as block, since inline doesn't work)
+        result = result.replace("\\(", "$$")
+        result = result.replace("\\)", "$$")
+
+        // Convert inline $...$ to block $$...$$
+        // Use regex to find $...$ (not $$) and convert to $$...$$
+        val inlinePattern = Regex("""(?<!\$)\$(?!\$)([^\$]+?)(?<!\$)\$(?!\$)""")
+        result = inlinePattern.replace(result) { match ->
+            val content = match.groupValues[1]
+            // Only convert if it looks like math (contains backslash, numbers, or common math symbols)
+            if (content.contains("\\") || content.matches(Regex(".*[a-zA-Z0-9+\\-=<>^_{}].*"))) {
+                "$$${content}$$"
+            } else {
+                match.value // Keep original if doesn't look like math
+            }
         }
 
-        // Replace \] with $$
-        index = sb.indexOf("\\]")
-        while (index != -1) {
-            sb.replace(index, index + 2, "$$")
-            index = sb.indexOf("\\]", index + 2)
-        }
-
-        // Replace \( with $
-        index = sb.indexOf("\\(")
-        while (index != -1) {
-            sb.replace(index, index + 2, "$")
-            index = sb.indexOf("\\(", index + 1)
-        }
-
-        // Replace \) with $
-        index = sb.indexOf("\\)")
-        while (index != -1) {
-            sb.replace(index, index + 2, "$")
-            index = sb.indexOf("\\)", index + 1)
-        }
-
-        return sb.toString()
+        return result
     }
 
     /**
