@@ -153,25 +153,44 @@ object MarkdownRenderer {
         }
     }
 
-    private fun renderLatexToBitmap(latex: String, textSize: Float): Bitmap? {
-        val cacheKey = "$latex|$textSize"
+    private fun renderLatexToBitmap(latex: String, textSize: Float, maxWidth: Int = 0): Bitmap? {
+        val cacheKey = "$latex|$textSize|$maxWidth"
 
         latexCache.get(cacheKey)?.let { return it }
 
         return try {
-            val drawable = JLatexMathDrawable.builder(latex)
+            val builder = JLatexMathDrawable.builder(latex)
                 .textSize(textSize)
                 .color(Color.BLACK)
-                .build()
 
-            val width = drawable.intrinsicWidth
-            val height = drawable.intrinsicHeight
+            // For block formulas, limit width to fit screen
+            if (maxWidth > 0) {
+                builder.fitCanvas(true)
+            }
+
+            val drawable = builder.build()
+
+            var width = drawable.intrinsicWidth
+            var height = drawable.intrinsicHeight
 
             if (width <= 0 || height <= 0) return null
 
+            // Scale down if too wide (for block formulas)
+            if (maxWidth > 0 && width > maxWidth) {
+                val scale = maxWidth.toFloat() / width
+                width = maxWidth
+                height = (height * scale).toInt()
+            }
+
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            drawable.setBounds(0, 0, width, height)
+
+            if (maxWidth > 0 && drawable.intrinsicWidth > maxWidth) {
+                val scale = maxWidth.toFloat() / drawable.intrinsicWidth
+                canvas.scale(scale, scale)
+            }
+
+            drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
             drawable.draw(canvas)
 
             latexCache.put(cacheKey, bitmap)
@@ -190,52 +209,77 @@ object MarkdownRenderer {
             .replace("\\)", "$")
     }
 
-    private fun processInlineLatex(context: Context, textView: TextView, text: String) {
+    private fun processLatex(context: Context, textView: TextView, text: String) {
         val normalized = normalizeDelimiters(text)
         val textSize = textView.textSize
+        val maxWidth = textView.width.takeIf { it > 0 } ?: (context.resources.displayMetrics.widthPixels - 48)
 
-        val markwon = getLatexMarkwon(context) ?: getBasicMarkwon(context)
+        // Use basic Markwon only (no JLatexMathPlugin) to avoid async flicker
+        val markwon = getBasicMarkwon(context)
 
+        // Match block formulas first: $$...$$
+        val blockPattern = Regex("""\$\$(.+?)\$\$""", RegexOption.DOT_MATCHES_ALL)
+        // Match inline formulas: $...$
         val inlinePattern = Regex("""(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)""")
-        val matches = inlinePattern.findAll(normalized).toList()
 
-        if (matches.isEmpty()) {
-            markwon.setMarkdown(textView, normalized)
+        var processedText = normalized
+        val placeholders = mutableListOf<Triple<String, String, Boolean>>() // placeholder, latex, isBlock
+
+        // Process block formulas
+        var blockIndex = 0
+        blockPattern.findAll(normalized).forEach { match ->
+            val placeholder = "⟦BLOCK$blockIndex⟧"
+            placeholders.add(Triple(placeholder, match.groupValues[1].trim(), true))
+            processedText = processedText.replaceFirst(match.value, "\n$placeholder\n")
+            blockIndex++
+        }
+
+        // Process inline formulas
+        var inlineIndex = 0
+        inlinePattern.findAll(processedText).toList().forEach { match ->
+            val placeholder = "⟦INLINE$inlineIndex⟧"
+            placeholders.add(Triple(placeholder, match.groupValues[1], false))
+            processedText = processedText.replaceFirst(match.value, placeholder)
+            inlineIndex++
+        }
+
+        if (placeholders.isEmpty()) {
+            val spanned = markwon.toMarkdown(normalized)
+            textView.setText(spanned, TextView.BufferType.SPANNABLE)
             return
         }
 
-        var processedText = normalized
-        val placeholders = mutableListOf<Pair<String, String>>()
+        // Render markdown WITHOUT LaTeX plugin (no async rendering)
+        val markdownSpanned = markwon.toMarkdown(processedText)
+        val spannable = SpannableStringBuilder(markdownSpanned)
 
-        matches.forEachIndexed { index, match ->
-            val placeholder = "⟦LATEX$index⟧"
-            placeholders.add(placeholder to match.groupValues[1])
-            processedText = processedText.replaceFirst(match.value, placeholder)
-        }
-
-        markwon.setMarkdown(textView, processedText)
-
-        val spannable = SpannableStringBuilder(textView.text)
-
-        placeholders.forEach { (placeholder, latex) ->
+        // Process all placeholders synchronously
+        placeholders.forEach { (placeholder, latex, isBlock) ->
             val start = spannable.indexOf(placeholder)
             if (start >= 0) {
-                val bitmap = renderLatexToBitmap(latex, textSize * 0.9f)
+                val renderSize = if (isBlock) textSize * 1.2f else textSize * 0.9f
+                val bitmap = renderLatexToBitmap(latex, renderSize, if (isBlock) maxWidth else 0)
                 if (bitmap != null) {
                     val drawable = BitmapDrawable(context.resources, bitmap)
                     drawable.setBounds(0, 0, bitmap.width, bitmap.height)
 
                     spannable.replace(start, start + placeholder.length, "\uFFFC")
-                    // Use CenteredImageSpan for vertical centering
-                    val imageSpan = CenteredImageSpan(drawable)
+                    val imageSpan = if (isBlock) {
+                        ImageSpan(drawable, ImageSpan.ALIGN_BASELINE)
+                    } else {
+                        CenteredImageSpan(drawable)
+                    }
                     spannable.setSpan(imageSpan, start, start + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
                 } else {
-                    spannable.replace(start, start + placeholder.length, latex)
+                    // Fallback: show raw LaTeX
+                    val display = if (isBlock) "\n$latex\n" else latex
+                    spannable.replace(start, start + placeholder.length, display)
                 }
             }
         }
 
-        textView.text = spannable
+        // Single atomic update
+        textView.setText(spannable, TextView.BufferType.SPANNABLE)
     }
 
     fun renderAIResponse(context: Context, textView: TextView, text: String) {
@@ -255,7 +299,7 @@ object MarkdownRenderer {
         val renderTask = Runnable {
             try {
                 lastRenderedContent[viewId] = text
-                processInlineLatex(context, textView, text)
+                processLatex(context, textView, text)
             } catch (e: Throwable) {
                 Log.e(TAG, "Render error", e)
                 try {
