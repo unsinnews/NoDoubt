@@ -12,19 +12,19 @@
     - Gap between bulb and base: halved
     -->
 
-    <!-- Shadow layer - 4dp offset -->
+    <!-- Shadow layer - 8dp offset (doubled) -->
     <path
         android:fillColor="#1F000000"
-        android:pathData="M58,30a18,18 0,1,1 0,36a18,18 0,1,1 0,-36z"/>
+        android:pathData="M62,34a18,18 0,1,1 0,36a18,18 0,1,1 0,-36z"/>
     <path
         android:fillColor="#1F000000"
-        android:pathData="M52,68l12,0l0,4l-12,0z"/>
+        android:pathData="M56,72l12,0l0,4l-12,0z"/>
     <path
         android:fillColor="#1F000000"
-        android:pathData="M50,72l16,0l0,10l-16,0z"/>
+        android:pathData="M54,76l16,0l0,10l-16,0z"/>
     <path
         android:fillColor="#1F000000"
-        android:pathData="M52,82l12,0l0,4l-12,0z"/>
+        android:pathData="M56,86l12,0l0,4l-12,0z"/>
 
     <!-- Bulb outer circle -->
     <path
