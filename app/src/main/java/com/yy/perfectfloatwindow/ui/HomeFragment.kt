@@ -9,8 +9,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.SwitchCompat
-import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
+import com.google.android.material.card.MaterialCardView
 import com.yy.floatserver.utils.SettingsCompat
 import com.yy.perfectfloatwindow.MainActivity
 import com.yy.perfectfloatwindow.R
@@ -75,7 +75,7 @@ class HomeFragment : Fragment() {
         val ivAppIcon = view.findViewById<ImageView>(R.id.ivAppIcon)
         val tvAppName = view.findViewById<TextView>(R.id.tvAppName)
         val tvAppDesc = view.findViewById<TextView>(R.id.tvAppDesc)
-        val cardFloatToggle = view.findViewById<CardView>(R.id.cardFloatToggle)
+        val cardFloatToggle = view.findViewById<MaterialCardView>(R.id.cardFloatToggle)
         val ivFloatIcon = view.findViewById<ImageView>(R.id.ivFloatIcon)
         val tvFloatTitle = view.findViewById<TextView>(R.id.tvFloatTitle)
         val tipLayout = view.findViewById<LinearLayout>(R.id.tipLayout)

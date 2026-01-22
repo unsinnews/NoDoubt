@@ -74,14 +74,14 @@
         android:paddingEnd="20dp">
 
         <!-- Float Window Toggle Card - with elevation for emphasis -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardFloatToggle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:elevation="8dp"
             app:cardCornerRadius="16dp"
-            app:cardElevation="8dp"
+            app:cardElevation="6dp"
             app:cardBackgroundColor="#F7F7F8"
+            app:strokeWidth="0dp"
             xmlns:app="http://schemas.android.com/apk/res-auto">
 
             <LinearLayout
@@ -134,7 +134,7 @@
 
             </LinearLayout>
 
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- Usage Tip - lighter weight -->
         <LinearLayout
