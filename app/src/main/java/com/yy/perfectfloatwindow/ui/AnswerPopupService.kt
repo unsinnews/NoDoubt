@@ -470,8 +470,8 @@ class AnswerPopupService : Service() {
                 container.getChildAt(i)?.let { childView ->
                     childView.findViewById<TextView>(R.id.tvQuestionTitle)?.text = "已停止"
                     childView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "已停止"
-                    // Hide retry button - can't retry incomplete OCR
-                    childView.findViewById<TextView>(R.id.btnRetry)?.visibility = View.GONE
+                    // Hide retry buttons - can't retry incomplete OCR
+                    hideRetryButtons(childView)
                 }
             }
         }
@@ -1136,14 +1136,13 @@ class AnswerPopupService : Service() {
             }
             answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = titleText
 
-            // Show/hide retry button based on state
-            val btnRetry = answerView?.findViewById<TextView>(R.id.btnRetry)
+            // Show/hide retry buttons based on state
             if (answer?.isComplete == true || answer?.isStopped == true || answer?.error != null) {
-                // Show retry button for completed, stopped, or error states
+                // Show retry buttons for completed, stopped, or error states
                 answerView?.let { showRetryButton(it, question.id) }
             } else {
-                // Hide retry button when still answering
-                btnRetry?.visibility = View.GONE
+                // Hide retry buttons when still answering
+                answerView?.let { hideRetryButtons(it) }
             }
         }
     }
@@ -1281,15 +1280,30 @@ class AnswerPopupService : Service() {
     }
 
     private fun showRetryButton(itemView: View, questionId: Int) {
-        val btnRetry = itemView.findViewById<TextView>(R.id.btnRetry) ?: return
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        val bgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
 
-        // Apply theme color
-        btnRetry.setTextColor(if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt())
-        btnRetry.visibility = View.VISIBLE
-        btnRetry.setOnClickListener {
-            retryQuestion(questionId)
+        // Header retry button
+        val btnRetry = itemView.findViewById<TextView>(R.id.btnRetry)
+        btnRetry?.let {
+            it.setBackgroundResource(bgRes)
+            it.visibility = View.VISIBLE
+            it.setOnClickListener { retryQuestion(questionId) }
         }
+
+        // Bottom retry button (at end of answer)
+        val bottomContainer = itemView.findViewById<View>(R.id.bottomRetryContainer)
+        val btnRetryBottom = itemView.findViewById<TextView>(R.id.btnRetryBottom)
+        bottomContainer?.visibility = View.VISIBLE
+        btnRetryBottom?.let {
+            it.setBackgroundResource(bgRes)
+            it.setOnClickListener { retryQuestion(questionId) }
+        }
+    }
+
+    private fun hideRetryButtons(itemView: View) {
+        itemView.findViewById<TextView>(R.id.btnRetry)?.visibility = View.GONE
+        itemView.findViewById<View>(R.id.bottomRetryContainer)?.visibility = View.GONE
     }
 
     private fun retryQuestion(questionId: Int) {
@@ -1318,7 +1332,7 @@ class AnswerPopupService : Service() {
             val itemView = container.getChildAt(index) ?: return
             itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答中..."
             itemView.findViewById<TextView>(R.id.tvAnswerText)?.text = ""
-            itemView.findViewById<TextView>(R.id.btnRetry)?.visibility = View.GONE
+            hideRetryButtons(itemView)
         }
 
         // Update header

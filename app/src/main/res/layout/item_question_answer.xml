@@ -81,16 +81,17 @@
                 android:textColor="#1976D2"
                 android:textStyle="bold"/>
 
-            <!-- Retry Button -->
+            <!-- Header Retry Button (card style) -->
             <TextView
                 android:id="@+id/btnRetry"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="重新解答"
+                android:text="重试"
                 android:textSize="12sp"
-                android:textColor="#10A37F"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/bg_retry_button"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp"
                 android:visibility="gone"/>
@@ -107,6 +108,30 @@
             android:textSize="14sp"
             android:textColor="#212121"
             android:lineSpacingMultiplier="1.4"/>
+
+        <!-- Bottom Retry Button (at end of answer, right aligned) -->
+        <LinearLayout
+            android:id="@+id/bottomRetryContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="end"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/btnRetryBottom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="重试"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/bg_retry_button"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"/>
+
+        </LinearLayout>
 
     </LinearLayout>
 
