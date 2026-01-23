@@ -72,13 +72,28 @@
 
             <TextView
                 android:id="@+id/tvAnswerTitle"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:text="解答中..."
                 android:textSize="15sp"
                 android:textColor="#1976D2"
                 android:textStyle="bold"/>
+
+            <!-- Retry Button -->
+            <TextView
+                android:id="@+id/btnRetry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="重新解答"
+                android:textSize="12sp"
+                android:textColor="#10A37F"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:visibility="gone"/>
 
         </LinearLayout>
 

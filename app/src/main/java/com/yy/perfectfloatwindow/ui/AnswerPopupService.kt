@@ -411,12 +411,14 @@ class AnswerPopupService : Service() {
             // Update action button to arrow icon with animation
             animateActionButtonIcon(R.drawable.ic_arrow_up_white)
 
-            // Update answer titles to show stopped state
+            // Update answer titles to show stopped state and show retry buttons
             val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return@post
             currentQuestions.forEach { question ->
                 val index = currentQuestions.indexOf(question)
                 if (index >= 0 && index < container.childCount) {
-                    container.getChildAt(index)?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "已停止"
+                    val itemView = container.getChildAt(index) ?: return@forEach
+                    itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "已停止"
+                    showRetryButton(itemView, question.id)
                 }
             }
         }
@@ -1119,10 +1121,22 @@ class AnswerPopupService : Service() {
             }
 
             // Update answer title based on completion and stopped status
-            answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = when {
+            val titleText = when {
+                answer?.error != null -> "解答失败"
                 answer?.isStopped == true -> "已停止"
                 answer?.isComplete == true -> "解答${question.id}"
                 else -> "解答中..."
+            }
+            answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = titleText
+
+            // Show/hide retry button based on state
+            val btnRetry = answerView?.findViewById<TextView>(R.id.btnRetry)
+            if (answer?.isComplete == true || answer?.isStopped == true || answer?.error != null) {
+                // Show retry button for completed, stopped, or error states
+                answerView?.let { showRetryButton(it, question.id) }
+            } else {
+                // Hide retry button when still answering
+                btnRetry?.visibility = View.GONE
             }
         }
     }
@@ -1248,7 +1262,136 @@ class AnswerPopupService : Service() {
 
         val index = currentQuestions.indexOfFirst { it.id == questionId }
         if (index >= 0 && index < container.childCount) {
-            container.getChildAt(index)?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答$questionId"
+            val itemView = container.getChildAt(index) ?: return
+            itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答$questionId"
+            // Show retry button and set click listener
+            showRetryButton(itemView, questionId)
+        }
+    }
+
+    private fun showRetryButton(itemView: View, questionId: Int) {
+        val btnRetry = itemView.findViewById<TextView>(R.id.btnRetry) ?: return
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+
+        // Apply theme color
+        btnRetry.setTextColor(if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt())
+        btnRetry.visibility = View.VISIBLE
+        btnRetry.setOnClickListener {
+            retryQuestion(questionId)
+        }
+    }
+
+    private fun retryQuestion(questionId: Int) {
+        val question = currentQuestions.find { it.id == questionId } ?: return
+
+        // Cancel existing call for this question in current mode
+        if (isFastMode) {
+            fastCalls[questionId]?.cancel()
+            fastCalls.remove(questionId)
+            // Reset answer state
+            fastAnswers[questionId] = Answer(questionId)
+            isFastModeStopped = false  // Allow retry even if mode was stopped
+        } else {
+            deepCalls[questionId]?.cancel()
+            deepCalls.remove(questionId)
+            // Reset answer state
+            deepAnswers[questionId] = Answer(questionId)
+            isDeepModeStopped = false  // Allow retry even if mode was stopped
+        }
+
+        // Update UI to show retrying state
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+        val index = currentQuestions.indexOfFirst { it.id == questionId }
+        if (index >= 0 && index < container.childCount) {
+            val itemView = container.getChildAt(index) ?: return
+            itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答中..."
+            itemView.findViewById<TextView>(R.id.tvAnswerText)?.text = ""
+            itemView.findViewById<TextView>(R.id.btnRetry)?.visibility = View.GONE
+        }
+
+        // Update header
+        updateHeaderForCurrentMode()
+
+        // Start solving again for current mode only
+        retrySolvingQuestion(question)
+    }
+
+    private fun retrySolvingQuestion(question: Question) {
+        val config = if (isFastMode) {
+            AISettings.getFastConfig(this)
+        } else {
+            AISettings.getDeepConfig(this)
+        }
+
+        if (!config.isValid() || config.apiKey.isBlank()) {
+            return
+        }
+
+        val chatAPI = ChatAPI(config)
+        val call = chatAPI.solveQuestion(question, object : StreamingCallback {
+            override fun onChunk(text: String) {
+                handler.post {
+                    val answers = if (isFastMode) fastAnswers else deepAnswers
+                    answers[question.id]?.let { answer ->
+                        answer.text += text
+                        updateAnswerText(question.id, answer.text)
+                    }
+                }
+            }
+
+            override fun onComplete() {
+                handler.post {
+                    if (isFastMode) {
+                        fastCalls.remove(question.id)
+                        fastAnswers[question.id]?.isComplete = true
+                    } else {
+                        deepCalls.remove(question.id)
+                        deepAnswers[question.id]?.isComplete = true
+                    }
+                    updateAnswerTitleComplete(question.id)
+                    updateHeaderForCurrentMode()
+                }
+            }
+
+            override fun onError(error: Exception) {
+                handler.post {
+                    if (isFastMode) {
+                        fastCalls.remove(question.id)
+                        fastAnswers[question.id]?.let { answer ->
+                            answer.error = error.message
+                            answer.isComplete = true
+                        }
+                    } else {
+                        deepCalls.remove(question.id)
+                        deepAnswers[question.id]?.let { answer ->
+                            answer.error = error.message
+                            answer.isComplete = true
+                        }
+                    }
+                    updateAnswerText(question.id, "错误: ${error.message}")
+                    updateAnswerTitleWithError(question.id)
+                }
+            }
+        })
+
+        if (isFastMode) {
+            fastCalls[question.id] = call
+        } else {
+            deepCalls[question.id] = call
+        }
+    }
+
+    private fun updateAnswerTitleWithError(questionId: Int) {
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+
+        val index = currentQuestions.indexOfFirst { it.id == questionId }
+        if (index >= 0 && index < container.childCount) {
+            val itemView = container.getChildAt(index) ?: return
+            itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答失败"
+            // Show retry button for error state
+            showRetryButton(itemView, questionId)
         }
     }
 
