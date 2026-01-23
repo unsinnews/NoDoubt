@@ -1173,9 +1173,14 @@ class AnswerPopupService : Service() {
                     handler.post {
                         updateHeaderToAnswering()
                         fastAnswers[question.id]?.let { answer ->
+                            // Show bottom retry button when first chunk arrives
+                            val isFirstChunk = answer.text.isEmpty()
                             answer.text += text
                             if (isFastMode) {
                                 updateAnswerText(question.id, answer.text)
+                                if (isFirstChunk) {
+                                    showBottomRetryButtonForQuestion(question.id)
+                                }
                             }
                         }
                     }
@@ -1217,9 +1222,14 @@ class AnswerPopupService : Service() {
                     handler.post {
                         updateHeaderToAnswering()
                         deepAnswers[question.id]?.let { answer ->
+                            // Show bottom retry button when first chunk arrives
+                            val isFirstChunk = answer.text.isEmpty()
                             answer.text += text
                             if (!isFastMode) {
                                 updateAnswerText(question.id, answer.text)
+                                if (isFirstChunk) {
+                                    showBottomRetryButtonForQuestion(question.id)
+                                }
                             }
                         }
                     }
@@ -1292,12 +1302,29 @@ class AnswerPopupService : Service() {
         }
 
         // Bottom retry button (at end of answer)
+        showBottomRetryButton(itemView, questionId)
+    }
+
+    private fun showBottomRetryButton(itemView: View, questionId: Int) {
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        val bgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
+
         val bottomContainer = itemView.findViewById<View>(R.id.bottomRetryContainer)
         val btnRetryBottom = itemView.findViewById<TextView>(R.id.btnRetryBottom)
         bottomContainer?.visibility = View.VISIBLE
         btnRetryBottom?.let {
             it.setBackgroundResource(bgRes)
             it.setOnClickListener { retryQuestion(questionId) }
+        }
+    }
+
+    private fun showBottomRetryButtonForQuestion(questionId: Int) {
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+        val index = currentQuestions.indexOfFirst { it.id == questionId }
+        if (index >= 0 && index < container.childCount) {
+            val itemView = container.getChildAt(index) ?: return
+            showBottomRetryButton(itemView, questionId)
         }
     }
 
@@ -1362,10 +1389,15 @@ class AnswerPopupService : Service() {
                 handler.post {
                     val answers = if (wasInFastMode) fastAnswers else deepAnswers
                     answers[question.id]?.let { answer ->
+                        // Show bottom retry button when first chunk arrives
+                        val isFirstChunk = answer.text.isEmpty()
                         answer.text += text
                         // Only update UI if still viewing the same mode
                         if (isFastMode == wasInFastMode) {
                             updateAnswerText(question.id, answer.text)
+                            if (isFirstChunk) {
+                                showBottomRetryButtonForQuestion(question.id)
+                            }
                         }
                     }
                 }
