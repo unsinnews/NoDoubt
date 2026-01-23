@@ -1145,12 +1145,19 @@ class AnswerPopupService : Service() {
             answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = titleText
 
             // Show/hide retry buttons based on state
-            if (answer?.isComplete == true || answer?.isStopped == true || answer?.error != null || !answer?.text.isNullOrEmpty()) {
-                // Show retry buttons for completed, stopped, error, or streaming states
-                answerView?.let { showRetryButton(it, question.id) }
-            } else {
-                // Hide all retry buttons when not started yet
-                answerView?.let { hideRetryButtons(it) }
+            when {
+                answer?.isComplete == true || answer?.isStopped == true || answer?.error != null -> {
+                    // Show both buttons for completed, stopped, or error states
+                    answerView?.let { showRetryButton(it, question.id) }
+                }
+                !answer?.text.isNullOrEmpty() -> {
+                    // Streaming state: only show header button, not bottom button
+                    answerView?.let { showHeaderRetryButton(it, question.id) }
+                }
+                else -> {
+                    // Hide all retry buttons when not started yet
+                    answerView?.let { hideRetryButtons(it) }
+                }
             }
         }
     }
@@ -1181,13 +1188,13 @@ class AnswerPopupService : Service() {
                     handler.post {
                         updateHeaderToAnswering()
                         fastAnswers[question.id]?.let { answer ->
-                            // Show retry buttons when first chunk arrives
+                            // Show header retry button when first chunk arrives (not bottom)
                             val isFirstChunk = answer.text.isEmpty()
                             answer.text += text
                             if (isFastMode) {
                                 updateAnswerText(question.id, answer.text)
                                 if (isFirstChunk) {
-                                    showRetryButtonsForQuestion(question.id)
+                                    showHeaderRetryButtonForQuestion(question.id)
                                 }
                             }
                         }
@@ -1230,13 +1237,13 @@ class AnswerPopupService : Service() {
                     handler.post {
                         updateHeaderToAnswering()
                         deepAnswers[question.id]?.let { answer ->
-                            // Show retry buttons when first chunk arrives
+                            // Show header retry button when first chunk arrives (not bottom)
                             val isFirstChunk = answer.text.isEmpty()
                             answer.text += text
                             if (!isFastMode) {
                                 updateAnswerText(question.id, answer.text)
                                 if (isFirstChunk) {
-                                    showRetryButtonsForQuestion(question.id)
+                                    showHeaderRetryButtonForQuestion(question.id)
                                 }
                             }
                         }
@@ -1318,8 +1325,39 @@ class AnswerPopupService : Service() {
             it.setOnClickListener { retryQuestion(questionId) }
         }
 
-        // Bottom retry button (at end of answer)
+        // Bottom retry button (at end of answer) - only show when complete
         showBottomRetryButton(itemView, questionId)
+    }
+
+    // Show only header retry button (for streaming state)
+    private fun showHeaderRetryButton(itemView: View, questionId: Int) {
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        val bgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
+
+        // Show header button
+        val btnRetry = itemView.findViewById<TextView>(R.id.btnRetry)
+        btnRetry?.let {
+            it.setBackgroundResource(bgRes)
+            it.visibility = View.VISIBLE
+            it.setOnClickListener { retryQuestion(questionId) }
+        }
+
+        // Hide bottom button during streaming
+        itemView.findViewById<View>(R.id.bottomRetryContainer)?.visibility = View.GONE
+    }
+
+    // Show only header retry button for a question (for streaming state)
+    private fun showHeaderRetryButtonForQuestion(questionId: Int) {
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+        val itemView = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) {
+                    container.getChildAt(index)
+                } else null
+            } ?: return
+        showHeaderRetryButton(itemView, questionId)
     }
 
     private fun showBottomRetryButton(itemView: View, questionId: Int) {
@@ -1434,14 +1472,14 @@ class AnswerPopupService : Service() {
                 handler.post {
                     val answers = if (wasInFastMode) fastAnswers else deepAnswers
                     answers[question.id]?.let { answer ->
-                        // Show bottom retry button when first chunk arrives
+                        // Show header retry button when first chunk arrives (not bottom)
                         val isFirstChunk = answer.text.isEmpty()
                         answer.text += text
                         // Only update UI if still viewing the same mode
                         if (isFastMode == wasInFastMode) {
                             updateAnswerText(question.id, answer.text)
                             if (isFirstChunk) {
-                                showRetryButtonsForQuestion(question.id)
+                                showHeaderRetryButtonForQuestion(question.id)
                             }
                         }
                     }
