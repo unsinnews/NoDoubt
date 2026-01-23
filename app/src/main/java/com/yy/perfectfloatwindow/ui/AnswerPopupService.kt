@@ -1268,11 +1268,16 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
 
-        val index = currentQuestions.indexOfFirst { it.id == questionId }
-        if (index >= 0 && index < container.childCount) {
-            container.getChildAt(index)?.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
-                MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, text)
-            }
+        // Use tag-based lookup for more reliable view finding
+        val itemView = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) {
+                    container.getChildAt(index)
+                } else null
+            } ?: return
+        itemView.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
+            MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, text)
         }
     }
 
@@ -1280,13 +1285,17 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
 
-        val index = currentQuestions.indexOfFirst { it.id == questionId }
-        if (index >= 0 && index < container.childCount) {
-            val itemView = container.getChildAt(index) ?: return
-            itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答$questionId"
-            // Show retry button and set click listener
-            showRetryButton(itemView, questionId)
-        }
+        // Use tag-based lookup for more reliable view finding
+        val itemView = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) {
+                    container.getChildAt(index)
+                } else null
+            } ?: return
+        itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答$questionId"
+        // Show retry button and set click listener
+        showRetryButton(itemView, questionId)
     }
 
     private fun showRetryButton(itemView: View, questionId: Int) {
@@ -1321,21 +1330,30 @@ class AnswerPopupService : Service() {
     private fun showBottomRetryButtonForQuestion(questionId: Int) {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        val index = currentQuestions.indexOfFirst { it.id == questionId }
-        if (index >= 0 && index < container.childCount) {
-            val itemView = container.getChildAt(index) ?: return
-            showBottomRetryButton(itemView, questionId)
-        }
+        // Use tag-based lookup for more reliable view finding
+        val itemView = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) {
+                    container.getChildAt(index)
+                } else null
+            } ?: return
+        showBottomRetryButton(itemView, questionId)
     }
 
     private fun showRetryButtonsForQuestion(questionId: Int) {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        val index = currentQuestions.indexOfFirst { it.id == questionId }
-        if (index >= 0 && index < container.childCount) {
-            val itemView = container.getChildAt(index) ?: return
-            showRetryButton(itemView, questionId)
-        }
+        // Use tag-based lookup for more reliable view finding
+        val itemView = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                // Fallback to index-based lookup
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) {
+                    container.getChildAt(index)
+                } else null
+            } ?: return
+        showRetryButton(itemView, questionId)
     }
 
     private fun hideRetryButtons(itemView: View) {
@@ -1364,12 +1382,18 @@ class AnswerPopupService : Service() {
         // Update UI to show retrying state
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        val index = currentQuestions.indexOfFirst { it.id == questionId }
-        if (index >= 0 && index < container.childCount) {
-            val itemView = container.getChildAt(index) ?: return
-            itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答中..."
-            itemView.findViewById<TextView>(R.id.tvAnswerText)?.text = ""
-            hideRetryButtons(itemView)
+        // Use tag-based lookup for more reliable view finding
+        val itemView = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) {
+                    container.getChildAt(index)
+                } else null
+            }
+        itemView?.let {
+            it.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答中..."
+            it.findViewById<TextView>(R.id.tvAnswerText)?.text = ""
+            hideRetryButtons(it)
         }
 
         // Update header
@@ -1465,13 +1489,17 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
 
-        val index = currentQuestions.indexOfFirst { it.id == questionId }
-        if (index >= 0 && index < container.childCount) {
-            val itemView = container.getChildAt(index) ?: return
-            itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "请求错误"
-            // Show retry button for error state
-            showRetryButton(itemView, questionId)
-        }
+        // Use tag-based lookup for more reliable view finding
+        val itemView = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) {
+                    container.getChildAt(index)
+                } else null
+            } ?: return
+        itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "请求错误"
+        // Show retry button for error state
+        showRetryButton(itemView, questionId)
     }
 
     private fun dismissPopup() {
