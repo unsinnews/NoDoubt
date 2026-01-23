@@ -1114,9 +1114,14 @@ class AnswerPopupService : Service() {
             }
 
             answerView?.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
-                val answerText = answer?.text ?: ""
-                if (answerText.isNotEmpty()) {
-                    MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, answerText)
+                // Show error message if error exists, otherwise show answer text
+                val displayText = if (answer?.error != null) {
+                    "错误: ${answer.error}"
+                } else {
+                    answer?.text ?: ""
+                }
+                if (displayText.isNotEmpty()) {
+                    MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, displayText)
                 } else {
                     textView.text = ""
                 }
