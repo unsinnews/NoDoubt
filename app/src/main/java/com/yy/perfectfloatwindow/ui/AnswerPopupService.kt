@@ -414,11 +414,17 @@ class AnswerPopupService : Service() {
             // Update answer titles to show stopped state and show retry buttons
             val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return@post
             currentQuestions.forEach { question ->
-                val index = currentQuestions.indexOf(question)
-                if (index >= 0 && index < container.childCount) {
-                    val itemView = container.getChildAt(index) ?: return@forEach
-                    itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "已停止"
-                    showRetryButton(itemView, question.id)
+                // Use tag-based lookup for more reliable view finding
+                val itemView = container.findViewWithTag<View>("question_${question.id}")
+                    ?: run {
+                        val index = currentQuestions.indexOf(question)
+                        if (index >= 0 && index < container.childCount) {
+                            container.getChildAt(index)
+                        } else null
+                    }
+                itemView?.let {
+                    it.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "已停止"
+                    showRetryButton(it, question.id)
                 }
             }
         }
@@ -1106,12 +1112,14 @@ class AnswerPopupService : Service() {
         // Update answer text and title for current mode
         currentQuestions.forEach { question ->
             val answer = answers[question.id]
-            val index = currentQuestions.indexOf(question)
-            val answerView = if (index >= 0 && index < container.childCount) {
-                container.getChildAt(index)
-            } else {
-                container.findViewWithTag<View>("question_${question.id}")
-            }
+            // Use tag-based lookup for more reliable view finding
+            val answerView = container.findViewWithTag<View>("question_${question.id}")
+                ?: run {
+                    val index = currentQuestions.indexOf(question)
+                    if (index >= 0 && index < container.childCount) {
+                        container.getChildAt(index)
+                    } else null
+                }
 
             answerView?.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
                 // Show error message if error exists, otherwise show answer text
