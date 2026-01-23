@@ -345,7 +345,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="使用完成后自动删除"
+                        android:text="OCR识图后自动删除"
                         android:textSize="13sp"
                         android:textColor="#6E6E80"/>
 

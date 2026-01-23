@@ -1,5 +1,6 @@
 package com.yy.perfectfloatwindow.ui
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -97,6 +98,13 @@ class HomeFragment : Fragment() {
             tipLayout.setBackgroundResource(R.drawable.bg_tip_light_green_gray)
             tvTipTitle.setTextColor(0xFF10A37F.toInt())
             tvTipContent.setTextColor(0xFF6E6E80.toInt())
+
+            // Switch theming
+            switchFloat.thumbTintList = ColorStateList.valueOf(0xFF10A37F.toInt())
+            switchFloat.trackTintList = ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(0x8010A37F.toInt(), 0xFFE0E0E0.toInt())
+            )
         } else {
             // 浅棕黑主题 - 暖橙色按钮，黑色文字
             rootLayout.setBackgroundColor(0xFFFAF9F5.toInt())
@@ -112,6 +120,13 @@ class HomeFragment : Fragment() {
             tipLayout.setBackgroundResource(R.drawable.bg_tip_light_brown_black)
             tvTipTitle.setTextColor(0xFFDA7A5A.toInt())  // Warm orange accent
             tvTipContent.setTextColor(0xFF666666.toInt())
+
+            // Switch theming
+            switchFloat.thumbTintList = ColorStateList.valueOf(0xFFDA7A5A.toInt())
+            switchFloat.trackTintList = ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(0x80DA7A5A.toInt(), 0xFFE0E0E0.toInt())
+            )
         }
     }
 
