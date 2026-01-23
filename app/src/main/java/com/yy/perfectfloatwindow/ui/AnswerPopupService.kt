@@ -845,6 +845,7 @@ class AnswerPopupService : Service() {
 
             override fun onComplete() {
                 handler.post {
+                    ocrCall = null  // Clear OCR call reference when complete
                     if (currentQuestions.isEmpty()) {
                         showNoQuestionsDetected()
                     }
@@ -854,6 +855,7 @@ class AnswerPopupService : Service() {
 
             override fun onError(error: Exception) {
                 handler.post {
+                    ocrCall = null  // Clear OCR call reference on error
                     showError("OCR失败: ${error.message}")
                 }
             }
