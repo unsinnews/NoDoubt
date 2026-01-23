@@ -1138,10 +1138,16 @@ class AnswerPopupService : Service() {
 
             // Show/hide retry buttons based on state
             if (answer?.isComplete == true || answer?.isStopped == true || answer?.error != null) {
-                // Show retry buttons for completed, stopped, or error states
+                // Show both header and bottom retry buttons for completed, stopped, or error states
                 answerView?.let { showRetryButton(it, question.id) }
+            } else if (!answer?.text.isNullOrEmpty()) {
+                // Show only bottom retry button when answer is streaming (has content but not complete)
+                answerView?.let {
+                    it.findViewById<TextView>(R.id.btnRetry)?.visibility = View.GONE
+                    showBottomRetryButton(it, question.id)
+                }
             } else {
-                // Hide retry buttons when still answering
+                // Hide all retry buttons when not started yet
                 answerView?.let { hideRetryButtons(it) }
             }
         }
