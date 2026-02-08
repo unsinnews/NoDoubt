@@ -22,7 +22,6 @@ class OpenAIClient(private val config: AIConfig) {
         "reasoningText",
         "reasoning_output",
         "reasoningOutput",
-        "reasoning_details",
         "chain_of_thought",
         "chainOfThought",
         "thoughts",
