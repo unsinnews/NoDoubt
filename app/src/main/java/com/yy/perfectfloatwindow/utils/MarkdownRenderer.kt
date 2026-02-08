@@ -357,6 +357,13 @@ object MarkdownRenderer {
         mainHandler.postDelayed(renderTask, DEBOUNCE_DELAY)
     }
 
+    fun clearViewCache(textView: TextView) {
+        val viewId = System.identityHashCode(textView)
+        lastRenderedContent.remove(viewId)
+        pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+        pendingRenders.remove(viewId)
+    }
+
     fun clearCache() {
         latexCache.evictAll()
         lastRenderedContent.clear()

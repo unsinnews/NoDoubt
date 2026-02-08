@@ -1158,6 +1158,9 @@ class AnswerPopupService : Service() {
                 if (displayText.isNotEmpty()) {
                     MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, displayText)
                 } else {
+                    // Clear the cached content so that when switching back to a mode with content,
+                    // the renderer won't skip rendering due to stale cache
+                    MarkdownRenderer.clearViewCache(textView)
                     textView.text = ""
                 }
             }
