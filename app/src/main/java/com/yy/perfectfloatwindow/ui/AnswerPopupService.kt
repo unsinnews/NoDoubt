@@ -368,7 +368,9 @@ class AnswerPopupService : Service() {
         // Check if any question in current mode has started outputting answers
         val answers = if (isFastMode) fastAnswers else deepAnswers
         val hasAnyAnswerOutput = currentQuestions.any { question ->
-            answers[question.id]?.text?.isNotEmpty() == true
+            answers[question.id]?.let { answer ->
+                answer.text.isNotEmpty() || answer.thinkingText.isNotEmpty() || answer.isThinking
+            } == true
         }
 
         // If no answer output yet, treat as OCR phase and stop everything
@@ -392,6 +394,7 @@ class AnswerPopupService : Service() {
             // Mark all fast answers as stopped
             currentQuestions.forEach { question ->
                 fastAnswers[question.id]?.let {
+                    markThinkingCompleted(it)
                     it.isComplete = true
                     it.isStopped = true
                 }
@@ -404,6 +407,7 @@ class AnswerPopupService : Service() {
             // Mark all deep answers as stopped
             currentQuestions.forEach { question ->
                 deepAnswers[question.id]?.let {
+                    markThinkingCompleted(it)
                     it.isComplete = true
                     it.isStopped = true
                 }
@@ -440,6 +444,8 @@ class AnswerPopupService : Service() {
                     hideRetryButtons(childView)
                 }
             }
+
+            displayAnswersForMode(isFastMode)
         }
 
         // Check if all answers are complete
@@ -464,10 +470,12 @@ class AnswerPopupService : Service() {
         // Mark all answers as stopped
         currentQuestions.forEach { question ->
             fastAnswers[question.id]?.let {
+                markThinkingCompleted(it)
                 it.isComplete = true
                 it.isStopped = true
             }
             deepAnswers[question.id]?.let {
+                markThinkingCompleted(it)
                 it.isComplete = true
                 it.isStopped = true
             }
@@ -493,6 +501,8 @@ class AnswerPopupService : Service() {
                     hideRetryButtons(childView)
                 }
             }
+
+            displayAnswersForMode(isFastMode)
         }
     }
 
@@ -700,6 +710,48 @@ class AnswerPopupService : Service() {
 
             // Action button (circular theme color)
             view.findViewById<ImageView>(R.id.btnAction)?.setBackgroundResource(R.drawable.bg_action_button_circle_light_brown_black)
+        }
+
+        answersContainer?.let { container ->
+            for (i in 0 until container.childCount) {
+                container.getChildAt(i)?.let { itemView ->
+                    applyThemeToQuestionCard(itemView)
+                }
+            }
+        }
+    }
+
+    private fun applyThemeToQuestionCard(itemView: View) {
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        itemView.findViewById<View>(R.id.questionSection)?.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_question_card
+            else R.drawable.bg_question_card_light_brown_black
+        )
+
+        itemView.findViewById<View>(R.id.thinkingSection)?.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_thinking_card
+            else R.drawable.bg_thinking_card_light_brown_black
+        )
+        itemView.findViewById<View>(R.id.thinkingIndicator)?.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.indicator_orange
+            else R.drawable.indicator_orange_light_brown_black
+        )
+
+        val thinkingTitle = itemView.findViewById<TextView>(R.id.tvThinkingTitle)
+        val thinkingDuration = itemView.findViewById<TextView>(R.id.tvThinkingDuration)
+        val thinkingToggle = itemView.findViewById<TextView>(R.id.tvThinkingToggle)
+        val thinkingText = itemView.findViewById<TextView>(R.id.tvThinkingText)
+
+        if (isLightGreenGray) {
+            thinkingTitle?.setTextColor(0xFF7A4B00.toInt())
+            thinkingDuration?.setTextColor(0xFF9A7B47.toInt())
+            thinkingToggle?.setTextColor(0xFF9A7B47.toInt())
+            thinkingText?.setTextColor(0xFF4E3A1F.toInt())
+        } else {
+            thinkingTitle?.setTextColor(0xFF5F2F14.toInt())
+            thinkingDuration?.setTextColor(0xFF8B5A40.toInt())
+            thinkingToggle?.setTextColor(0xFF8B5A40.toInt())
+            thinkingText?.setTextColor(0xFF4A2A1D.toInt())
         }
     }
 
@@ -922,13 +974,9 @@ class AnswerPopupService : Service() {
         itemView.findViewById<TextView>(R.id.tvQuestionTitle).text = "识别中..."
         itemView.findViewById<TextView>(R.id.tvQuestionText).text = ""
         itemView.findViewById<TextView>(R.id.tvAnswerText).text = ""
-
-        // Apply theme to question card
-        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
-        itemView.findViewById<View>(R.id.questionSection)?.setBackgroundResource(
-            if (isLightGreenGray) R.drawable.bg_question_card
-            else R.drawable.bg_question_card_light_brown_black
-        )
+        itemView.findViewById<TextView>(R.id.tvThinkingText).text = ""
+        itemView.findViewById<View>(R.id.thinkingSection).visibility = View.GONE
+        applyThemeToQuestionCard(itemView)
 
         container.addView(itemView)
 
@@ -1105,8 +1153,6 @@ class AnswerPopupService : Service() {
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
         container.removeAllViews()
 
-        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
-
         questions.forEachIndexed { index, question ->
             val itemView = LayoutInflater.from(this)
                 .inflate(R.layout.item_question_answer, container, false)
@@ -1116,12 +1162,9 @@ class AnswerPopupService : Service() {
             val tvQuestionText = itemView.findViewById<TextView>(R.id.tvQuestionText)
             MarkdownRenderer.renderQuestionText(this@AnswerPopupService, tvQuestionText, question.text)
             itemView.findViewById<TextView>(R.id.tvAnswerText).text = ""
-
-            // Apply theme to question card
-            itemView.findViewById<View>(R.id.questionSection)?.setBackgroundResource(
-                if (isLightGreenGray) R.drawable.bg_question_card
-                else R.drawable.bg_question_card_light_brown_black
-            )
+            itemView.findViewById<TextView>(R.id.tvThinkingText).text = ""
+            itemView.findViewById<View>(R.id.thinkingSection).visibility = View.GONE
+            applyThemeToQuestionCard(itemView)
 
             container.addView(itemView)
 
@@ -1165,6 +1208,10 @@ class AnswerPopupService : Service() {
                 }
             }
 
+            answerView?.let {
+                renderThinkingSection(it, question.id, answer, isFast)
+            }
+
             // Update answer title based on completion and stopped status
             val titleText = when {
                 answer?.error != null -> "请求错误"
@@ -1180,7 +1227,7 @@ class AnswerPopupService : Service() {
                     // Show both buttons for completed, stopped, or error states
                     answerView?.let { showRetryButton(it, question.id) }
                 }
-                !answer?.text.isNullOrEmpty() -> {
+                !answer?.text.isNullOrEmpty() || answer?.isThinking == true || !answer?.thinkingText.isNullOrEmpty() -> {
                     // Streaming state: only show header button, not bottom button
                     answerView?.let { showHeaderRetryButton(it, question.id) }
                 }
@@ -1218,6 +1265,7 @@ class AnswerPopupService : Service() {
                     handler.post {
                         updateHeaderToAnswering()
                         fastAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
                             // Show header retry button when first chunk arrives (not bottom)
                             val isFirstChunk = answer.text.isEmpty()
                             answer.text += text
@@ -1234,9 +1282,13 @@ class AnswerPopupService : Service() {
                 override fun onComplete() {
                     handler.post {
                         fastCalls.remove(question.id)
-                        fastAnswers[question.id]?.isComplete = true
+                        fastAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
+                            answer.isComplete = true
+                        }
                         if (isFastMode) {
                             updateAnswerTitleComplete(question.id)
+                            renderThinkingSectionForQuestion(question.id, fastAnswers[question.id], true)
                         }
                         checkAllAnswersComplete()
                     }
@@ -1246,11 +1298,13 @@ class AnswerPopupService : Service() {
                     handler.post {
                         fastCalls.remove(question.id)
                         fastAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
                             answer.error = error.message
                             answer.isComplete = true
                             if (isFastMode) {
                                 updateAnswerText(question.id, "错误: ${error.message}")
                                 updateAnswerTitleWithError(question.id)
+                                renderThinkingSectionForQuestion(question.id, answer, true)
                             }
                         }
                     }
@@ -1263,15 +1317,52 @@ class AnswerPopupService : Service() {
         if (!isDeepModeStopped && deepConfig.isValid() && deepConfig.apiKey.isNotBlank()) {
             val deepChatAPI = ChatAPI(deepConfig)
             val deepCall = deepChatAPI.solveQuestion(question, object : StreamingCallback {
+                override fun onThinkingStart() {
+                    handler.post {
+                        updateHeaderToAnswering()
+                        deepAnswers[question.id]?.let { answer ->
+                            markThinkingStarted(answer)
+                            if (!isFastMode) {
+                                renderThinkingSectionForQuestion(question.id, answer, false)
+                            }
+                        }
+                    }
+                }
+
+                override fun onThinkingChunk(text: String) {
+                    handler.post {
+                        deepAnswers[question.id]?.let { answer ->
+                            markThinkingStarted(answer)
+                            answer.thinkingText += text
+                            if (!isFastMode) {
+                                renderThinkingSectionForQuestion(question.id, answer, false)
+                            }
+                        }
+                    }
+                }
+
+                override fun onThinkingComplete() {
+                    handler.post {
+                        deepAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
+                            if (!isFastMode) {
+                                renderThinkingSectionForQuestion(question.id, answer, false)
+                            }
+                        }
+                    }
+                }
+
                 override fun onChunk(text: String) {
                     handler.post {
                         updateHeaderToAnswering()
                         deepAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
                             // Show header retry button when first chunk arrives (not bottom)
                             val isFirstChunk = answer.text.isEmpty()
                             answer.text += text
                             if (!isFastMode) {
                                 updateAnswerText(question.id, answer.text)
+                                renderThinkingSectionForQuestion(question.id, answer, false)
                                 if (isFirstChunk) {
                                     showHeaderRetryButtonForQuestion(question.id)
                                 }
@@ -1283,9 +1374,13 @@ class AnswerPopupService : Service() {
                 override fun onComplete() {
                     handler.post {
                         deepCalls.remove(question.id)
-                        deepAnswers[question.id]?.isComplete = true
+                        deepAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
+                            answer.isComplete = true
+                        }
                         if (!isFastMode) {
                             updateAnswerTitleComplete(question.id)
+                            renderThinkingSectionForQuestion(question.id, deepAnswers[question.id], false)
                         }
                         checkAllAnswersComplete()
                     }
@@ -1295,11 +1390,13 @@ class AnswerPopupService : Service() {
                     handler.post {
                         deepCalls.remove(question.id)
                         deepAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
                             answer.error = error.message
                             answer.isComplete = true
                             if (!isFastMode) {
                                 updateAnswerText(question.id, "错误: ${error.message}")
                                 updateAnswerTitleWithError(question.id)
+                                renderThinkingSectionForQuestion(question.id, answer, false)
                             }
                         }
                     }
@@ -1323,6 +1420,100 @@ class AnswerPopupService : Service() {
             } ?: return
         itemView.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
             MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, text)
+        }
+    }
+
+    private fun markThinkingStarted(answer: Answer) {
+        if (!answer.isThinking) {
+            answer.isThinking = true
+            if (answer.thinkingStartAtMs <= 0L) {
+                answer.thinkingStartAtMs = System.currentTimeMillis()
+            }
+        }
+    }
+
+    private fun markThinkingCompleted(answer: Answer) {
+        val now = System.currentTimeMillis()
+        if (answer.thinkingStartAtMs > 0L) {
+            answer.thinkingDurationMs += (now - answer.thinkingStartAtMs).coerceAtLeast(0L)
+            answer.thinkingStartAtMs = 0L
+        }
+        answer.isThinking = false
+    }
+
+    private fun formatThinkingDuration(durationMs: Long): String {
+        if (durationMs <= 0L) return ""
+        return if (durationMs < 1000L) {
+            "${durationMs}ms"
+        } else {
+            String.format("%.1fs", durationMs / 1000f)
+        }
+    }
+
+    private fun renderThinkingSectionForQuestion(questionId: Int, answer: Answer?, isFast: Boolean) {
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+        val itemView = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) {
+                    container.getChildAt(index)
+                } else null
+            } ?: return
+        renderThinkingSection(itemView, questionId, answer, isFast)
+    }
+
+    private fun renderThinkingSection(itemView: View, questionId: Int, answer: Answer?, isFast: Boolean) {
+        val thinkingSection = itemView.findViewById<View>(R.id.thinkingSection) ?: return
+        val thinkingHeader = itemView.findViewById<View>(R.id.thinkingHeader)
+        val tvThinkingTitle = itemView.findViewById<TextView>(R.id.tvThinkingTitle)
+        val tvThinkingDuration = itemView.findViewById<TextView>(R.id.tvThinkingDuration)
+        val tvThinkingToggle = itemView.findViewById<TextView>(R.id.tvThinkingToggle)
+        val tvThinkingText = itemView.findViewById<TextView>(R.id.tvThinkingText)
+
+        if (isFast || answer == null) {
+            thinkingSection.visibility = View.GONE
+            return
+        }
+
+        val hasThinking = answer.thinkingText.isNotBlank() || answer.isThinking || answer.thinkingDurationMs > 0L
+        if (!hasThinking) {
+            thinkingSection.visibility = View.GONE
+            return
+        }
+
+        thinkingSection.visibility = View.VISIBLE
+        applyThemeToQuestionCard(itemView)
+
+        if (answer.isThinking && answer.thinkingStartAtMs <= 0L) {
+            answer.thinkingStartAtMs = System.currentTimeMillis()
+        }
+
+        val duration = if (answer.isThinking && answer.thinkingStartAtMs > 0L) {
+            (System.currentTimeMillis() - answer.thinkingStartAtMs).coerceAtLeast(0L)
+        } else {
+            answer.thinkingDurationMs
+        }
+
+        tvThinkingTitle?.text = if (answer.isThinking) "思考中..." else "思考过程"
+        tvThinkingDuration?.text = formatThinkingDuration(duration)
+        tvThinkingToggle?.text = if (answer.thinkingExpanded) "收起" else "展开"
+
+        if (answer.thinkingExpanded) {
+            tvThinkingText?.visibility = View.VISIBLE
+            val thinkingText = answer.thinkingText.trim()
+            if (thinkingText.isNotEmpty()) {
+                MarkdownRenderer.renderAIResponse(this@AnswerPopupService, tvThinkingText, thinkingText)
+            } else {
+                tvThinkingText?.text = "正在思考..."
+            }
+        } else {
+            tvThinkingText?.visibility = View.GONE
+        }
+
+        thinkingHeader?.setOnClickListener {
+            answer.thinkingExpanded = !answer.thinkingExpanded
+            renderThinkingSection(itemView, questionId, answer, isFast)
         }
     }
 
@@ -1472,6 +1663,8 @@ class AnswerPopupService : Service() {
         itemView?.let {
             it.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答中..."
             it.findViewById<TextView>(R.id.tvAnswerText)?.text = ""
+            it.findViewById<TextView>(R.id.tvThinkingText)?.text = ""
+            it.findViewById<View>(R.id.thinkingSection)?.visibility = View.GONE
             hideRetryButtons(it)
         }
 
@@ -1498,16 +1691,55 @@ class AnswerPopupService : Service() {
 
         val chatAPI = ChatAPI(config)
         val call = chatAPI.solveQuestion(question, object : StreamingCallback {
+            override fun onThinkingStart() {
+                if (wasInFastMode) return
+                handler.post {
+                    deepAnswers[question.id]?.let { answer ->
+                        markThinkingStarted(answer)
+                        if (!isFastMode) {
+                            renderThinkingSectionForQuestion(question.id, answer, false)
+                        }
+                    }
+                }
+            }
+
+            override fun onThinkingChunk(text: String) {
+                if (wasInFastMode) return
+                handler.post {
+                    deepAnswers[question.id]?.let { answer ->
+                        markThinkingStarted(answer)
+                        answer.thinkingText += text
+                        if (!isFastMode) {
+                            renderThinkingSectionForQuestion(question.id, answer, false)
+                        }
+                    }
+                }
+            }
+
+            override fun onThinkingComplete() {
+                if (wasInFastMode) return
+                handler.post {
+                    deepAnswers[question.id]?.let { answer ->
+                        markThinkingCompleted(answer)
+                        if (!isFastMode) {
+                            renderThinkingSectionForQuestion(question.id, answer, false)
+                        }
+                    }
+                }
+            }
+
             override fun onChunk(text: String) {
                 handler.post {
                     val answers = if (wasInFastMode) fastAnswers else deepAnswers
                     answers[question.id]?.let { answer ->
+                        markThinkingCompleted(answer)
                         // Show header retry button when first chunk arrives (not bottom)
                         val isFirstChunk = answer.text.isEmpty()
                         answer.text += text
                         // Only update UI if still viewing the same mode
                         if (isFastMode == wasInFastMode) {
                             updateAnswerText(question.id, answer.text)
+                            renderThinkingSectionForQuestion(question.id, answer, wasInFastMode)
                             if (isFirstChunk) {
                                 showHeaderRetryButtonForQuestion(question.id)
                             }
@@ -1520,16 +1752,25 @@ class AnswerPopupService : Service() {
                 handler.post {
                     if (wasInFastMode) {
                         fastCalls.remove(question.id)
-                        fastAnswers[question.id]?.isComplete = true
+                        fastAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
+                            answer.isComplete = true
+                        }
                     } else {
                         deepCalls.remove(question.id)
-                        deepAnswers[question.id]?.isComplete = true
+                        deepAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
+                            answer.isComplete = true
+                        }
                     }
                     // Only update UI if still viewing the same mode
                     if (isFastMode == wasInFastMode) {
                         updateAnswerTitleComplete(question.id)
+                        val answers = if (wasInFastMode) fastAnswers else deepAnswers
+                        renderThinkingSectionForQuestion(question.id, answers[question.id], wasInFastMode)
                         updateHeaderForCurrentMode()
                     }
+                    checkAllAnswersComplete()
                 }
             }
 
@@ -1538,12 +1779,14 @@ class AnswerPopupService : Service() {
                     if (wasInFastMode) {
                         fastCalls.remove(question.id)
                         fastAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
                             answer.error = error.message
                             answer.isComplete = true
                         }
                     } else {
                         deepCalls.remove(question.id)
                         deepAnswers[question.id]?.let { answer ->
+                            markThinkingCompleted(answer)
                             answer.error = error.message
                             answer.isComplete = true
                         }
@@ -1551,8 +1794,11 @@ class AnswerPopupService : Service() {
                     // Only update UI if still viewing the same mode
                     if (isFastMode == wasInFastMode) {
                         updateAnswerText(question.id, "错误: ${error.message}")
+                        val answers = if (wasInFastMode) fastAnswers else deepAnswers
+                        renderThinkingSectionForQuestion(question.id, answers[question.id], wasInFastMode)
                         updateAnswerTitleWithError(question.id)
                     }
+                    checkAllAnswersComplete()
                 }
             }
         })
