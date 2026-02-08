@@ -16,65 +16,10 @@ class OpenAIClient(private val config: AIConfig) {
 
     private val reasoningFieldKeys = listOf(
         "reasoning_content",
-        "reasoning",
-        "reasoningContent",
-        "reasoning_text",
-        "reasoningText",
-        "reasoning_output",
-        "reasoningOutput",
-        "chain_of_thought",
-        "chainOfThought",
-        "thoughts",
-        "thinking",
-        "thinking_content",
-        "thinkingContent",
-        "thought",
-        "analysis"
+        "reasoning"
     )
 
-    private val reasoningBlockTypes = setOf(
-        "reasoning",
-        "reasoning_content",
-        "reasoning_text",
-        "reasoning_delta",
-        "reasoning_delta_text",
-        "reasoning_summary",
-        "thinking",
-        "thinking_content",
-        "thinking_delta",
-        "thinking_delta_text",
-        "summary",
-        "summary_text",
-        "analysis",
-        "thought"
-    )
-
-    private val contentFieldKeys = listOf(
-        "content",
-        "text",
-        "output_text",
-        "answer",
-        "value",
-        "token",
-        "parts",
-        "delta"
-    )
-
-    private val contentBlockTypes = setOf(
-        "text",
-        "text_delta",
-        "output_text",
-        "output_text_delta",
-        "answer",
-        "final_answer",
-        "final",
-        "assistant_response",
-        "assistant",
-        "message",
-        "content",
-        "response_text",
-        "final_text"
-    )
+    private val contentFieldKey = "content"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -189,23 +134,20 @@ class OpenAIClient(private val config: AIConfig) {
         if (delta == null) return null
 
         for (key in reasoningFieldKeys) {
-            val text = extractTextFromElement(delta.get(key))
+            val text = extractTextFromElement(
+                element = delta.get(key),
+                preferredKeys = listOf("text", "content")
+            )
             if (!text.isNullOrEmpty()) {
                 return text
             }
         }
 
-        val reasoningFromBlocks = extractTextFromTypedBlocks(
-            element = delta.get("content"),
-            includeTypes = reasoningBlockTypes,
-            allowUntyped = false
-        )
-        if (!reasoningFromBlocks.isNullOrEmpty()) {
-            return reasoningFromBlocks
-        }
-
         for (key in reasoningFieldKeys) {
-            val text = extractTextFromElement(choice.get(key))
+            val text = extractTextFromElement(
+                element = choice.get(key),
+                preferredKeys = listOf("text", "content")
+            )
             if (!text.isNullOrEmpty()) {
                 return text
             }
@@ -217,42 +159,20 @@ class OpenAIClient(private val config: AIConfig) {
     private fun extractContentText(choice: JsonObject, delta: JsonObject?): String? {
         if (delta == null) return null
 
-        val rawContent = delta.get("content")
-        val contentFromBlocks = extractTextFromTypedBlocks(
-            element = rawContent,
-            includeTypes = contentBlockTypes,
-            excludeTypes = reasoningBlockTypes,
-            allowUntyped = true
+        val contentText = extractTextFromElement(
+            element = delta.get(contentFieldKey),
+            preferredKeys = listOf("text", "content"),
+            excludedKeys = reasoningFieldKeys.toSet()
         )
-        if (!contentFromBlocks.isNullOrEmpty()) {
-            return contentFromBlocks
+        if (!contentText.isNullOrEmpty()) {
+            return contentText
         }
 
-        val contentFromPrimitives = extractTextFromPrimitiveArray(rawContent)
-        if (!contentFromPrimitives.isNullOrEmpty()) {
-            return contentFromPrimitives
-        }
-
-        if (rawContent != null && !rawContent.isJsonNull && rawContent.isJsonPrimitive) {
-            val primitiveContent = extractTextFromElement(rawContent)
-            if (!primitiveContent.isNullOrEmpty()) {
-                return primitiveContent
-            }
-        }
-
-        for (key in contentFieldKeys) {
-            if (key == "content") continue
-            val text = extractTextFromElement(
-                element = delta.get(key),
-                preferredKeys = contentFieldKeys,
-                excludedKeys = reasoningFieldKeys.toSet()
-            )
-            if (!text.isNullOrEmpty()) {
-                return text
-            }
-        }
-
-        val choiceText = extractTextFromElement(choice.get("text"))
+        val choiceText = extractTextFromElement(
+            element = choice.get("text"),
+            preferredKeys = listOf("text", "content"),
+            excludedKeys = reasoningFieldKeys.toSet()
+        )
         if (!choiceText.isNullOrEmpty()) {
             return choiceText
         }
@@ -260,71 +180,9 @@ class OpenAIClient(private val config: AIConfig) {
         return null
     }
 
-    private fun extractTextFromPrimitiveArray(element: JsonElement?): String? {
-        if (element == null || element.isJsonNull || !element.isJsonArray) return null
-        val text = buildString {
-            element.asJsonArray.forEach { item ->
-                if (item.isJsonPrimitive) {
-                    val itemText = extractTextFromElement(item)
-                    if (!itemText.isNullOrEmpty()) {
-                        append(itemText)
-                    }
-                }
-            }
-        }
-        return text.ifEmpty { null }
-    }
-
-    private fun extractTextFromTypedBlocks(
-        element: JsonElement?,
-        includeTypes: Set<String>,
-        excludeTypes: Set<String> = emptySet(),
-        allowUntyped: Boolean = false
-    ): String? {
-        if (element == null || element.isJsonNull) return null
-
-        if (element.isJsonArray) {
-            val text = buildString {
-                element.asJsonArray.forEach { block ->
-                    val blockText = extractTextFromTypedBlocks(block, includeTypes, excludeTypes, allowUntyped)
-                    if (!blockText.isNullOrEmpty()) {
-                        append(blockText)
-                    }
-                }
-            }
-            return text.ifEmpty { null }
-        }
-
-        if (!element.isJsonObject) return null
-        val block = element.asJsonObject
-        val typeElement = block.get("type")
-        val type = if (
-            typeElement != null &&
-            !typeElement.isJsonNull &&
-            typeElement.isJsonPrimitive &&
-            typeElement.asJsonPrimitive.isString
-        ) {
-            normalizeType(typeElement.asString)
-        } else {
-            ""
-        }
-        if (type.isNotEmpty()) {
-            if (excludeTypes.contains(type)) return null
-            if (!includeTypes.contains(type)) return null
-        } else if (!allowUntyped) {
-            return null
-        }
-
-        return extractTextFromElement(
-            element = block,
-            preferredKeys = contentFieldKeys + reasoningFieldKeys,
-            excludedKeys = setOf("type")
-        )
-    }
-
     private fun extractTextFromElement(
         element: JsonElement?,
-        preferredKeys: List<String> = contentFieldKeys + reasoningFieldKeys,
+        preferredKeys: List<String> = listOf("text", "content"),
         excludedKeys: Set<String> = emptySet()
     ): String? {
         if (element == null || element.isJsonNull) return null
@@ -383,10 +241,6 @@ class OpenAIClient(private val config: AIConfig) {
         }
 
         return null
-    }
-
-    private fun normalizeType(type: String?): String {
-        return type?.trim()?.lowercase().orEmpty()
     }
 
     private fun buildChatRequest(messages: List<Map<String, Any>>, stream: Boolean): RequestBody {
