@@ -32,6 +32,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -117,6 +118,10 @@ class AnswerPopupService : Service() {
     private var deepQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
     private var modelMenuPopup: PopupWindow? = null
     private var copyMenuPopup: PopupWindow? = null
+    private var fastModeScrollY: Int = 0
+    private var deepModeScrollY: Int = 0
+    private var scrollRestoreToken: Int = 0
+    private var isApplyingScrollRestore: Boolean = false
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -254,6 +259,7 @@ class AnswerPopupService : Service() {
             setupRetakeButton()
             setupActionButton()
             setupSwipeGesture()
+            setupScrollTracking()
             setupBackGesture()
             applyPopupTheme()
         } catch (e: Exception) {
@@ -573,7 +579,58 @@ class AnswerPopupService : Service() {
 
         scrollView.setOnTouchListener { v, event ->
             gestureDetector?.onTouchEvent(event)
+            if (event.action == MotionEvent.ACTION_DOWN || event.action == MotionEvent.ACTION_MOVE) {
+                cancelPendingScrollRestore()
+            }
             false // Let scroll view handle its own scrolling
+        }
+    }
+
+    private fun setupScrollTracking() {
+        val view = popupView ?: return
+        val scrollView = view.findViewById<ScrollView>(R.id.scrollView) ?: return
+        scrollView.viewTreeObserver.addOnScrollChangedListener {
+            if (isApplyingScrollRestore) return@addOnScrollChangedListener
+            saveScrollForMode(isFastMode, scrollView.scrollY)
+        }
+    }
+
+    private fun saveScrollForMode(isFast: Boolean, scrollY: Int) {
+        if (isFast) {
+            fastModeScrollY = scrollY.coerceAtLeast(0)
+        } else {
+            deepModeScrollY = scrollY.coerceAtLeast(0)
+        }
+    }
+
+    private fun captureCurrentModeScroll() {
+        val view = popupView ?: return
+        val scrollView = view.findViewById<ScrollView>(R.id.scrollView) ?: return
+        saveScrollForMode(isFastMode, scrollView.scrollY)
+    }
+
+    private fun cancelPendingScrollRestore() {
+        scrollRestoreToken++
+    }
+
+    private fun restoreScrollForMode(isFast: Boolean) {
+        val view = popupView ?: return
+        val scrollView = view.findViewById<ScrollView>(R.id.scrollView) ?: return
+        val targetScrollY = if (isFast) fastModeScrollY else deepModeScrollY
+
+        val restoreToken = ++scrollRestoreToken
+        val restoreDelays = longArrayOf(0L, 180L, 360L)
+        restoreDelays.forEach { delay ->
+            scrollView.postDelayed({
+                if (restoreToken != scrollRestoreToken) return@postDelayed
+                if (isFastMode != isFast) return@postDelayed
+                val child = scrollView.getChildAt(0) ?: return@postDelayed
+                val maxScroll = (child.height - scrollView.height).coerceAtLeast(0)
+                val resolvedY = targetScrollY.coerceIn(0, maxScroll)
+                isApplyingScrollRestore = true
+                scrollView.scrollTo(0, resolvedY)
+                isApplyingScrollRestore = false
+            }, delay)
         }
     }
 
@@ -1048,6 +1105,8 @@ class AnswerPopupService : Service() {
         val tabDeep = view.findViewById<TextView>(R.id.tabDeep)
         val container = view.findViewById<LinearLayout>(R.id.answersContainer)
 
+        captureCurrentModeScroll()
+
         isFastMode = true
 
         // Animate indicator sliding to left
@@ -1074,6 +1133,7 @@ class AnswerPopupService : Service() {
         }
 
         displayAnswersForMode(true)
+        restoreScrollForMode(true)
         updateHeaderForCurrentMode()
     }
 
@@ -1082,6 +1142,8 @@ class AnswerPopupService : Service() {
         val tabFast = view.findViewById<TextView>(R.id.tabFast)
         val tabDeep = view.findViewById<TextView>(R.id.tabDeep)
         val container = view.findViewById<LinearLayout>(R.id.answersContainer)
+
+        captureCurrentModeScroll()
 
         isFastMode = false
 
@@ -1109,6 +1171,7 @@ class AnswerPopupService : Service() {
         }
 
         displayAnswersForMode(false)
+        restoreScrollForMode(false)
         updateHeaderForCurrentMode()
     }
 
@@ -1229,6 +1292,9 @@ class AnswerPopupService : Service() {
         // Reset stopped states and clear previous calls
         isFastModeStopped = false
         isDeepModeStopped = false
+        fastModeScrollY = 0
+        deepModeScrollY = 0
+        cancelPendingScrollRestore()
         cancelAllRequests()
 
         // Load selected models at the start of each solve session
@@ -2205,6 +2271,7 @@ class AnswerPopupService : Service() {
 
     private fun dismissPopup() {
         isPopupShowing = false
+        cancelPendingScrollRestore()
         modelMenuPopup?.dismiss()
         modelMenuPopup = null
         copyMenuPopup?.dismiss()
@@ -2237,6 +2304,7 @@ class AnswerPopupService : Service() {
         super.onDestroy()
         isServiceRunning = false
         isPopupShowing = false
+        cancelPendingScrollRestore()
         modelMenuPopup?.dismiss()
         modelMenuPopup = null
         copyMenuPopup?.dismiss()
