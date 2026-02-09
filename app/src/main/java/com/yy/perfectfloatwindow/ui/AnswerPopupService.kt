@@ -3,12 +3,15 @@ package com.yy.perfectfloatwindow.ui
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.app.AlertDialog
+import android.app.Dialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
@@ -20,6 +23,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.Window
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
@@ -31,6 +35,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.yy.perfectfloatwindow.R
+import com.yy.perfectfloatwindow.data.AIConfig
 import com.yy.perfectfloatwindow.data.AISettings
 import com.yy.perfectfloatwindow.data.Answer
 import com.yy.perfectfloatwindow.data.Question
@@ -105,6 +110,8 @@ class AnswerPopupService : Service() {
     private var deepCalls: MutableMap<Int, Call> = mutableMapOf()
     private var isFastModeStopped = false
     private var isDeepModeStopped = false
+    private var selectedFastModelId: String = ""
+    private var selectedDeepModelId: String = ""
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -441,7 +448,7 @@ class AnswerPopupService : Service() {
                     // Still being OCR'd - update both titles to "已停止" and hide retry buttons
                     childView.findViewById<TextView>(R.id.tvQuestionTitle)?.text = "已停止"
                     childView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "已停止"
-                    hideRetryButtons(childView)
+                    hideRetryButtons(childView, isFastMode, keepModelButton = false)
                 }
             }
 
@@ -498,7 +505,7 @@ class AnswerPopupService : Service() {
                     childView.findViewById<TextView>(R.id.tvQuestionTitle)?.text = "已停止"
                     childView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "已停止"
                     // Hide retry buttons - can't retry incomplete OCR
-                    hideRetryButtons(childView)
+                    hideRetryButtons(childView, isFastMode, keepModelButton = false)
                 }
             }
 
@@ -618,6 +625,175 @@ class AnswerPopupService : Service() {
         dialog.show()
     }
 
+    private fun showModelSwitchDialog() {
+        val forFastMode = isFastMode
+        val modelIds = getModelListForMode(forFastMode)
+        if (modelIds.isEmpty()) {
+            Toast.makeText(this, "请先在设置中添加模型", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val currentModel = getSelectedModelForMode(forFastMode)
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+
+        val dialog = Dialog(this, R.style.RoundedDialog)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_model_switch)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setType(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+        )
+
+        val root = dialog.findViewById<LinearLayout>(R.id.modelDialogRoot)
+        val header = dialog.findViewById<LinearLayout>(R.id.modelDialogHeader)
+        val tvTitle = dialog.findViewById<TextView>(R.id.tvModelDialogTitle)
+        val tvSubtitle = dialog.findViewById<TextView>(R.id.tvModelDialogSubtitle)
+        val tvTip = dialog.findViewById<TextView>(R.id.tvModelDialogTip)
+        val btnClose = dialog.findViewById<TextView>(R.id.btnCloseModelDialog)
+        val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelOptionsContainer)
+
+        tvTitle.text = if (forFastMode) "切换极速模型" else "切换深度模型"
+        tvSubtitle.text = "当前模型：$currentModel"
+
+        if (isLightGreenGray) {
+            root?.setBackgroundResource(R.drawable.bg_model_dialog_surface)
+            header?.setBackgroundResource(R.drawable.bg_model_dialog_header)
+            tvTip?.setTextColor(0xFF5E646A.toInt())
+            btnClose?.setBackgroundResource(R.drawable.bg_model_dialog_close_button)
+            btnClose?.setTextColor(0xFF1E7C64.toInt())
+        } else {
+            root?.setBackgroundResource(R.drawable.bg_model_dialog_surface_light_brown_black)
+            header?.setBackgroundResource(R.drawable.bg_model_dialog_header_light_brown_black)
+            tvTip?.setTextColor(0xFF7A6258.toInt())
+            btnClose?.setBackgroundResource(R.drawable.bg_model_dialog_close_button_light_brown_black)
+            btnClose?.setTextColor(0xFF96563D.toInt())
+        }
+
+        optionsContainer?.removeAllViews()
+        modelIds.forEachIndexed { index, modelId ->
+            val optionView = LayoutInflater.from(this)
+                .inflate(R.layout.item_model_switch_option, optionsContainer, false)
+            val tvModelName = optionView.findViewById<TextView>(R.id.tvModelName)
+            val tvModelDesc = optionView.findViewById<TextView>(R.id.tvModelDesc)
+            val ivCheck = optionView.findViewById<ImageView>(R.id.ivModelCheck)
+            val selected = modelId == currentModel
+
+            tvModelName.text = modelId
+            tvModelDesc.text = describeModelForDisplay(modelId, index, modelIds.size, forFastMode)
+            styleModelOption(optionView, tvModelName, tvModelDesc, ivCheck, selected, isLightGreenGray)
+
+            optionView.setOnClickListener {
+                if (modelId == getSelectedModelForMode(forFastMode)) {
+                    dialog.dismiss()
+                    return@setOnClickListener
+                }
+                setSelectedModelForMode(forFastMode, modelId)
+                if (isFastMode == forFastMode) {
+                    displayAnswersForMode(forFastMode)
+                    updateHeaderForCurrentMode()
+                } else {
+                    updateVisibleModelButtons()
+                }
+                Toast.makeText(this, "已切换模型：$modelId", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            optionsContainer?.addView(optionView)
+        }
+
+        btnClose?.setOnClickListener { dialog.dismiss() }
+
+        dialog.show()
+        animateModelDialogIn(dialog)
+    }
+
+    private fun styleModelOption(
+        optionView: View,
+        tvModelName: TextView,
+        tvModelDesc: TextView,
+        ivCheck: ImageView,
+        selected: Boolean,
+        isLightGreenGray: Boolean
+    ) {
+        if (isLightGreenGray) {
+            optionView.setBackgroundResource(
+                if (selected) R.drawable.bg_model_option_selected else R.drawable.bg_model_option_unselected
+            )
+            tvModelName.setTextColor(if (selected) 0xFF0F8F71.toInt() else 0xFF1D2A2F.toInt())
+            tvModelDesc.setTextColor(if (selected) 0xFF2B6B5B.toInt() else 0xFF647177.toInt())
+            ivCheck.setColorFilter(0xFF0F8F71.toInt())
+        } else {
+            optionView.setBackgroundResource(
+                if (selected) R.drawable.bg_model_option_selected_light_brown_black
+                else R.drawable.bg_model_option_unselected_light_brown_black
+            )
+            tvModelName.setTextColor(if (selected) 0xFF9D573C.toInt() else 0xFF2D2320.toInt())
+            tvModelDesc.setTextColor(if (selected) 0xFF8A5D47.toInt() else 0xFF776964.toInt())
+            ivCheck.setColorFilter(0xFF9D573C.toInt())
+        }
+        ivCheck.visibility = if (selected) View.VISIBLE else View.GONE
+    }
+
+    private fun describeModelForDisplay(modelId: String, index: Int, total: Int, isFastMode: Boolean): String {
+        return when {
+            index == 0 && total > 1 -> "列表首选模型，常用于默认解题。"
+            modelId.contains("mini", ignoreCase = true) -> "响应更快，适合常规题目与快速重试。"
+            modelId.contains("o3", ignoreCase = true) ||
+                    modelId.contains("reason", ignoreCase = true) -> "推理更深入，适合多步分析题。"
+            isFastMode -> "用于极速模式，平衡速度与准确率。"
+            else -> "用于深度模式，适合复杂场景推导。"
+        }
+    }
+
+    private fun animateModelDialogIn(dialog: Dialog) {
+        val root = dialog.findViewById<View>(R.id.modelDialogRoot) ?: return
+        val optionContainer = dialog.findViewById<LinearLayout>(R.id.modelOptionsContainer)
+        root.alpha = 0f
+        root.translationY = dp(24)
+        root.scaleX = 0.95f
+        root.scaleY = 0.95f
+        root.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(280)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
+        optionContainer?.let { container ->
+            for (i in 0 until container.childCount) {
+                val child = container.getChildAt(i) ?: continue
+                child.alpha = 0f
+                child.translationY = dp(16)
+                child.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setStartDelay(80L + i * 28L)
+                    .setDuration(220)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+        }
+    }
+
+    private fun updateVisibleModelButtons() {
+        val view = popupView ?: return
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+        for (i in 0 until container.childCount) {
+            val itemView = container.getChildAt(i) ?: continue
+            updateModelSwitchButton(itemView, isFastMode)
+        }
+    }
+
+    private fun dp(value: Int): Float {
+        return value * resources.displayMetrics.density
+    }
+
     private fun applyPopupTheme() {
         val view = popupView ?: return
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
@@ -719,6 +895,7 @@ class AnswerPopupService : Service() {
                 }
             }
         }
+        updateVisibleModelButtons()
     }
 
     private fun applyThemeToQuestionCard(itemView: View) {
@@ -741,17 +918,22 @@ class AnswerPopupService : Service() {
         val thinkingDuration = itemView.findViewById<TextView>(R.id.tvThinkingDuration)
         val thinkingToggle = itemView.findViewById<TextView>(R.id.tvThinkingToggle)
         val thinkingText = itemView.findViewById<TextView>(R.id.tvThinkingText)
+        val btnModelSwitchBottom = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)
 
         if (isLightGreenGray) {
             thinkingTitle?.setTextColor(0xFF7A4B00.toInt())
             thinkingDuration?.setTextColor(0xFF9A7B47.toInt())
             thinkingToggle?.setTextColor(0xFF9A7B47.toInt())
             thinkingText?.setTextColor(0xFF4E3A1F.toInt())
+            btnModelSwitchBottom?.setBackgroundResource(R.drawable.bg_model_switch_button)
+            btnModelSwitchBottom?.setTextColor(0xFF0F8F71.toInt())
         } else {
             thinkingTitle?.setTextColor(0xFF5F2F14.toInt())
             thinkingDuration?.setTextColor(0xFF8B5A40.toInt())
             thinkingToggle?.setTextColor(0xFF8B5A40.toInt())
             thinkingText?.setTextColor(0xFF4A2A1D.toInt())
+            btnModelSwitchBottom?.setBackgroundResource(R.drawable.bg_model_switch_button_light_brown_black)
+            btnModelSwitchBottom?.setTextColor(0xFFA75E41.toInt())
         }
     }
 
@@ -864,6 +1046,42 @@ class AnswerPopupService : Service() {
         }
     }
 
+    private fun getSelectedModelForMode(isFast: Boolean): String {
+        return if (isFast) {
+            if (selectedFastModelId.isBlank()) {
+                selectedFastModelId = AISettings.getSelectedFastModel(this)
+            }
+            selectedFastModelId.ifBlank { AISettings.getFastConfig(this).modelId }
+        } else {
+            if (selectedDeepModelId.isBlank()) {
+                selectedDeepModelId = AISettings.getSelectedDeepModel(this)
+            }
+            selectedDeepModelId.ifBlank { AISettings.getDeepConfig(this).modelId }
+        }
+    }
+
+    private fun getModelListForMode(isFast: Boolean): List<String> {
+        return if (isFast) AISettings.getFastModelList(this) else AISettings.getDeepModelList(this)
+    }
+
+    private fun setSelectedModelForMode(isFast: Boolean, modelId: String) {
+        val normalized = modelId.trim()
+        if (normalized.isBlank()) return
+        if (isFast) {
+            selectedFastModelId = normalized
+            AISettings.setSelectedFastModel(this, normalized)
+        } else {
+            selectedDeepModelId = normalized
+            AISettings.setSelectedDeepModel(this, normalized)
+        }
+    }
+
+    private fun getModeConfig(isFast: Boolean): AIConfig {
+        val baseConfig = if (isFast) AISettings.getFastConfig(this) else AISettings.getDeepConfig(this)
+        val selectedModel = getSelectedModelForMode(isFast)
+        return baseConfig.copy(modelId = selectedModel)
+    }
+
     fun processBitmap(bitmap: Bitmap) {
         currentBitmap = bitmap
         // Reset cached answers
@@ -883,6 +1101,10 @@ class AnswerPopupService : Service() {
         isFastModeStopped = false
         isDeepModeStopped = false
         cancelAllRequests()
+
+        // Load selected models at the start of each solve session
+        selectedFastModelId = AISettings.getSelectedFastModel(this).trim()
+        selectedDeepModelId = AISettings.getSelectedDeepModel(this).trim()
 
         showOCRStreaming()
 
@@ -977,6 +1199,7 @@ class AnswerPopupService : Service() {
         itemView.findViewById<TextView>(R.id.tvThinkingText).text = ""
         itemView.findViewById<View>(R.id.thinkingSection).visibility = View.GONE
         applyThemeToQuestionCard(itemView)
+        showBottomActionRow(itemView, questionIndex, isFastMode, showRetry = false)
 
         container.addView(itemView)
 
@@ -1156,6 +1379,7 @@ class AnswerPopupService : Service() {
         questions.forEachIndexed { index, question ->
             val itemView = LayoutInflater.from(this)
                 .inflate(R.layout.item_question_answer, container, false)
+            itemView.tag = "question_${question.id}"
 
             itemView.findViewById<TextView>(R.id.tvQuestionTitle).text = "问题${index + 1}"
             // Render question text with Markdown and LaTeX support (with newline conversion)
@@ -1165,6 +1389,7 @@ class AnswerPopupService : Service() {
             itemView.findViewById<TextView>(R.id.tvThinkingText).text = ""
             itemView.findViewById<View>(R.id.thinkingSection).visibility = View.GONE
             applyThemeToQuestionCard(itemView)
+            showBottomActionRow(itemView, question.id, isFastMode, showRetry = false)
 
             container.addView(itemView)
 
@@ -1220,20 +1445,21 @@ class AnswerPopupService : Service() {
                 else -> "解答中..."
             }
             answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = titleText
+            answerView?.let { updateModelSwitchButton(it, isFast) }
 
             // Show/hide retry buttons based on state
             when {
                 answer?.isComplete == true || answer?.isStopped == true || answer?.error != null -> {
                     // Show both buttons for completed, stopped, or error states
-                    answerView?.let { showRetryButton(it, question.id) }
+                    answerView?.let { showRetryButton(it, question.id, isFast) }
                 }
                 !answer?.text.isNullOrEmpty() || answer?.isThinking == true || !answer?.thinkingText.isNullOrEmpty() -> {
                     // Streaming state: only show header button, not bottom button
-                    answerView?.let { showHeaderRetryButton(it, question.id) }
+                    answerView?.let { showHeaderRetryButton(it, question.id, isFast) }
                 }
                 else -> {
                     // Hide all retry buttons when not started yet
-                    answerView?.let { hideRetryButtons(it) }
+                    answerView?.let { hideRetryButtons(it, isFast) }
                 }
             }
         }
@@ -1246,8 +1472,8 @@ class AnswerPopupService : Service() {
     }
 
     private fun startSolvingQuestion(question: Question) {
-        val fastConfig = AISettings.getFastConfig(this)
-        val deepConfig = AISettings.getDeepConfig(this)
+        val fastConfig = getModeConfig(true)
+        val deepConfig = getModeConfig(false)
 
         if (!fastConfig.isValid() || fastConfig.apiKey.isBlank()) {
             return
@@ -1531,10 +1757,10 @@ class AnswerPopupService : Service() {
             } ?: return
         itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答$questionId"
         // Show retry button and set click listener
-        showRetryButton(itemView, questionId)
+        showRetryButton(itemView, questionId, isFastMode)
     }
 
-    private fun showRetryButton(itemView: View, questionId: Int) {
+    private fun showRetryButton(itemView: View, questionId: Int, isFast: Boolean = isFastMode) {
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
         val bgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
 
@@ -1546,12 +1772,12 @@ class AnswerPopupService : Service() {
             it.setOnClickListener { retryQuestion(questionId) }
         }
 
-        // Bottom retry button (at end of answer) - only show when complete
-        showBottomRetryButton(itemView, questionId)
+        // Bottom actions: model switch + retry
+        showBottomActionRow(itemView, questionId, isFast, showRetry = true)
     }
 
     // Show only header retry button (for streaming state)
-    private fun showHeaderRetryButton(itemView: View, questionId: Int) {
+    private fun showHeaderRetryButton(itemView: View, questionId: Int, isFast: Boolean = isFastMode) {
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
         val bgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
 
@@ -1563,8 +1789,8 @@ class AnswerPopupService : Service() {
             it.setOnClickListener { retryQuestion(questionId) }
         }
 
-        // Hide bottom button during streaming
-        itemView.findViewById<View>(R.id.bottomRetryContainer)?.visibility = View.GONE
+        // Bottom actions: keep model switch visible, hide retry button
+        showBottomActionRow(itemView, questionId, isFast, showRetry = false)
     }
 
     // Show only header retry button for a question (for streaming state)
@@ -1578,57 +1804,61 @@ class AnswerPopupService : Service() {
                     container.getChildAt(index)
                 } else null
             } ?: return
-        showHeaderRetryButton(itemView, questionId)
+        showHeaderRetryButton(itemView, questionId, isFastMode)
     }
 
-    private fun showBottomRetryButton(itemView: View, questionId: Int) {
+    private fun showBottomActionRow(itemView: View, questionId: Int, isFast: Boolean, showRetry: Boolean) {
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
-        val bgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
+        val retryBgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
 
         val bottomContainer = itemView.findViewById<View>(R.id.bottomRetryContainer)
+        val btnModelSwitch = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)
         val btnRetryBottom = itemView.findViewById<TextView>(R.id.btnRetryBottom)
 
-        // Ensure both container and button are visible
+        // Keep bottom action row visible so user can always see and switch current model
         bottomContainer?.visibility = View.VISIBLE
-        btnRetryBottom?.visibility = View.VISIBLE
+
+        btnModelSwitch?.let {
+            updateModelSwitchButton(itemView, isFast)
+            it.setOnClickListener {
+                if (isFastMode == isFast) {
+                    showModelSwitchDialog()
+                }
+            }
+        }
+
         btnRetryBottom?.let {
-            it.setBackgroundResource(bgRes)
-            it.setOnClickListener { retryQuestion(questionId) }
+            if (showRetry) {
+                it.visibility = View.VISIBLE
+                it.setBackgroundResource(retryBgRes)
+                it.setOnClickListener { retryQuestion(questionId) }
+            } else {
+                it.visibility = View.GONE
+            }
         }
     }
 
-    private fun showBottomRetryButtonForQuestion(questionId: Int) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        // Use tag-based lookup for more reliable view finding
-        val itemView = container.findViewWithTag<View>("question_$questionId")
-            ?: run {
-                val index = currentQuestions.indexOfFirst { it.id == questionId }
-                if (index >= 0 && index < container.childCount) {
-                    container.getChildAt(index)
-                } else null
-            } ?: return
-        showBottomRetryButton(itemView, questionId)
+    private fun updateModelSwitchButton(itemView: View, isFast: Boolean) {
+        val modelName = getSelectedModelForMode(isFast)
+        val button = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom) ?: return
+        button.text = "模型 · $modelName"
+        button.visibility = View.VISIBLE
+        applyThemeToQuestionCard(itemView)
     }
 
-    private fun showRetryButtonsForQuestion(questionId: Int) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        // Use tag-based lookup for more reliable view finding
-        val itemView = container.findViewWithTag<View>("question_$questionId")
-            ?: run {
-                // Fallback to index-based lookup
-                val index = currentQuestions.indexOfFirst { it.id == questionId }
-                if (index >= 0 && index < container.childCount) {
-                    container.getChildAt(index)
-                } else null
-            } ?: return
-        showRetryButton(itemView, questionId)
-    }
-
-    private fun hideRetryButtons(itemView: View) {
+    private fun hideRetryButtons(
+        itemView: View,
+        isFast: Boolean = isFastMode,
+        keepModelButton: Boolean = true
+    ) {
         itemView.findViewById<TextView>(R.id.btnRetry)?.visibility = View.GONE
-        itemView.findViewById<View>(R.id.bottomRetryContainer)?.visibility = View.GONE
+        if (keepModelButton) {
+            showBottomActionRow(itemView, -1, isFast, showRetry = false)
+        } else {
+            itemView.findViewById<TextView>(R.id.btnRetryBottom)?.visibility = View.GONE
+            itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)?.visibility = View.GONE
+            itemView.findViewById<View>(R.id.bottomRetryContainer)?.visibility = View.GONE
+        }
     }
 
     private fun retryQuestion(questionId: Int) {
@@ -1676,11 +1906,7 @@ class AnswerPopupService : Service() {
     }
 
     private fun retrySolvingQuestion(question: Question) {
-        val config = if (isFastMode) {
-            AISettings.getFastConfig(this)
-        } else {
-            AISettings.getDeepConfig(this)
-        }
+        val config = getModeConfig(isFastMode)
 
         if (!config.isValid() || config.apiKey.isBlank()) {
             return

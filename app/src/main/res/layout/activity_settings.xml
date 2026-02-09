@@ -217,20 +217,28 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="模型 ID"
+                    android:text="模型列表（每行一个）"
                     android:textSize="14sp"
                     android:textColor="#202123"/>
 
-                <EditText
-                    android:id="@+id/etFastModelId"
+                <LinearLayout
+                    android:id="@+id/fastModelListContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="gpt-4o-mini"
-                    android:inputType="text"
-                    android:background="@drawable/bg_edittext_settings"
-                    android:padding="12dp"
-                    android:textSize="14sp"/>
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"/>
+
+                <TextView
+                    android:id="@+id/btnAddFastModel"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_dialog_item_unselected"
+                    android:gravity="center"
+                    android:text="+ 添加模型"
+                    android:textColor="#6E6E80"
+                    android:textSize="13sp"
+                    android:textStyle="bold"/>
 
             </LinearLayout>
 
@@ -288,20 +296,28 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="模型 ID"
+                    android:text="模型列表（每行一个）"
                     android:textSize="14sp"
                     android:textColor="#202123"/>
 
-                <EditText
-                    android:id="@+id/etDeepModelId"
+                <LinearLayout
+                    android:id="@+id/deepModelListContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="gpt-4o"
-                    android:inputType="text"
-                    android:background="@drawable/bg_edittext_settings"
-                    android:padding="12dp"
-                    android:textSize="14sp"/>
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"/>
+
+                <TextView
+                    android:id="@+id/btnAddDeepModel"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_dialog_item_unselected"
+                    android:gravity="center"
+                    android:text="+ 添加模型"
+                    android:textColor="#6E6E80"
+                    android:textSize="13sp"
+                    android:textStyle="bold"/>
 
             </LinearLayout>
 

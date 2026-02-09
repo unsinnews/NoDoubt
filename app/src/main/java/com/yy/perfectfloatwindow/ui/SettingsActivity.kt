@@ -1,13 +1,15 @@
 package com.yy.perfectfloatwindow.ui
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -28,9 +30,11 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etOcrBaseUrl: EditText
     private lateinit var etOcrModelId: EditText
     private lateinit var etFastBaseUrl: EditText
-    private lateinit var etFastModelId: EditText
     private lateinit var etDeepBaseUrl: EditText
-    private lateinit var etDeepModelId: EditText
+    private lateinit var fastModelListContainer: LinearLayout
+    private lateinit var deepModelListContainer: LinearLayout
+    private lateinit var btnAddFastModel: TextView
+    private lateinit var btnAddDeepModel: TextView
     private lateinit var tvTestResult: TextView
     private lateinit var btnTest: Button
     private lateinit var btnSave: Button
@@ -40,6 +44,11 @@ class SettingsActivity : AppCompatActivity() {
 
     // Track if API has been verified
     private var isApiVerified = false
+
+    companion object {
+        private const val DEFAULT_FAST_MODEL = "gpt-4o-mini"
+        private const val DEFAULT_DEEP_MODEL = "gpt-4o"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,9 +70,11 @@ class SettingsActivity : AppCompatActivity() {
         etOcrBaseUrl = findViewById(R.id.etOcrBaseUrl)
         etOcrModelId = findViewById(R.id.etOcrModelId)
         etFastBaseUrl = findViewById(R.id.etFastBaseUrl)
-        etFastModelId = findViewById(R.id.etFastModelId)
         etDeepBaseUrl = findViewById(R.id.etDeepBaseUrl)
-        etDeepModelId = findViewById(R.id.etDeepModelId)
+        fastModelListContainer = findViewById(R.id.fastModelListContainer)
+        deepModelListContainer = findViewById(R.id.deepModelListContainer)
+        btnAddFastModel = findViewById(R.id.btnAddFastModel)
+        btnAddDeepModel = findViewById(R.id.btnAddDeepModel)
         tvTestResult = findViewById(R.id.tvTestResult)
         btnTest = findViewById(R.id.btnTest)
         btnSave = findViewById(R.id.btnSave)
@@ -81,8 +92,6 @@ class SettingsActivity : AppCompatActivity() {
         val headerLayout = findViewById<FrameLayout>(R.id.headerLayout)
         val tvHeaderTitle = findViewById<TextView>(R.id.tvHeaderTitle)
         val btnBack = findViewById<ImageButton>(R.id.btnBack)
-        val scrollView = findViewById<ScrollView>(R.id.scrollView)
-        val contentLayout = findViewById<LinearLayout>(R.id.contentLayout)
 
         // Cards
         val cardApiKey = findViewById<LinearLayout>(R.id.cardApiKey)
@@ -109,7 +118,6 @@ class SettingsActivity : AppCompatActivity() {
         if (isLightGreenGray) {
             // 浅绿灰主题
             val primaryColor = 0xFF10A37F.toInt()
-            val backgroundColor = 0xFFFFFFFF.toInt()
             val surfaceColor = 0xFFF7F7F8.toInt()
             val textPrimary = 0xFF202123.toInt()
             val textSecondary = 0xFF6E6E80.toInt()
@@ -132,18 +140,14 @@ class SettingsActivity : AppCompatActivity() {
             etOcrBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
             etOcrModelId.setBackgroundResource(R.drawable.bg_edittext_settings)
             etFastBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
-            etFastModelId.setBackgroundResource(R.drawable.bg_edittext_settings)
             etDeepBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
-            etDeepModelId.setBackgroundResource(R.drawable.bg_edittext_settings)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
             etOcrBaseUrl.setTextColor(textPrimary)
             etOcrModelId.setTextColor(textPrimary)
             etFastBaseUrl.setTextColor(textPrimary)
-            etFastModelId.setTextColor(textPrimary)
             etDeepBaseUrl.setTextColor(textPrimary)
-            etDeepModelId.setTextColor(textPrimary)
 
             // Labels
             tvApiKeyLabel.setTextColor(textPrimary)
@@ -161,7 +165,12 @@ class SettingsActivity : AppCompatActivity() {
             tvDeepUrlLabel.setTextColor(textPrimary)
             tvDeepModelLabel.setTextColor(textPrimary)
 
-            // Buttons - clear backgroundTintList first to allow drawable to show
+            btnAddFastModel.setBackgroundResource(R.drawable.bg_button_outline)
+            btnAddFastModel.setTextColor(primaryColor)
+            btnAddDeepModel.setBackgroundResource(R.drawable.bg_button_outline)
+            btnAddDeepModel.setTextColor(primaryColor)
+
+            // Buttons
             btnTest.backgroundTintList = null
             btnTest.setBackgroundResource(R.drawable.bg_button_outline)
             btnTest.setTextColor(primaryColor)
@@ -171,13 +180,16 @@ class SettingsActivity : AppCompatActivity() {
             // Test result
             tvTestResult.setBackgroundResource(R.drawable.bg_card_settings)
 
+            applyModelRowsTheme(
+                textPrimary = textPrimary,
+                textSecondary = textSecondary,
+                isLightGreenGray = true
+            )
         } else {
             // 浅棕黑主题 - 暖橙色按钮，黑色文字
-            val primaryColor = 0xFFDA7A5A.toInt()  // 暖橙色用于按钮
-            val accentColor = 0xFFDA7A5A.toInt()  // Warm orange accent
+            val primaryColor = 0xFFDA7A5A.toInt()
             val backgroundColor = 0xFFFAF9F5.toInt()
-            val surfaceColor = 0xFFFAF9F5.toInt()
-            val textPrimary = 0xFF141413.toInt()  // 黑色用于文字
+            val textPrimary = 0xFF141413.toInt()
             val textSecondary = 0xFF666666.toInt()
 
             window.statusBarColor = backgroundColor
@@ -198,18 +210,14 @@ class SettingsActivity : AppCompatActivity() {
             etOcrBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
             etOcrModelId.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
             etFastBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-            etFastModelId.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
             etDeepBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-            etDeepModelId.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
             etOcrBaseUrl.setTextColor(textPrimary)
             etOcrModelId.setTextColor(textPrimary)
             etFastBaseUrl.setTextColor(textPrimary)
-            etFastModelId.setTextColor(textPrimary)
             etDeepBaseUrl.setTextColor(textPrimary)
-            etDeepModelId.setTextColor(textPrimary)
 
             // Labels
             tvApiKeyLabel.setTextColor(textPrimary)
@@ -227,7 +235,12 @@ class SettingsActivity : AppCompatActivity() {
             tvDeepUrlLabel.setTextColor(textPrimary)
             tvDeepModelLabel.setTextColor(textPrimary)
 
-            // Buttons - clear backgroundTintList first to allow drawable to show
+            btnAddFastModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnAddFastModel.setTextColor(primaryColor)
+            btnAddDeepModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnAddDeepModel.setTextColor(primaryColor)
+
+            // Buttons
             btnTest.backgroundTintList = null
             btnTest.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
             btnTest.setTextColor(primaryColor)
@@ -236,6 +249,35 @@ class SettingsActivity : AppCompatActivity() {
 
             // Test result
             tvTestResult.setBackgroundResource(R.drawable.bg_card_settings_light_brown_black)
+
+            applyModelRowsTheme(
+                textPrimary = textPrimary,
+                textSecondary = textSecondary,
+                isLightGreenGray = false
+            )
+        }
+    }
+
+    private fun applyModelRowsTheme(textPrimary: Int, textSecondary: Int, isLightGreenGray: Boolean) {
+        val containers = listOf(fastModelListContainer, deepModelListContainer)
+        containers.forEach { container ->
+            for (i in 0 until container.childCount) {
+                val row = container.getChildAt(i) ?: continue
+                val etModelId = row.findViewById<EditText>(R.id.etModelId)
+                val btnRemoveModel = row.findViewById<ImageView>(R.id.btnRemoveModel)
+
+                if (isLightGreenGray) {
+                    etModelId.setBackgroundResource(R.drawable.bg_edittext_settings)
+                    btnRemoveModel.setBackgroundResource(R.drawable.bg_button_outline)
+                } else {
+                    etModelId.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
+                    btnRemoveModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+                }
+
+                etModelId.setTextColor(textPrimary)
+                etModelId.setHintTextColor(textSecondary)
+                btnRemoveModel.setColorFilter(textSecondary)
+            }
         }
     }
 
@@ -251,17 +293,84 @@ class SettingsActivity : AppCompatActivity() {
         // Fast Config
         val fastConfig = AISettings.getFastConfig(this)
         etFastBaseUrl.setText(fastConfig.baseUrl)
-        etFastModelId.setText(fastConfig.modelId)
+        val fastModels = AISettings.getFastModelList(this).toMutableList()
+        val selectedFast = AISettings.getSelectedFastModel(this)
+        if (fastModels.remove(selectedFast)) {
+            fastModels.add(0, selectedFast)
+        }
+        setModelRows(fastModelListContainer, fastModels, DEFAULT_FAST_MODEL)
 
         // Deep Config
         val deepConfig = AISettings.getDeepConfig(this)
         etDeepBaseUrl.setText(deepConfig.baseUrl)
-        etDeepModelId.setText(deepConfig.modelId)
+        val deepModels = AISettings.getDeepModelList(this).toMutableList()
+        val selectedDeep = AISettings.getSelectedDeepModel(this)
+        if (deepModels.remove(selectedDeep)) {
+            deepModels.add(0, selectedDeep)
+        }
+        setModelRows(deepModelListContainer, deepModels, DEFAULT_DEEP_MODEL)
+    }
+
+    private fun setModelRows(container: LinearLayout, models: List<String>, fallback: String) {
+        container.removeAllViews()
+        val normalizedModels = normalizeModelIds(models, fallback)
+        normalizedModels.forEach { modelId ->
+            addModelRow(container, modelId, false)
+        }
+    }
+
+    private fun addModelRow(container: LinearLayout, modelId: String, requestFocus: Boolean) {
+        val row = layoutInflater.inflate(R.layout.item_model_input, container, false)
+        val etModelId = row.findViewById<EditText>(R.id.etModelId)
+        val btnRemoveModel = row.findViewById<ImageView>(R.id.btnRemoveModel)
+        etModelId.setText(modelId)
+
+        btnRemoveModel.setOnClickListener {
+            if (container.childCount <= 1) {
+                Toast.makeText(this, "至少保留一个模型", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            container.removeView(row)
+        }
+
+        container.addView(row)
+        if (requestFocus) {
+            etModelId.requestFocus()
+            etModelId.setSelection(etModelId.text.length)
+        }
+    }
+
+    private fun collectModelIds(container: LinearLayout): List<String> {
+        val modelIds = mutableListOf<String>()
+        for (i in 0 until container.childCount) {
+            val row = container.getChildAt(i) ?: continue
+            val etModelId = row.findViewById<EditText>(R.id.etModelId) ?: continue
+            val modelId = etModelId.text.toString().trim()
+            if (modelId.isNotBlank()) {
+                modelIds.add(modelId)
+            }
+        }
+        return modelIds
+    }
+
+    private fun normalizeModelIds(rawModels: List<String>, fallback: String): List<String> {
+        val normalized = rawModels.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        return if (normalized.isEmpty()) listOf(fallback) else normalized
     }
 
     private fun setupButtons() {
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
             finish()
+        }
+
+        btnAddFastModel.setOnClickListener {
+            addModelRow(fastModelListContainer, "", true)
+            applyTheme()
+        }
+
+        btnAddDeepModel.setOnClickListener {
+            addModelRow(deepModelListContainer, "", true)
+            applyTheme()
         }
 
         btnSave.setOnClickListener {
@@ -273,10 +382,10 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // Reset verification when API key changes
-        etApiKey.addTextChangedListener(object : android.text.TextWatcher {
+        etApiKey.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
+            override fun afterTextChanged(s: Editable?) {
                 // Only reset if the key changed from what was saved
                 val savedKey = AISettings.getApiKey(this@SettingsActivity)
                 if (s.toString().trim() != savedKey) {
@@ -313,25 +422,36 @@ class SettingsActivity : AppCompatActivity() {
             etOcrModelId.text.toString().trim()
         )
 
-        // Save Fast Config
-        AISettings.saveFastConfig(
-            this,
-            etFastBaseUrl.text.toString().trim(),
-            etFastModelId.text.toString().trim()
+        val fastModels = normalizeModelIds(
+            collectModelIds(fastModelListContainer),
+            AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
+        )
+        val deepModels = normalizeModelIds(
+            collectModelIds(deepModelListContainer),
+            AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
         )
 
-        // Save Deep Config
-        AISettings.saveDeepConfig(
-            this,
-            etDeepBaseUrl.text.toString().trim(),
-            etDeepModelId.text.toString().trim()
-        )
+        AISettings.saveFastModelList(this, fastModels)
+        AISettings.saveDeepModelList(this, deepModels)
+
+        val selectedFast = AISettings.getSelectedFastModel(this).takeIf { fastModels.contains(it) } ?: fastModels.first()
+        val selectedDeep = AISettings.getSelectedDeepModel(this).takeIf { deepModels.contains(it) } ?: deepModels.first()
+
+        AISettings.setSelectedFastModel(this, selectedFast)
+        AISettings.setSelectedDeepModel(this, selectedDeep)
+
+        // Save base URLs and keep currently selected model
+        AISettings.saveFastConfig(this, etFastBaseUrl.text.toString().trim(), selectedFast)
+        AISettings.saveDeepConfig(this, etDeepBaseUrl.text.toString().trim(), selectedDeep)
     }
 
     private fun testApi() {
         val apiKey = etApiKey.text.toString().trim()
         val baseUrl = etFastBaseUrl.text.toString().trim()
-        val modelId = etFastModelId.text.toString().trim()
+        val modelId = normalizeModelIds(
+            collectModelIds(fastModelListContainer),
+            AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
+        ).firstOrNull().orEmpty()
 
         if (apiKey.isBlank()) {
             showTestResult("错误: API Key 不能为空", false)
@@ -344,7 +464,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         if (modelId.isBlank()) {
-            showTestResult("错误: 模型 ID 不能为空", false)
+            showTestResult("错误: 至少需要一个模型 ID", false)
             return
         }
 

@@ -175,8 +175,23 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:gravity="end"
+            android:gravity="end|center_vertical"
             android:visibility="gone">
+
+            <TextView
+                android:id="@+id/btnModelSwitchBottom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_model_switch_button"
+                android:fontFamily="monospace"
+                android:paddingStart="10dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="4dp"
+                android:text="模型 · gpt-4o-mini"
+                android:textColor="#10A37F"
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/btnRetryBottom"
