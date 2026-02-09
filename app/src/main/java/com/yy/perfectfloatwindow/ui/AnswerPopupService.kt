@@ -744,7 +744,7 @@ class AnswerPopupService : Service() {
         val tvSubtitle = menuView.findViewById<TextView>(R.id.tvModelMenuSubtitle)
         val optionsContainer = menuView.findViewById<LinearLayout>(R.id.modelMenuOptionsContainer)
 
-        tvTitle.text = if (forFastMode) "极速模型" else "深度模型"
+        tvTitle.text = if (forFastMode) "极速模型" else "推理模型"
         tvSubtitle.text = "题目$questionId · 切换模型"
         styleModelMenuPopup(root, tvTitle, tvSubtitle, isLightGreenGray)
 
