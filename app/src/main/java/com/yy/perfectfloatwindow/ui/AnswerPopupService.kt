@@ -1899,7 +1899,7 @@ class AnswerPopupService : Service() {
             }
         }
         btnModelHint?.setOnClickListener {
-            Toast.makeText(this, "显示当前题目使用的模型，点击模型名可切换。", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "点击切换模型", Toast.LENGTH_SHORT).show()
         }
 
         btnRetryBottom?.let {
