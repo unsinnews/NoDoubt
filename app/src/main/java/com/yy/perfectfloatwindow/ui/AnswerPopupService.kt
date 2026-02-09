@@ -669,13 +669,14 @@ class AnswerPopupService : Service() {
                 }
                 setSelectedModelForQuestion(questionId, forFastMode, modelId)
                 if (isFastMode == forFastMode) {
-                    displayAnswersForMode(forFastMode)
-                    updateHeaderForCurrentMode()
+                    modelMenuPopup?.dismiss()
+                    Toast.makeText(this, "题目$questionId 已切换模型：$modelId，正在自动重试", Toast.LENGTH_SHORT).show()
+                    retryQuestion(questionId)
                 } else {
                     updateVisibleModelButtons()
+                    modelMenuPopup?.dismiss()
+                    Toast.makeText(this, "题目$questionId 已切换模型：$modelId", Toast.LENGTH_SHORT).show()
                 }
-                Toast.makeText(this, "题目$questionId 已切换模型：$modelId", Toast.LENGTH_SHORT).show()
-                modelMenuPopup?.dismiss()
             }
             optionsContainer.addView(optionView)
         }
