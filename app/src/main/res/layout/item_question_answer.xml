@@ -190,7 +190,7 @@
                 android:paddingTop="4dp"
                 android:paddingEnd="10dp"
                 android:paddingBottom="4dp"
-                android:text="复制"
+                android:text="复制 ▾"
                 android:textColor="#0F8F71"
                 android:textSize="12sp" />
 

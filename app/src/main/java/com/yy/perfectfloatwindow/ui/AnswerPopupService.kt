@@ -764,20 +764,26 @@ class AnswerPopupService : Service() {
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
         val menuView = LayoutInflater.from(this).inflate(R.layout.popup_copy_menu, null)
         val root = menuView.findViewById<LinearLayout>(R.id.copyMenuRoot)
+        val viewHandle = menuView.findViewById<View>(R.id.viewCopyMenuHandle)
         val tvTitle = menuView.findViewById<TextView>(R.id.tvCopyMenuTitle)
+        val tvSubtitle = menuView.findViewById<TextView>(R.id.tvCopyMenuSubtitle)
         val btnCopyQuestionAndAnswer = menuView.findViewById<TextView>(R.id.btnCopyQuestionAndAnswer)
         val btnCopyAnswerOnly = menuView.findViewById<TextView>(R.id.btnCopyAnswerOnly)
 
         if (isLightGreenGray) {
             root.setBackgroundResource(R.drawable.bg_model_menu_surface)
+            viewHandle.setBackgroundColor(0xFF9BBEB2.toInt())
             tvTitle.setTextColor(0xFF17322B.toInt())
+            tvSubtitle.setTextColor(0xFF5F7B71.toInt())
             btnCopyQuestionAndAnswer.setBackgroundResource(R.drawable.bg_model_menu_item)
             btnCopyQuestionAndAnswer.setTextColor(0xFF243036.toInt())
             btnCopyAnswerOnly.setBackgroundResource(R.drawable.bg_model_menu_item)
             btnCopyAnswerOnly.setTextColor(0xFF243036.toInt())
         } else {
             root.setBackgroundResource(R.drawable.bg_model_menu_surface_light_brown_black)
+            viewHandle.setBackgroundColor(0xFFB69684.toInt())
             tvTitle.setTextColor(0xFF2C201C.toInt())
+            tvSubtitle.setTextColor(0xFF7D685F.toInt())
             btnCopyQuestionAndAnswer.setBackgroundResource(R.drawable.bg_model_menu_item_light_brown_black)
             btnCopyQuestionAndAnswer.setTextColor(0xFF2E2523.toInt())
             btnCopyAnswerOnly.setBackgroundResource(R.drawable.bg_model_menu_item_light_brown_black)
@@ -790,7 +796,7 @@ class AnswerPopupService : Service() {
                 Toast.makeText(this, "暂无可复制内容", Toast.LENGTH_SHORT).show()
             } else {
                 copyToClipboard("question_answer_$questionId", content)
-                Toast.makeText(this, "题目和解答已复制", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "题与解已复制", Toast.LENGTH_SHORT).show()
             }
             copyMenuPopup?.dismiss()
         }
