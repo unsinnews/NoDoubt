@@ -123,6 +123,9 @@ class AnswerPopupService : Service() {
     private var deepModeScrollY: Int = 0
     private var scrollRestoreToken: Int = 0
     private var isApplyingScrollRestore: Boolean = false
+    private var pendingScrollRestoreMode: Boolean? = null
+    private var pendingScrollRestoreTargetY: Int = 0
+    private var pendingScrollRestoreKick: Runnable? = null
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -612,25 +615,59 @@ class AnswerPopupService : Service() {
 
     private fun cancelPendingScrollRestore() {
         scrollRestoreToken++
+        pendingScrollRestoreMode = null
+        pendingScrollRestoreTargetY = 0
+        pendingScrollRestoreKick?.let { handler.removeCallbacks(it) }
+        pendingScrollRestoreKick = null
+    }
+
+    private fun applyPendingScrollRestoreIfNeeded() {
+        val restoreMode = pendingScrollRestoreMode ?: return
+        if (restoreMode != isFastMode) return
+        val view = popupView ?: return
+        val scrollView = view.findViewById<ScrollView>(R.id.scrollView) ?: return
+        val child = scrollView.getChildAt(0) ?: return
+
+        val maxScroll = (child.height - scrollView.height).coerceAtLeast(0)
+        val targetScrollY = pendingScrollRestoreTargetY.coerceAtLeast(0)
+        val resolvedY = targetScrollY.coerceIn(0, maxScroll)
+        isApplyingScrollRestore = true
+        scrollView.scrollTo(0, resolvedY)
+        isApplyingScrollRestore = false
+
+        // Reached the exact expected range, no further restore needed.
+        if (maxScroll >= targetScrollY) {
+            pendingScrollRestoreMode = null
+            pendingScrollRestoreTargetY = 0
+            pendingScrollRestoreKick?.let { handler.removeCallbacks(it) }
+            pendingScrollRestoreKick = null
+        }
+    }
+
+    private fun schedulePendingScrollRestoreKick(delayMs: Long = 240L) {
+        val restoreMode = pendingScrollRestoreMode ?: return
+        if (restoreMode != isFastMode) return
+
+        pendingScrollRestoreKick?.let { handler.removeCallbacks(it) }
+        val restoreToken = scrollRestoreToken
+        val restoreTask = Runnable {
+            if (restoreToken != scrollRestoreToken) return@Runnable
+            applyPendingScrollRestoreIfNeeded()
+        }
+        pendingScrollRestoreKick = restoreTask
+        handler.postDelayed(restoreTask, delayMs)
     }
 
     private fun restoreScrollForMode(isFast: Boolean) {
-        val view = popupView ?: return
-        val scrollView = view.findViewById<ScrollView>(R.id.scrollView) ?: return
-        val targetScrollY = if (isFast) fastModeScrollY else deepModeScrollY
+        pendingScrollRestoreMode = isFast
+        pendingScrollRestoreTargetY = if (isFast) fastModeScrollY else deepModeScrollY
 
         val restoreToken = ++scrollRestoreToken
-        val restoreDelays = longArrayOf(0L, 180L, 360L)
+        val restoreDelays = longArrayOf(0L, 120L, 260L, 480L, 760L, 1100L, 1500L, 2000L, 2600L, 3300L)
         restoreDelays.forEach { delay ->
-            scrollView.postDelayed({
+            handler.postDelayed({
                 if (restoreToken != scrollRestoreToken) return@postDelayed
-                if (isFastMode != isFast) return@postDelayed
-                val child = scrollView.getChildAt(0) ?: return@postDelayed
-                val maxScroll = (child.height - scrollView.height).coerceAtLeast(0)
-                val resolvedY = targetScrollY.coerceIn(0, maxScroll)
-                isApplyingScrollRestore = true
-                scrollView.scrollTo(0, resolvedY)
-                isApplyingScrollRestore = false
+                applyPendingScrollRestoreIfNeeded()
             }, delay)
         }
     }
@@ -1698,6 +1735,9 @@ class AnswerPopupService : Service() {
                 }
             }
         }
+
+        // Markdown rendering is asynchronous; trigger an extra restore pass after content settles.
+        schedulePendingScrollRestoreKick()
     }
 
     private fun startSolvingBothModes(questions: List<Question>) {
@@ -1884,6 +1924,9 @@ class AnswerPopupService : Service() {
         itemView.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
             MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, text)
         }
+
+        // Streaming updates can increase content height after debounce render.
+        schedulePendingScrollRestoreKick()
     }
 
     private fun markThinkingStarted(answer: Answer) {
@@ -1924,6 +1967,7 @@ class AnswerPopupService : Service() {
                 } else null
             } ?: return
         renderThinkingSection(itemView, questionId, answer, isFast)
+        schedulePendingScrollRestoreKick()
     }
 
     private fun renderThinkingSection(itemView: View, questionId: Int, answer: Answer?, isFast: Boolean) {
