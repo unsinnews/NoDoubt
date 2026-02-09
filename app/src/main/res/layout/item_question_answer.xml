@@ -175,23 +175,49 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:gravity="end|center_vertical"
+            android:gravity="start|center_vertical"
+            android:orientation="horizontal"
             android:visibility="gone">
 
-            <TextView
-                android:id="@+id/btnModelSwitchBottom"
+            <LinearLayout
+                android:id="@+id/modelSwitchArea"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_model_switch_button"
-                android:fontFamily="monospace"
-                android:paddingStart="10dp"
-                android:paddingTop="4dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="4dp"
-                android:text="模型 · gpt-4o-mini"
-                android:textColor="#10A37F"
-                android:textSize="12sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnModelSwitchBottom"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_model_switch_button"
+                    android:fontFamily="monospace"
+                    android:paddingStart="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="4dp"
+                    android:text="gpt-4o-mini ▾"
+                    android:textColor="#10A37F"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/btnModelHint"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_model_hint_badge"
+                    android:fontFamily="sans-serif-black"
+                    android:gravity="center"
+                    android:text="!"
+                    android:textColor="#4F5B62"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
 
             <TextView
                 android:id="@+id/btnRetryBottom"

@@ -922,6 +922,7 @@ class AnswerPopupService : Service() {
         val thinkingToggle = itemView.findViewById<TextView>(R.id.tvThinkingToggle)
         val thinkingText = itemView.findViewById<TextView>(R.id.tvThinkingText)
         val btnModelSwitchBottom = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)
+        val btnModelHint = itemView.findViewById<TextView>(R.id.btnModelHint)
 
         if (isLightGreenGray) {
             thinkingTitle?.setTextColor(0xFF7A4B00.toInt())
@@ -930,6 +931,7 @@ class AnswerPopupService : Service() {
             thinkingText?.setTextColor(0xFF4E3A1F.toInt())
             btnModelSwitchBottom?.setBackgroundResource(R.drawable.bg_model_switch_button)
             btnModelSwitchBottom?.setTextColor(0xFF0F8F71.toInt())
+            btnModelHint?.setTextColor(0xFF2C7E67.toInt())
         } else {
             thinkingTitle?.setTextColor(0xFF5F2F14.toInt())
             thinkingDuration?.setTextColor(0xFF8B5A40.toInt())
@@ -937,6 +939,7 @@ class AnswerPopupService : Service() {
             thinkingText?.setTextColor(0xFF4A2A1D.toInt())
             btnModelSwitchBottom?.setBackgroundResource(R.drawable.bg_model_switch_button_light_brown_black)
             btnModelSwitchBottom?.setTextColor(0xFFA75E41.toInt())
+            btnModelHint?.setTextColor(0xFFA26043.toInt())
         }
     }
 
@@ -1853,10 +1856,11 @@ class AnswerPopupService : Service() {
 
         val bottomContainer = itemView.findViewById<View>(R.id.bottomRetryContainer)
         val btnModelSwitch = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)
+        val btnModelHint = itemView.findViewById<TextView>(R.id.btnModelHint)
         val btnRetryBottom = itemView.findViewById<TextView>(R.id.btnRetryBottom)
 
-        // Keep bottom action row visible so user can always see and switch current model
-        bottomContainer?.visibility = View.VISIBLE
+        // Show model switch row together with bottom retry button
+        bottomContainer?.visibility = if (showRetry && questionId > 0) View.VISIBLE else View.GONE
 
         btnModelSwitch?.let {
             updateModelSwitchButton(itemView, questionId, isFast)
@@ -1865,6 +1869,9 @@ class AnswerPopupService : Service() {
                     showModelSwitchDialog(questionId, isFast)
                 }
             }
+        }
+        btnModelHint?.setOnClickListener {
+            Toast.makeText(this, "显示当前题目使用的模型，点击模型名可切换。", Toast.LENGTH_SHORT).show()
         }
 
         btnRetryBottom?.let {
@@ -1881,7 +1888,7 @@ class AnswerPopupService : Service() {
     private fun updateModelSwitchButton(itemView: View, questionId: Int, isFast: Boolean) {
         val modelName = getSelectedModelForQuestion(questionId, isFast)
         val button = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom) ?: return
-        button.text = "模型 · $modelName"
+        button.text = "$modelName ▾"
         button.visibility = View.VISIBLE
         applyThemeToQuestionCard(itemView)
     }
