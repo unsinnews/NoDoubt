@@ -237,6 +237,8 @@
 
     </LinearLayout>
 
+    </LinearLayout>
+
     <TextView
         android:id="@+id/tvCopyFeedback"
         android:layout_width="wrap_content"
