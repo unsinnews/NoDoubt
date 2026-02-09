@@ -14,7 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fontFamily="sans-serif-medium"
-        android:text="极速模型菜单"
+        android:text="极速模型"
         android:textSize="13sp"
         android:textStyle="bold" />
 
@@ -24,7 +24,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:fontFamily="sans-serif"
-        android:text="题目1 · 点击切换"
+        android:text="题目1 · 切换模型"
         android:textSize="11sp" />
 
     <View

@@ -6,6 +6,8 @@ import android.app.AlertDialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -114,6 +116,7 @@ class AnswerPopupService : Service() {
     private var fastQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
     private var deepQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
     private var modelMenuPopup: PopupWindow? = null
+    private var copyMenuPopup: PopupWindow? = null
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -636,6 +639,7 @@ class AnswerPopupService : Service() {
         }
 
         modelMenuPopup?.dismiss()
+        copyMenuPopup?.dismiss()
         val currentModel = getSelectedModelForQuestion(questionId, forFastMode)
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
 
@@ -645,8 +649,8 @@ class AnswerPopupService : Service() {
         val tvSubtitle = menuView.findViewById<TextView>(R.id.tvModelMenuSubtitle)
         val optionsContainer = menuView.findViewById<LinearLayout>(R.id.modelMenuOptionsContainer)
 
-        tvTitle.text = if (forFastMode) "极速模型菜单" else "深度模型菜单"
-        tvSubtitle.text = "题目$questionId · 点击切换"
+        tvTitle.text = if (forFastMode) "极速模型" else "深度模型"
+        tvSubtitle.text = "题目$questionId · 切换模型"
         styleModelMenuPopup(root, tvTitle, tvSubtitle, isLightGreenGray)
 
         optionsContainer.removeAllViews()
@@ -750,6 +754,109 @@ class AnswerPopupService : Service() {
     private fun estimateModelMenuWidth(): Int {
         val popupWidth = popupView?.width?.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         return (popupWidth * 0.62f).toInt().coerceIn(dpInt(220), dpInt(320))
+    }
+
+    private fun showCopyMenu(anchorView: View, questionId: Int) {
+        if (questionId <= 0) return
+        copyMenuPopup?.dismiss()
+        modelMenuPopup?.dismiss()
+
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        val menuView = LayoutInflater.from(this).inflate(R.layout.popup_copy_menu, null)
+        val root = menuView.findViewById<LinearLayout>(R.id.copyMenuRoot)
+        val tvTitle = menuView.findViewById<TextView>(R.id.tvCopyMenuTitle)
+        val btnCopyQuestionAndAnswer = menuView.findViewById<TextView>(R.id.btnCopyQuestionAndAnswer)
+        val btnCopyAnswerOnly = menuView.findViewById<TextView>(R.id.btnCopyAnswerOnly)
+
+        if (isLightGreenGray) {
+            root.setBackgroundResource(R.drawable.bg_model_menu_surface)
+            tvTitle.setTextColor(0xFF17322B.toInt())
+            btnCopyQuestionAndAnswer.setBackgroundResource(R.drawable.bg_model_menu_item)
+            btnCopyQuestionAndAnswer.setTextColor(0xFF243036.toInt())
+            btnCopyAnswerOnly.setBackgroundResource(R.drawable.bg_model_menu_item)
+            btnCopyAnswerOnly.setTextColor(0xFF243036.toInt())
+        } else {
+            root.setBackgroundResource(R.drawable.bg_model_menu_surface_light_brown_black)
+            tvTitle.setTextColor(0xFF2C201C.toInt())
+            btnCopyQuestionAndAnswer.setBackgroundResource(R.drawable.bg_model_menu_item_light_brown_black)
+            btnCopyQuestionAndAnswer.setTextColor(0xFF2E2523.toInt())
+            btnCopyAnswerOnly.setBackgroundResource(R.drawable.bg_model_menu_item_light_brown_black)
+            btnCopyAnswerOnly.setTextColor(0xFF2E2523.toInt())
+        }
+
+        btnCopyQuestionAndAnswer.setOnClickListener {
+            val content = buildCopyContent(questionId, includeQuestion = true)
+            if (content.isBlank()) {
+                Toast.makeText(this, "暂无可复制内容", Toast.LENGTH_SHORT).show()
+            } else {
+                copyToClipboard("question_answer_$questionId", content)
+                Toast.makeText(this, "题目和解答已复制", Toast.LENGTH_SHORT).show()
+            }
+            copyMenuPopup?.dismiss()
+        }
+
+        btnCopyAnswerOnly.setOnClickListener {
+            val content = buildCopyContent(questionId, includeQuestion = false)
+            if (content.isBlank()) {
+                Toast.makeText(this, "暂无可复制解答", Toast.LENGTH_SHORT).show()
+            } else {
+                copyToClipboard("answer_$questionId", content)
+                Toast.makeText(this, "解答已复制", Toast.LENGTH_SHORT).show()
+            }
+            copyMenuPopup?.dismiss()
+        }
+
+        val menuWidth = estimateCopyMenuWidth()
+        val popupWindow = PopupWindow(menuView, menuWidth, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
+            isOutsideTouchable = true
+            isFocusable = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                elevation = dp(10)
+            }
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setOnDismissListener { copyMenuPopup = null }
+        }
+
+        menuView.measure(
+            View.MeasureSpec.makeMeasureSpec(menuWidth, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val menuHeight = menuView.measuredHeight.coerceAtLeast(dpInt(104))
+        val yOffset = -(anchorView.height + menuHeight + dpInt(6))
+
+        popupWindow.showAsDropDown(anchorView, 0, yOffset, Gravity.START)
+        copyMenuPopup = popupWindow
+    }
+
+    private fun estimateCopyMenuWidth(): Int {
+        val popupWidth = popupView?.width?.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        return (popupWidth * 0.52f).toInt().coerceIn(dpInt(180), dpInt(280))
+    }
+
+    private fun buildCopyContent(questionId: Int, includeQuestion: Boolean): String {
+        val answer = if (isFastMode) fastAnswers[questionId] else deepAnswers[questionId]
+        val answerText = when {
+            answer?.error != null -> "错误: ${answer.error}"
+            !answer?.text.isNullOrBlank() -> answer?.text.orEmpty()
+            else -> ""
+        }.trim()
+
+        if (!includeQuestion) return answerText
+
+        val questionText = currentQuestions.find { it.id == questionId }?.text?.trim().orEmpty()
+        val sections = mutableListOf<String>()
+        if (questionText.isNotBlank()) {
+            sections.add("题目：\n$questionText")
+        }
+        if (answerText.isNotBlank()) {
+            sections.add("解答：\n$answerText")
+        }
+        return sections.joinToString("\n\n").trim()
+    }
+
+    private fun copyToClipboard(label: String, content: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, content))
     }
 
     private fun describeModelForDisplay(modelId: String, index: Int, total: Int, isFastMode: Boolean): String {
@@ -905,6 +1012,7 @@ class AnswerPopupService : Service() {
         val thinkingDuration = itemView.findViewById<TextView>(R.id.tvThinkingDuration)
         val thinkingToggle = itemView.findViewById<TextView>(R.id.tvThinkingToggle)
         val thinkingText = itemView.findViewById<TextView>(R.id.tvThinkingText)
+        val btnCopyBottom = itemView.findViewById<TextView>(R.id.btnCopyBottom)
         val btnModelSwitchBottom = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)
 
         if (isLightGreenGray) {
@@ -912,6 +1020,8 @@ class AnswerPopupService : Service() {
             thinkingDuration?.setTextColor(0xFF9A7B47.toInt())
             thinkingToggle?.setTextColor(0xFF9A7B47.toInt())
             thinkingText?.setTextColor(0xFF4E3A1F.toInt())
+            btnCopyBottom?.setBackgroundResource(R.drawable.bg_copy_button)
+            btnCopyBottom?.setTextColor(0xFF0F8F71.toInt())
             btnModelSwitchBottom?.setBackgroundResource(R.drawable.bg_model_switch_button)
             btnModelSwitchBottom?.setTextColor(0xFF0F8F71.toInt())
         } else {
@@ -919,6 +1029,8 @@ class AnswerPopupService : Service() {
             thinkingDuration?.setTextColor(0xFF8B5A40.toInt())
             thinkingToggle?.setTextColor(0xFF8B5A40.toInt())
             thinkingText?.setTextColor(0xFF4A2A1D.toInt())
+            btnCopyBottom?.setBackgroundResource(R.drawable.bg_copy_button_light_brown_black)
+            btnCopyBottom?.setTextColor(0xFFA75E41.toInt())
             btnModelSwitchBottom?.setBackgroundResource(R.drawable.bg_model_switch_button_light_brown_black)
             btnModelSwitchBottom?.setTextColor(0xFFA75E41.toInt())
         }
@@ -1836,6 +1948,7 @@ class AnswerPopupService : Service() {
         val retryBgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
 
         val bottomContainer = itemView.findViewById<View>(R.id.bottomRetryContainer)
+        val btnCopy = itemView.findViewById<TextView>(R.id.btnCopyBottom)
         val btnModelSwitch = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)
         val btnRetryBottom = itemView.findViewById<TextView>(R.id.btnRetryBottom)
 
@@ -1848,6 +1961,11 @@ class AnswerPopupService : Service() {
                 if (isFastMode == isFast && questionId > 0) {
                     showModelSwitchMenu(it, questionId, isFast)
                 }
+            }
+        }
+        btnCopy?.setOnClickListener {
+            if (questionId > 0) {
+                showCopyMenu(it, questionId)
             }
         }
 
@@ -2083,6 +2201,8 @@ class AnswerPopupService : Service() {
         isPopupShowing = false
         modelMenuPopup?.dismiss()
         modelMenuPopup = null
+        copyMenuPopup?.dismiss()
+        copyMenuPopup = null
 
         // Cancel all API requests first
         cancelAllRequests()
@@ -2113,6 +2233,8 @@ class AnswerPopupService : Service() {
         isPopupShowing = false
         modelMenuPopup?.dismiss()
         modelMenuPopup = null
+        copyMenuPopup?.dismiss()
+        copyMenuPopup = null
 
         // Cancel all API requests
         cancelAllRequests()
