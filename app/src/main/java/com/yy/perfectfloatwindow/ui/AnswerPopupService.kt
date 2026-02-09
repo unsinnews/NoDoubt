@@ -3,7 +3,6 @@ package com.yy.perfectfloatwindow.ui
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.app.AlertDialog
-import android.app.Dialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -23,15 +22,14 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.Window
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.ProgressBar
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -115,6 +113,7 @@ class AnswerPopupService : Service() {
     private var selectedDeepModelId: String = ""
     private var fastQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
     private var deepQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
+    private var modelMenuPopup: PopupWindow? = null
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -628,7 +627,7 @@ class AnswerPopupService : Service() {
         dialog.show()
     }
 
-    private fun showModelSwitchDialog(questionId: Int, forFastMode: Boolean) {
+    private fun showModelSwitchMenu(anchorView: View, questionId: Int, forFastMode: Boolean) {
         if (questionId <= 0) return
         val modelIds = getModelListForMode(forFastMode)
         if (modelIds.isEmpty()) {
@@ -636,64 +635,36 @@ class AnswerPopupService : Service() {
             return
         }
 
+        modelMenuPopup?.dismiss()
         val currentModel = getSelectedModelForQuestion(questionId, forFastMode)
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
 
-        val dialog = Dialog(this, R.style.RoundedDialog)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setContentView(R.layout.dialog_model_switch)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.setType(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
-            }
-        )
+        val menuView = LayoutInflater.from(this).inflate(R.layout.popup_model_switch_menu, null)
+        val root = menuView.findViewById<LinearLayout>(R.id.modelMenuRoot)
+        val tvTitle = menuView.findViewById<TextView>(R.id.tvModelMenuTitle)
+        val tvSubtitle = menuView.findViewById<TextView>(R.id.tvModelMenuSubtitle)
+        val optionsContainer = menuView.findViewById<LinearLayout>(R.id.modelMenuOptionsContainer)
 
-        val root = dialog.findViewById<LinearLayout>(R.id.modelDialogRoot)
-        val header = dialog.findViewById<LinearLayout>(R.id.modelDialogHeader)
-        val tvTitle = dialog.findViewById<TextView>(R.id.tvModelDialogTitle)
-        val tvSubtitle = dialog.findViewById<TextView>(R.id.tvModelDialogSubtitle)
-        val tvTip = dialog.findViewById<TextView>(R.id.tvModelDialogTip)
-        val btnClose = dialog.findViewById<TextView>(R.id.btnCloseModelDialog)
-        val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelOptionsContainer)
-        val optionScroll = dialog.findViewById<ScrollView>(R.id.modelOptionScroll)
+        tvTitle.text = if (forFastMode) "极速模型菜单" else "深度模型菜单"
+        tvSubtitle.text = "题目$questionId · 点击切换"
+        styleModelMenuPopup(root, tvTitle, tvSubtitle, isLightGreenGray)
 
-        tvTitle.text = if (forFastMode) "切换极速模型" else "切换深度模型"
-        tvSubtitle.text = "当前模型：$currentModel"
-
-        if (isLightGreenGray) {
-            root?.setBackgroundResource(R.drawable.bg_model_dialog_surface)
-            header?.setBackgroundResource(R.drawable.bg_model_dialog_header)
-            tvTip?.setTextColor(0xFF5E646A.toInt())
-            btnClose?.setBackgroundResource(R.drawable.bg_model_dialog_close_button)
-            btnClose?.setTextColor(0xFF1E7C64.toInt())
-        } else {
-            root?.setBackgroundResource(R.drawable.bg_model_dialog_surface_light_brown_black)
-            header?.setBackgroundResource(R.drawable.bg_model_dialog_header_light_brown_black)
-            tvTip?.setTextColor(0xFF7A6258.toInt())
-            btnClose?.setBackgroundResource(R.drawable.bg_model_dialog_close_button_light_brown_black)
-            btnClose?.setTextColor(0xFF96563D.toInt())
-        }
-
-        optionsContainer?.removeAllViews()
+        optionsContainer.removeAllViews()
         modelIds.forEachIndexed { index, modelId ->
             val optionView = LayoutInflater.from(this)
-                .inflate(R.layout.item_model_switch_option, optionsContainer, false)
-            val tvModelName = optionView.findViewById<TextView>(R.id.tvModelName)
-            val tvModelDesc = optionView.findViewById<TextView>(R.id.tvModelDesc)
-            val ivCheck = optionView.findViewById<ImageView>(R.id.ivModelCheck)
+                .inflate(R.layout.item_model_menu_option, optionsContainer, false)
+            val tvModelName = optionView.findViewById<TextView>(R.id.tvModelMenuName)
+            val tvModelDesc = optionView.findViewById<TextView>(R.id.tvModelMenuDesc)
+            val ivCheck = optionView.findViewById<ImageView>(R.id.ivModelMenuCheck)
             val selected = modelId == currentModel
 
             tvModelName.text = modelId
             tvModelDesc.text = describeModelForDisplay(modelId, index, modelIds.size, forFastMode)
-            styleModelOption(optionView, tvModelName, tvModelDesc, ivCheck, selected, isLightGreenGray)
+            styleModelMenuOption(optionView, tvModelName, tvModelDesc, ivCheck, selected, isLightGreenGray)
 
             optionView.setOnClickListener {
                 if (modelId == getSelectedModelForQuestion(questionId, forFastMode)) {
-                    dialog.dismiss()
+                    modelMenuPopup?.dismiss()
                     return@setOnClickListener
                 }
                 setSelectedModelForQuestion(questionId, forFastMode, modelId)
@@ -704,40 +675,51 @@ class AnswerPopupService : Service() {
                     updateVisibleModelButtons()
                 }
                 Toast.makeText(this, "题目$questionId 已切换模型：$modelId", Toast.LENGTH_SHORT).show()
-                dialog.dismiss()
+                modelMenuPopup?.dismiss()
             }
-            optionsContainer?.addView(optionView)
+            optionsContainer.addView(optionView)
         }
 
-        btnClose?.setOnClickListener { dialog.dismiss() }
-
-        dialog.show()
-        applyModelDialogWindowLayout(dialog, optionScroll)
-        animateModelDialogIn(dialog)
-    }
-
-    private fun applyModelDialogWindowLayout(dialog: Dialog, optionScroll: ScrollView?) {
-        val window = dialog.window ?: return
-        val popupWidth = popupView?.width?.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
-        val popupHeight = popupParams.height.takeIf { it > 0 } ?: (screenHeight * 2 / 3)
-
-        val sideMargin = (popupWidth * 0.06f).toInt().coerceAtLeast(dpInt(14))
-        val targetWidth = (popupWidth - sideMargin * 2).coerceAtLeast(dpInt(280))
-        val scrollTargetHeight = (popupHeight * 0.42f).toInt().coerceAtLeast(dpInt(180))
-
-        optionScroll?.layoutParams?.let { params ->
-            params.height = scrollTargetHeight
-            optionScroll.layoutParams = params
+        val menuWidth = estimateModelMenuWidth()
+        val popupWindow = PopupWindow(menuView, menuWidth, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
+            isOutsideTouchable = true
+            isFocusable = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                elevation = dp(10)
+            }
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setOnDismissListener { modelMenuPopup = null }
         }
 
-        window.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
-        val attrs = window.attributes
-        attrs.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-        attrs.y = (popupHeight * 0.06f).toInt().coerceAtLeast(dpInt(10))
-        window.attributes = attrs
+        menuView.measure(
+            View.MeasureSpec.makeMeasureSpec(menuWidth, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val menuHeight = menuView.measuredHeight.coerceAtLeast(dpInt(120))
+        val yOffset = -(anchorView.height + menuHeight + dpInt(6))
+
+        popupWindow.showAsDropDown(anchorView, 0, yOffset, Gravity.START)
+        modelMenuPopup = popupWindow
     }
 
-    private fun styleModelOption(
+    private fun styleModelMenuPopup(
+        root: LinearLayout?,
+        tvTitle: TextView?,
+        tvSubtitle: TextView?,
+        isLightGreenGray: Boolean
+    ) {
+        if (isLightGreenGray) {
+            root?.setBackgroundResource(R.drawable.bg_model_menu_surface)
+            tvTitle?.setTextColor(0xFF17322B.toInt())
+            tvSubtitle?.setTextColor(0xFF4D6860.toInt())
+        } else {
+            root?.setBackgroundResource(R.drawable.bg_model_menu_surface_light_brown_black)
+            tvTitle?.setTextColor(0xFF2C201C.toInt())
+            tvSubtitle?.setTextColor(0xFF725B52.toInt())
+        }
+    }
+
+    private fun styleModelMenuOption(
         optionView: View,
         tvModelName: TextView,
         tvModelDesc: TextView,
@@ -747,21 +729,26 @@ class AnswerPopupService : Service() {
     ) {
         if (isLightGreenGray) {
             optionView.setBackgroundResource(
-                if (selected) R.drawable.bg_model_option_selected else R.drawable.bg_model_option_unselected
+                if (selected) R.drawable.bg_model_menu_item_selected else R.drawable.bg_model_menu_item
             )
-            tvModelName.setTextColor(if (selected) 0xFF0F8F71.toInt() else 0xFF1D2A2F.toInt())
-            tvModelDesc.setTextColor(if (selected) 0xFF2B6B5B.toInt() else 0xFF647177.toInt())
+            tvModelName.setTextColor(if (selected) 0xFF0F8F71.toInt() else 0xFF243036.toInt())
+            tvModelDesc.setTextColor(if (selected) 0xFF2D7563.toInt() else 0xFF5F6E74.toInt())
             ivCheck.setColorFilter(0xFF0F8F71.toInt())
         } else {
             optionView.setBackgroundResource(
-                if (selected) R.drawable.bg_model_option_selected_light_brown_black
-                else R.drawable.bg_model_option_unselected_light_brown_black
+                if (selected) R.drawable.bg_model_menu_item_selected_light_brown_black
+                else R.drawable.bg_model_menu_item_light_brown_black
             )
-            tvModelName.setTextColor(if (selected) 0xFF9D573C.toInt() else 0xFF2D2320.toInt())
-            tvModelDesc.setTextColor(if (selected) 0xFF8A5D47.toInt() else 0xFF776964.toInt())
-            ivCheck.setColorFilter(0xFF9D573C.toInt())
+            tvModelName.setTextColor(if (selected) 0xFFA75E41.toInt() else 0xFF2E2523.toInt())
+            tvModelDesc.setTextColor(if (selected) 0xFF8C5D49.toInt() else 0xFF7B6A64.toInt())
+            ivCheck.setColorFilter(0xFFA75E41.toInt())
         }
         ivCheck.visibility = if (selected) View.VISIBLE else View.GONE
+    }
+
+    private fun estimateModelMenuWidth(): Int {
+        val popupWidth = popupView?.width?.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        return (popupWidth * 0.62f).toInt().coerceIn(dpInt(220), dpInt(320))
     }
 
     private fun describeModelForDisplay(modelId: String, index: Int, total: Int, isFastMode: Boolean): String {
@@ -772,38 +759,6 @@ class AnswerPopupService : Service() {
                     modelId.contains("reason", ignoreCase = true) -> "推理更深入，适合多步分析题。"
             isFastMode -> "用于极速模式，平衡速度与准确率。"
             else -> "用于深度模式，适合复杂场景推导。"
-        }
-    }
-
-    private fun animateModelDialogIn(dialog: Dialog) {
-        val root = dialog.findViewById<View>(R.id.modelDialogRoot) ?: return
-        val optionContainer = dialog.findViewById<LinearLayout>(R.id.modelOptionsContainer)
-        root.alpha = 0f
-        root.translationY = dp(14)
-        root.scaleX = 0.97f
-        root.scaleY = 0.97f
-        root.animate()
-            .alpha(1f)
-            .translationY(0f)
-            .scaleX(1f)
-            .scaleY(1f)
-            .setDuration(280)
-            .setInterpolator(DecelerateInterpolator())
-            .start()
-
-        optionContainer?.let { container ->
-            for (i in 0 until container.childCount) {
-                val child = container.getChildAt(i) ?: continue
-                child.alpha = 0f
-                child.translationY = dp(16)
-                child.animate()
-                    .alpha(1f)
-                    .translationY(0f)
-                    .setStartDelay(80L + i * 28L)
-                    .setDuration(220)
-                    .setInterpolator(DecelerateInterpolator())
-                    .start()
-            }
         }
     }
 
@@ -950,7 +905,6 @@ class AnswerPopupService : Service() {
         val thinkingToggle = itemView.findViewById<TextView>(R.id.tvThinkingToggle)
         val thinkingText = itemView.findViewById<TextView>(R.id.tvThinkingText)
         val btnModelSwitchBottom = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)
-        val btnModelHint = itemView.findViewById<TextView>(R.id.btnModelHint)
 
         if (isLightGreenGray) {
             thinkingTitle?.setTextColor(0xFF7A4B00.toInt())
@@ -959,7 +913,6 @@ class AnswerPopupService : Service() {
             thinkingText?.setTextColor(0xFF4E3A1F.toInt())
             btnModelSwitchBottom?.setBackgroundResource(R.drawable.bg_model_switch_button)
             btnModelSwitchBottom?.setTextColor(0xFF0F8F71.toInt())
-            btnModelHint?.setTextColor(0xFF2C7E67.toInt())
         } else {
             thinkingTitle?.setTextColor(0xFF5F2F14.toInt())
             thinkingDuration?.setTextColor(0xFF8B5A40.toInt())
@@ -967,7 +920,6 @@ class AnswerPopupService : Service() {
             thinkingText?.setTextColor(0xFF4A2A1D.toInt())
             btnModelSwitchBottom?.setBackgroundResource(R.drawable.bg_model_switch_button_light_brown_black)
             btnModelSwitchBottom?.setTextColor(0xFFA75E41.toInt())
-            btnModelHint?.setTextColor(0xFFA26043.toInt())
         }
     }
 
@@ -1884,7 +1836,6 @@ class AnswerPopupService : Service() {
 
         val bottomContainer = itemView.findViewById<View>(R.id.bottomRetryContainer)
         val btnModelSwitch = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)
-        val btnModelHint = itemView.findViewById<TextView>(R.id.btnModelHint)
         val btnRetryBottom = itemView.findViewById<TextView>(R.id.btnRetryBottom)
 
         // Show model switch row together with bottom retry button
@@ -1894,12 +1845,9 @@ class AnswerPopupService : Service() {
             updateModelSwitchButton(itemView, questionId, isFast)
             it.setOnClickListener {
                 if (isFastMode == isFast && questionId > 0) {
-                    showModelSwitchDialog(questionId, isFast)
+                    showModelSwitchMenu(it, questionId, isFast)
                 }
             }
-        }
-        btnModelHint?.setOnClickListener {
-            Toast.makeText(this, "点击切换模型", Toast.LENGTH_SHORT).show()
         }
 
         btnRetryBottom?.let {
@@ -2132,6 +2080,8 @@ class AnswerPopupService : Service() {
 
     private fun dismissPopup() {
         isPopupShowing = false
+        modelMenuPopup?.dismiss()
+        modelMenuPopup = null
 
         // Cancel all API requests first
         cancelAllRequests()
@@ -2160,6 +2110,8 @@ class AnswerPopupService : Service() {
         super.onDestroy()
         isServiceRunning = false
         isPopupShowing = false
+        modelMenuPopup?.dismiss()
+        modelMenuPopup = null
 
         // Cancel all API requests
         cancelAllRequests()

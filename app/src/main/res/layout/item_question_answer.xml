@@ -200,18 +200,6 @@
                     android:textColor="#10A37F"
                     android:textSize="12sp" />
 
-                <TextView
-                    android:id="@+id/btnModelHint"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/bg_model_hint_badge"
-                    android:fontFamily="sans-serif-black"
-                    android:gravity="center"
-                    android:text="!"
-                    android:textColor="#4F5B62"
-                    android:textSize="10sp" />
-
             </LinearLayout>
 
             <View
