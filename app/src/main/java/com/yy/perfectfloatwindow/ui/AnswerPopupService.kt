@@ -31,6 +31,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -658,6 +659,7 @@ class AnswerPopupService : Service() {
         val tvTip = dialog.findViewById<TextView>(R.id.tvModelDialogTip)
         val btnClose = dialog.findViewById<TextView>(R.id.btnCloseModelDialog)
         val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelOptionsContainer)
+        val optionScroll = dialog.findViewById<ScrollView>(R.id.modelOptionScroll)
 
         tvTitle.text = if (forFastMode) "切换极速模型" else "切换深度模型"
         tvSubtitle.text = "当前模型：$currentModel"
@@ -710,7 +712,29 @@ class AnswerPopupService : Service() {
         btnClose?.setOnClickListener { dialog.dismiss() }
 
         dialog.show()
+        applyModelDialogWindowLayout(dialog, optionScroll)
         animateModelDialogIn(dialog)
+    }
+
+    private fun applyModelDialogWindowLayout(dialog: Dialog, optionScroll: ScrollView?) {
+        val window = dialog.window ?: return
+        val popupWidth = popupView?.width?.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val popupHeight = popupParams.height.takeIf { it > 0 } ?: (screenHeight * 2 / 3)
+
+        val sideMargin = (popupWidth * 0.06f).toInt().coerceAtLeast(dpInt(14))
+        val targetWidth = (popupWidth - sideMargin * 2).coerceAtLeast(dpInt(280))
+        val scrollTargetHeight = (popupHeight * 0.42f).toInt().coerceAtLeast(dpInt(180))
+
+        optionScroll?.layoutParams?.let { params ->
+            params.height = scrollTargetHeight
+            optionScroll.layoutParams = params
+        }
+
+        window.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
+        val attrs = window.attributes
+        attrs.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        attrs.y = (popupHeight * 0.06f).toInt().coerceAtLeast(dpInt(10))
+        window.attributes = attrs
     }
 
     private fun styleModelOption(
@@ -755,9 +779,9 @@ class AnswerPopupService : Service() {
         val root = dialog.findViewById<View>(R.id.modelDialogRoot) ?: return
         val optionContainer = dialog.findViewById<LinearLayout>(R.id.modelOptionsContainer)
         root.alpha = 0f
-        root.translationY = dp(24)
-        root.scaleX = 0.95f
-        root.scaleY = 0.95f
+        root.translationY = dp(14)
+        root.scaleX = 0.97f
+        root.scaleY = 0.97f
         root.animate()
             .alpha(1f)
             .translationY(0f)
@@ -795,6 +819,10 @@ class AnswerPopupService : Service() {
 
     private fun dp(value: Int): Float {
         return value * resources.displayMetrics.density
+    }
+
+    private fun dpInt(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
     }
 
     private fun applyPopupTheme() {
