@@ -19,6 +19,7 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import com.yy.perfectfloatwindow.BuildConfig
 import com.yy.perfectfloatwindow.R
 import com.yy.perfectfloatwindow.data.AISettings
 import com.yy.perfectfloatwindow.data.ThemeManager
@@ -45,6 +46,7 @@ class ProfileFragment : Fragment() {
         applyTheme(view)
         updateApiStatus(view)
         updateThemeDisplay(view)
+        updateVersionDisplay(view)
         updateProfileDisplay(view)
     }
 
@@ -54,6 +56,7 @@ class ProfileFragment : Fragment() {
             applyTheme(it)
             updateApiStatus(it)
             updateThemeDisplay(it)
+            updateVersionDisplay(it)
             updateProfileDisplay(it)
         }
     }
@@ -369,6 +372,11 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    private fun updateVersionDisplay(view: View) {
+        val versionName = BuildConfig.VERSION_NAME
+        view.findViewById<TextView>(R.id.tvVersion)?.text = "v$versionName"
+    }
+
     private fun showAboutDialog() {
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(requireContext())
 
@@ -409,6 +417,7 @@ class ProfileFragment : Fragment() {
         }
         // Title and version are always white on the header background
         tvDialogTitle.setTextColor(0xFFFFFFFF.toInt())
+        tvVersion.text = "版本 ${BuildConfig.VERSION_NAME}"
         tvVersion.setTextColor(0xFFFFFFFF.toInt())
         tvFeaturesTitle.setTextColor(textPrimary)
         ivFeature1.setColorFilter(primaryColor)
