@@ -925,7 +925,7 @@ class AnswerPopupService : Service() {
 
     private fun estimateCopyMenuWidth(): Int {
         val popupWidth = popupView?.width?.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
-        return (popupWidth * 0.58f).toInt().coerceIn(dpInt(220), dpInt(340))
+        return (popupWidth * 0.48f).toInt().coerceIn(dpInt(190), dpInt(290))
     }
 
     private fun buildCopyContent(questionId: Int, includeQuestion: Boolean): String {
@@ -957,15 +957,23 @@ class AnswerPopupService : Service() {
     private fun showCopyFeedback() {
         val view = popupView ?: return
         val feedbackView = view.findViewById<TextView>(R.id.tvCopyFeedback) ?: return
+        val bottomBar = view.findViewById<View>(R.id.bottomBarContainer)
 
         copyFeedbackHideRunnable?.let { handler.removeCallbacks(it) }
         copyFeedbackHideRunnable = null
+
+        (feedbackView.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+            params.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            val barHeight = bottomBar?.height?.takeIf { it > 0 } ?: dpInt(74)
+            params.bottomMargin = barHeight + dpInt(10)
+            feedbackView.layoutParams = params
+        }
 
         feedbackView.animate().cancel()
         feedbackView.text = "已复制"
         feedbackView.visibility = View.VISIBLE
         feedbackView.alpha = 0f
-        feedbackView.translationY = -dp(8)
+        feedbackView.translationY = dp(8)
         feedbackView.animate()
             .alpha(1f)
             .translationY(0f)
@@ -976,7 +984,7 @@ class AnswerPopupService : Service() {
         val hideTask = Runnable {
             feedbackView.animate()
                 .alpha(0f)
-                .translationY(-dp(6))
+                .translationY(dp(6))
                 .setDuration(180)
                 .setInterpolator(DecelerateInterpolator())
                 .withEndAction {
