@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/bg_answer_popup">
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/popupContentRoot"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/bg_answer_popup">
 
     <!-- Drag Handle -->
     <FrameLayout
@@ -232,4 +237,23 @@
 
     </LinearLayout>
 
-</LinearLayout>
+    <TextView
+        android:id="@+id/tvCopyFeedback"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="58dp"
+        android:background="@drawable/bg_copy_feedback_toast"
+        android:clickable="false"
+        android:elevation="18dp"
+        android:fontFamily="sans-serif-medium"
+        android:paddingStart="14dp"
+        android:paddingTop="7dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="7dp"
+        android:text="已复制"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+</FrameLayout>

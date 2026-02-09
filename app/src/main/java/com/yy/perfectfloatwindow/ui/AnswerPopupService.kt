@@ -118,6 +118,7 @@ class AnswerPopupService : Service() {
     private var deepQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
     private var modelMenuPopup: PopupWindow? = null
     private var copyMenuPopup: PopupWindow? = null
+    private var copyFeedbackHideRunnable: Runnable? = null
     private var fastModeScrollY: Int = 0
     private var deepModeScrollY: Int = 0
     private var scrollRestoreToken: Int = 0
@@ -853,7 +854,7 @@ class AnswerPopupService : Service() {
                 Toast.makeText(this, "暂无可复制内容", Toast.LENGTH_SHORT).show()
             } else {
                 copyToClipboard("question_answer_$questionId", content)
-                Toast.makeText(this, "题与解已复制", Toast.LENGTH_SHORT).show()
+                showCopyFeedback()
             }
             copyMenuPopup?.dismiss()
         }
@@ -864,7 +865,7 @@ class AnswerPopupService : Service() {
                 Toast.makeText(this, "暂无可复制解答", Toast.LENGTH_SHORT).show()
             } else {
                 copyToClipboard("answer_$questionId", content)
-                Toast.makeText(this, "解答已复制", Toast.LENGTH_SHORT).show()
+                showCopyFeedback()
             }
             copyMenuPopup?.dismiss()
         }
@@ -922,6 +923,41 @@ class AnswerPopupService : Service() {
         clipboard.setPrimaryClip(ClipData.newPlainText(label, content))
     }
 
+    private fun showCopyFeedback() {
+        val view = popupView ?: return
+        val feedbackView = view.findViewById<TextView>(R.id.tvCopyFeedback) ?: return
+
+        copyFeedbackHideRunnable?.let { handler.removeCallbacks(it) }
+        copyFeedbackHideRunnable = null
+
+        feedbackView.animate().cancel()
+        feedbackView.text = "已复制"
+        feedbackView.visibility = View.VISIBLE
+        feedbackView.alpha = 0f
+        feedbackView.translationY = -dp(8)
+        feedbackView.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(180)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
+        val hideTask = Runnable {
+            feedbackView.animate()
+                .alpha(0f)
+                .translationY(-dp(6))
+                .setDuration(180)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    feedbackView.visibility = View.GONE
+                    feedbackView.translationY = 0f
+                }
+                .start()
+        }
+        copyFeedbackHideRunnable = hideTask
+        handler.postDelayed(hideTask, 1200)
+    }
+
     private fun describeModelForDisplay(modelId: String, index: Int, total: Int, isFastMode: Boolean): String {
         return when {
             index == 0 && total > 1 -> "列表首选模型，常用于默认解题。"
@@ -956,7 +992,7 @@ class AnswerPopupService : Service() {
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
 
         // Main container background
-        val rootLayout = view as? LinearLayout
+        val rootLayout = view.findViewById<LinearLayout>(R.id.popupContentRoot)
 
         // Tab area
         val tabAreaBg = view.findViewById<FrameLayout>(R.id.tabAreaBg)
@@ -1274,6 +1310,10 @@ class AnswerPopupService : Service() {
 
     fun processBitmap(bitmap: Bitmap) {
         currentBitmap = bitmap
+        copyFeedbackHideRunnable?.let { handler.removeCallbacks(it) }
+        copyFeedbackHideRunnable = null
+        popupView?.findViewById<TextView>(R.id.tvCopyFeedback)?.visibility = View.GONE
+
         // Reset cached answers
         fastAnswers.clear()
         deepAnswers.clear()
@@ -2272,6 +2312,8 @@ class AnswerPopupService : Service() {
     private fun dismissPopup() {
         isPopupShowing = false
         cancelPendingScrollRestore()
+        copyFeedbackHideRunnable?.let { handler.removeCallbacks(it) }
+        copyFeedbackHideRunnable = null
         modelMenuPopup?.dismiss()
         modelMenuPopup = null
         copyMenuPopup?.dismiss()
@@ -2305,6 +2347,8 @@ class AnswerPopupService : Service() {
         isServiceRunning = false
         isPopupShowing = false
         cancelPendingScrollRestore()
+        copyFeedbackHideRunnable?.let { handler.removeCallbacks(it) }
+        copyFeedbackHideRunnable = null
         modelMenuPopup?.dismiss()
         modelMenuPopup = null
         copyMenuPopup?.dismiss()
