@@ -112,6 +112,8 @@ class AnswerPopupService : Service() {
     private var isDeepModeStopped = false
     private var selectedFastModelId: String = ""
     private var selectedDeepModelId: String = ""
+    private var fastQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
+    private var deepQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -625,15 +627,15 @@ class AnswerPopupService : Service() {
         dialog.show()
     }
 
-    private fun showModelSwitchDialog() {
-        val forFastMode = isFastMode
+    private fun showModelSwitchDialog(questionId: Int, forFastMode: Boolean) {
+        if (questionId <= 0) return
         val modelIds = getModelListForMode(forFastMode)
         if (modelIds.isEmpty()) {
             Toast.makeText(this, "请先在设置中添加模型", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val currentModel = getSelectedModelForMode(forFastMode)
+        val currentModel = getSelectedModelForQuestion(questionId, forFastMode)
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
 
         val dialog = Dialog(this, R.style.RoundedDialog)
@@ -688,18 +690,18 @@ class AnswerPopupService : Service() {
             styleModelOption(optionView, tvModelName, tvModelDesc, ivCheck, selected, isLightGreenGray)
 
             optionView.setOnClickListener {
-                if (modelId == getSelectedModelForMode(forFastMode)) {
+                if (modelId == getSelectedModelForQuestion(questionId, forFastMode)) {
                     dialog.dismiss()
                     return@setOnClickListener
                 }
-                setSelectedModelForMode(forFastMode, modelId)
+                setSelectedModelForQuestion(questionId, forFastMode, modelId)
                 if (isFastMode == forFastMode) {
                     displayAnswersForMode(forFastMode)
                     updateHeaderForCurrentMode()
                 } else {
                     updateVisibleModelButtons()
                 }
-                Toast.makeText(this, "已切换模型：$modelId", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "题目$questionId 已切换模型：$modelId", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
             optionsContainer?.addView(optionView)
@@ -786,7 +788,8 @@ class AnswerPopupService : Service() {
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
         for (i in 0 until container.childCount) {
             val itemView = container.getChildAt(i) ?: continue
-            updateModelSwitchButton(itemView, isFastMode)
+            val questionId = getQuestionIdFromItemView(itemView) ?: continue
+            updateModelSwitchButton(itemView, questionId, isFastMode)
         }
     }
 
@@ -1046,7 +1049,7 @@ class AnswerPopupService : Service() {
         }
     }
 
-    private fun getSelectedModelForMode(isFast: Boolean): String {
+    private fun getDefaultModelForMode(isFast: Boolean): String {
         return if (isFast) {
             if (selectedFastModelId.isBlank()) {
                 selectedFastModelId = AISettings.getSelectedFastModel(this)
@@ -1064,21 +1067,43 @@ class AnswerPopupService : Service() {
         return if (isFast) AISettings.getFastModelList(this) else AISettings.getDeepModelList(this)
     }
 
-    private fun setSelectedModelForMode(isFast: Boolean, modelId: String) {
-        val normalized = modelId.trim()
-        if (normalized.isBlank()) return
-        if (isFast) {
-            selectedFastModelId = normalized
-            AISettings.setSelectedFastModel(this, normalized)
-        } else {
-            selectedDeepModelId = normalized
-            AISettings.setSelectedDeepModel(this, normalized)
-        }
+    private fun ensureQuestionModelInitialized(questionId: Int, isFast: Boolean) {
+        if (questionId <= 0) return
+        val modelMap = if (isFast) fastQuestionModelIds else deepQuestionModelIds
+        if (modelMap.containsKey(questionId)) return
+        val defaultModel = getDefaultModelForMode(isFast)
+        modelMap[questionId] = defaultModel
     }
 
-    private fun getModeConfig(isFast: Boolean): AIConfig {
+    private fun getSelectedModelForQuestion(questionId: Int, isFast: Boolean): String {
+        if (questionId <= 0) return getDefaultModelForMode(isFast)
+
+        val availableModels = getModelListForMode(isFast)
+        val fallbackModel = availableModels.firstOrNull() ?: getDefaultModelForMode(isFast)
+        val modelMap = if (isFast) fastQuestionModelIds else deepQuestionModelIds
+
+        ensureQuestionModelInitialized(questionId, isFast)
+        val current = modelMap[questionId].orEmpty()
+        val resolved = if (current.isNotBlank() && (availableModels.isEmpty() || availableModels.contains(current))) {
+            current
+        } else {
+            fallbackModel
+        }
+        modelMap[questionId] = resolved
+        return resolved
+    }
+
+    private fun setSelectedModelForQuestion(questionId: Int, isFast: Boolean, modelId: String) {
+        if (questionId <= 0) return
+        val normalized = modelId.trim()
+        if (normalized.isBlank()) return
+        val modelMap = if (isFast) fastQuestionModelIds else deepQuestionModelIds
+        modelMap[questionId] = normalized
+    }
+
+    private fun getModeConfig(questionId: Int, isFast: Boolean): AIConfig {
         val baseConfig = if (isFast) AISettings.getFastConfig(this) else AISettings.getDeepConfig(this)
-        val selectedModel = getSelectedModelForMode(isFast)
+        val selectedModel = getSelectedModelForQuestion(questionId, isFast)
         return baseConfig.copy(modelId = selectedModel)
     }
 
@@ -1090,6 +1115,8 @@ class AnswerPopupService : Service() {
         fastAnswerViews.clear()
         deepAnswerViews.clear()
         questionTexts.clear()
+        fastQuestionModelIds.clear()
+        deepQuestionModelIds.clear()
         isFastSolving = false
         isDeepSolving = false
         hasStartedAnswering = false
@@ -1189,6 +1216,9 @@ class AnswerPopupService : Service() {
     private fun addNewQuestionCard(questionIndex: Int) {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
+
+        ensureQuestionModelInitialized(questionIndex, true)
+        ensureQuestionModelInitialized(questionIndex, false)
 
         val itemView = LayoutInflater.from(this)
             .inflate(R.layout.item_question_answer, container, false)
@@ -1381,6 +1411,9 @@ class AnswerPopupService : Service() {
                 .inflate(R.layout.item_question_answer, container, false)
             itemView.tag = "question_${question.id}"
 
+            ensureQuestionModelInitialized(question.id, true)
+            ensureQuestionModelInitialized(question.id, false)
+
             itemView.findViewById<TextView>(R.id.tvQuestionTitle).text = "问题${index + 1}"
             // Render question text with Markdown and LaTeX support (with newline conversion)
             val tvQuestionText = itemView.findViewById<TextView>(R.id.tvQuestionText)
@@ -1445,7 +1478,7 @@ class AnswerPopupService : Service() {
                 else -> "解答中..."
             }
             answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = titleText
-            answerView?.let { updateModelSwitchButton(it, isFast) }
+            answerView?.let { updateModelSwitchButton(it, question.id, isFast) }
 
             // Show/hide retry buttons based on state
             when {
@@ -1472,8 +1505,10 @@ class AnswerPopupService : Service() {
     }
 
     private fun startSolvingQuestion(question: Question) {
-        val fastConfig = getModeConfig(true)
-        val deepConfig = getModeConfig(false)
+        ensureQuestionModelInitialized(question.id, true)
+        ensureQuestionModelInitialized(question.id, false)
+        val fastConfig = getModeConfig(question.id, true)
+        val deepConfig = getModeConfig(question.id, false)
 
         if (!fastConfig.isValid() || fastConfig.apiKey.isBlank()) {
             return
@@ -1807,6 +1842,11 @@ class AnswerPopupService : Service() {
         showHeaderRetryButton(itemView, questionId, isFastMode)
     }
 
+    private fun getQuestionIdFromItemView(itemView: View): Int? {
+        val tag = itemView.tag as? String ?: return null
+        return tag.removePrefix("question_").toIntOrNull()
+    }
+
     private fun showBottomActionRow(itemView: View, questionId: Int, isFast: Boolean, showRetry: Boolean) {
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
         val retryBgRes = if (isLightGreenGray) R.drawable.bg_retry_button else R.drawable.bg_retry_button_light_brown_black
@@ -1819,10 +1859,10 @@ class AnswerPopupService : Service() {
         bottomContainer?.visibility = View.VISIBLE
 
         btnModelSwitch?.let {
-            updateModelSwitchButton(itemView, isFast)
+            updateModelSwitchButton(itemView, questionId, isFast)
             it.setOnClickListener {
-                if (isFastMode == isFast) {
-                    showModelSwitchDialog()
+                if (isFastMode == isFast && questionId > 0) {
+                    showModelSwitchDialog(questionId, isFast)
                 }
             }
         }
@@ -1838,8 +1878,8 @@ class AnswerPopupService : Service() {
         }
     }
 
-    private fun updateModelSwitchButton(itemView: View, isFast: Boolean) {
-        val modelName = getSelectedModelForMode(isFast)
+    private fun updateModelSwitchButton(itemView: View, questionId: Int, isFast: Boolean) {
+        val modelName = getSelectedModelForQuestion(questionId, isFast)
         val button = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom) ?: return
         button.text = "模型 · $modelName"
         button.visibility = View.VISIBLE
@@ -1853,7 +1893,8 @@ class AnswerPopupService : Service() {
     ) {
         itemView.findViewById<TextView>(R.id.btnRetry)?.visibility = View.GONE
         if (keepModelButton) {
-            showBottomActionRow(itemView, -1, isFast, showRetry = false)
+            val questionId = getQuestionIdFromItemView(itemView) ?: -1
+            showBottomActionRow(itemView, questionId, isFast, showRetry = false)
         } else {
             itemView.findViewById<TextView>(R.id.btnRetryBottom)?.visibility = View.GONE
             itemView.findViewById<TextView>(R.id.btnModelSwitchBottom)?.visibility = View.GONE
@@ -1906,7 +1947,8 @@ class AnswerPopupService : Service() {
     }
 
     private fun retrySolvingQuestion(question: Question) {
-        val config = getModeConfig(isFastMode)
+        ensureQuestionModelInitialized(question.id, isFastMode)
+        val config = getModeConfig(question.id, isFastMode)
 
         if (!config.isValid() || config.apiKey.isBlank()) {
             return
