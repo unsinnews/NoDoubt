@@ -10,6 +10,8 @@ NoDoubt 是一个面向 Android 的 AI 悬浮答题助手，核心目标是让�
 - 流式输出结果
 - 无需频繁切回主页面
 
+> 当前版本暂时只支持 **OpenAI-Compatible API**（OpenAI 兼容接口）。
+
 ## 项目定位
 
 NoDoubt 适合以下场景：
@@ -30,6 +32,11 @@ NoDoubt 适合以下场景：
 - 流式展示：答案边生成边显示，降低等待感
 - 重授权机制：系统回收截图授权后可快速恢复
 - 主题与交互优化：面向长时间使用的阅读和操作体验
+
+## API 支持说明
+
+- 当前仅支持 OpenAI-Compatible API
+- 需要可用的 API Key、Base URL 和模型 ID
 
 ## 使用流程
 
