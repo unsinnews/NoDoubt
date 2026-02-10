@@ -777,9 +777,8 @@ class SettingsActivity : AppCompatActivity() {
             btnToggleAllSelection.visibility = View.VISIBLE
             btnTogglePrefixSelection.visibility =
                 if (prefixRow.visibility == View.VISIBLE) View.VISIBLE else View.GONE
-            val selectedCount = selectedIds.size
-            btnConfirm.isEnabled = selectedCount > 0
-            btnConfirm.alpha = if (selectedCount > 0) 1f else 0.45f
+            btnConfirm.isEnabled = true
+            btnConfirm.alpha = 1f
 
             val categoryIds = currentCategoryModels().map { it.id }
             val prefixIds = currentPrefixModels().map { it.id }
@@ -1005,22 +1004,23 @@ class SettingsActivity : AppCompatActivity() {
 
         btnCancel.setOnClickListener { dialog.dismiss() }
         btnConfirm.setOnClickListener {
+            val orderedSelectedIds = models
+                .map { it.id }
+                .filter { selectedIds.contains(it) }
             when (target) {
                 TestTarget.OCR -> Unit
                 TestTarget.FAST -> {
-                    if (selectedIds.isEmpty()) return@setOnClickListener
-                    mergeModelsIntoContainer(
+                    replaceModelsInContainer(
                         container = fastModelListContainer,
-                        additions = selectedIds.toList(),
-                        fallback = AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
+                        nextModels = orderedSelectedIds,
+                        fallback = DEFAULT_FAST_MODEL
                     )
                 }
                 TestTarget.DEEP -> {
-                    if (selectedIds.isEmpty()) return@setOnClickListener
-                    mergeModelsIntoContainer(
+                    replaceModelsInContainer(
                         container = deepModelListContainer,
-                        additions = selectedIds.toList(),
-                        fallback = AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
+                        nextModels = orderedSelectedIds,
+                        fallback = DEFAULT_DEEP_MODEL
                     )
                 }
             }
@@ -1086,14 +1086,12 @@ class SettingsActivity : AppCompatActivity() {
         return if (separatorIndex <= 0) normalized else normalized.substring(0, separatorIndex)
     }
 
-    private fun mergeModelsIntoContainer(
+    private fun replaceModelsInContainer(
         container: LinearLayout,
-        additions: List<String>,
+        nextModels: List<String>,
         fallback: String
     ) {
-        val current = collectModelIds(container)
-        val merged = normalizeModelIds(current + additions, fallback)
-        setModelRows(container, merged, fallback)
+        setModelRows(container, nextModels, fallback)
         markVerificationDirty()
         applyTheme()
     }
