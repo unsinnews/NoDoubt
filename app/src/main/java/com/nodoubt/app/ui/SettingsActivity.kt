@@ -548,7 +548,11 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         markVerificationDirty()
-        getModelRecycler(target).smoothScrollToPosition(adapter.itemCount - 1)
+        val recycler = getModelRecycler(target)
+        recycler.post {
+            recycler.requestLayout()
+            recycler.smoothScrollToPosition(adapter.itemCount - 1)
+        }
         return true
     }
 
@@ -1891,14 +1895,16 @@ class SettingsActivity : AppCompatActivity() {
             val normalized = compactInput(modelId)
             if (normalized.isBlank() || items.contains(normalized)) return false
             items.add(normalized)
-            notifyItemInserted(items.lastIndex)
+            // RecyclerView is embedded in a ScrollView and uses wrap_content height.
+            // Full refresh avoids occasional partial-update desync causing invisible rows.
+            notifyDataSetChanged()
             return true
         }
 
         fun removeAt(position: Int) {
             if (position !in items.indices) return
             items.removeAt(position)
-            notifyItemRemoved(position)
+            notifyDataSetChanged()
         }
 
         fun moveItem(from: Int, to: Int): Boolean {
