@@ -343,33 +343,41 @@ object MarkdownRenderer {
             return
         }
 
-        if (streamingContent[viewId] == text) {
-            return
-        }
-
         // Streaming phase: skip expensive markdown task and use lightweight plain text updates.
         pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
         pendingRenders.remove(viewId)
-        streamingContent[viewId] = text
+        val previous = streamingContent.put(viewId, text)
+        val hasPendingRender = pendingStreamingRenders.containsKey(viewId)
+        if (previous == text && hasPendingRender) {
+            return
+        }
+        scheduleStreamingRender(viewId, textView)
+    }
 
-        pendingStreamingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
-
+    private fun scheduleStreamingRender(viewId: Int, textView: TextView) {
+        if (pendingStreamingRenders.containsKey(viewId)) {
+            return
+        }
         val applyTask = Runnable {
+            pendingStreamingRenders.remove(viewId)
             val latest = streamingContent[viewId] ?: return@Runnable
             if (textView.text?.toString() != latest) {
                 textView.text = latest
             }
             lastStreamingRenderAt[viewId] = SystemClock.uptimeMillis()
-            pendingStreamingRenders.remove(viewId)
+            // If text changed while this frame was rendering, queue another frame.
+            if (streamingContent[viewId] != latest) {
+                scheduleStreamingRender(viewId, textView)
+            }
         }
 
         val now = SystemClock.uptimeMillis()
         val last = lastStreamingRenderAt[viewId] ?: 0L
         val delay = (STREAM_FRAME_DELAY - (now - last)).coerceAtLeast(0L)
+        pendingStreamingRenders[viewId] = applyTask
         if (delay == 0L) {
-            applyTask.run()
+            mainHandler.post(applyTask)
         } else {
-            pendingStreamingRenders[viewId] = applyTask
             mainHandler.postDelayed(applyTask, delay)
         }
     }
