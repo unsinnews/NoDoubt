@@ -23,6 +23,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.nodoubt.app.R
 import com.nodoubt.app.data.AIConfig
@@ -438,7 +439,6 @@ class SettingsActivity : AppCompatActivity() {
     private fun testApi(target: TestTarget) {
         val apiKey = sanitizeEditTextInPlace(etApiKey)
         val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
-        val modelId = resolveModelIdForTest(target)
 
         if (apiKey.isBlank()) {
             showConnectionResultDialog(success = false, responseBody = "API Key 不能为空")
@@ -450,11 +450,23 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
 
-        if (modelId.isBlank()) {
+        val modelCandidates = getModelCandidatesForTest(target)
+        if (modelCandidates.isEmpty()) {
             showConnectionResultDialog(success = false, responseBody = "模型 ID 不能为空")
             return
         }
 
+        if (target == TestTarget.OCR || modelCandidates.size == 1) {
+            runApiTest(target, apiKey, baseUrl, modelCandidates.first())
+            return
+        }
+
+        showModelSelectionDialog(target, modelCandidates) { selectedModel ->
+            runApiTest(target, apiKey, baseUrl, selectedModel)
+        }
+    }
+
+    private fun runApiTest(target: TestTarget, apiKey: String, baseUrl: String, modelId: String) {
         val testButton = getTestButton(target)
         testButton.isEnabled = false
         testButton.text = "检测中..."
@@ -478,6 +490,11 @@ class SettingsActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful) {
+                        when (target) {
+                            TestTarget.FAST -> AISettings.setSelectedFastModel(this@SettingsActivity, modelId)
+                            TestTarget.DEEP -> AISettings.setSelectedDeepModel(this@SettingsActivity, modelId)
+                            TestTarget.OCR -> Unit
+                        }
                         isApiVerified = true
                         updateSaveButtonState()
                         saveSettingsWithoutFinish()
@@ -506,18 +523,40 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun resolveModelIdForTest(target: TestTarget): String {
+    private fun getModelCandidatesForTest(target: TestTarget): List<String> {
         return when (target) {
-            TestTarget.OCR -> sanitizeEditTextInPlace(etOcrModelId)
+            TestTarget.OCR -> {
+                val model = sanitizeEditTextInPlace(etOcrModelId)
+                if (model.isBlank()) emptyList() else listOf(model)
+            }
             TestTarget.FAST -> normalizeModelIds(
                 collectModelIds(fastModelListContainer),
                 AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
-            ).firstOrNull().orEmpty()
+            )
             TestTarget.DEEP -> normalizeModelIds(
                 collectModelIds(deepModelListContainer),
                 AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
-            ).firstOrNull().orEmpty()
+            )
         }
+    }
+
+    private fun showModelSelectionDialog(
+        target: TestTarget,
+        models: List<String>,
+        onModelSelected: (String) -> Unit
+    ) {
+        val title = when (target) {
+            TestTarget.FAST -> "选择极速模式检测模型"
+            TestTarget.DEEP -> "选择深度模式检测模型"
+            TestTarget.OCR -> "选择检测模型"
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(models.toTypedArray()) { _, which ->
+                onModelSelected(models[which])
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     private fun getTestButton(target: TestTarget): TextView {
@@ -536,7 +575,6 @@ class SettingsActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         val root = dialog.findViewById<LinearLayout>(R.id.dialogResultRoot)
-        val tvPlanBadge = dialog.findViewById<TextView>(R.id.tvPlanBadge)
         val ambientGlow = dialog.findViewById<View>(R.id.vAmbientGlow)
         val ringOuter = dialog.findViewById<View>(R.id.vRingOuter)
         val ringInner = dialog.findViewById<View>(R.id.vRingInner)
@@ -552,14 +590,12 @@ class SettingsActivity : AppCompatActivity() {
 
         if (isLightGreenGray) {
             root.setBackgroundResource(R.drawable.bg_connection_dialog_surface)
-            tvPlanBadge.setBackgroundResource(R.drawable.bg_connection_plan_chip)
-            tvPlanBadge.setTextColor(successAccent)
             btnConfirm.setBackgroundResource(R.drawable.bg_connection_action_button)
+            btnConfirm.setTextColor(successAccent)
         } else {
             root.setBackgroundResource(R.drawable.bg_connection_dialog_surface_light_brown_black)
-            tvPlanBadge.setBackgroundResource(R.drawable.bg_connection_plan_chip_light_brown_black)
-            tvPlanBadge.setTextColor(successAccent)
             btnConfirm.setBackgroundResource(R.drawable.bg_connection_action_button_light_brown_black)
+            btnConfirm.setTextColor(successAccent)
         }
 
         btnConfirm.setOnClickListener { dialog.dismiss() }
@@ -567,7 +603,6 @@ class SettingsActivity : AppCompatActivity() {
         tvResultMessage.setTextColor(textSecondary)
 
         if (success) {
-            tvPlanBadge.visibility = View.VISIBLE
             tvResultTitle.text = "连接成功"
             tvResultTitle.setTextColor(successAccent)
             tvResultMessage.visibility = View.GONE
@@ -576,9 +611,8 @@ class SettingsActivity : AppCompatActivity() {
             ringInner.setBackgroundResource(R.drawable.bg_connection_ring_success)
             statusOrb.setBackgroundResource(R.drawable.bg_connection_orb_success)
             ivStatusIcon.setImageResource(R.drawable.ic_check)
-            ivStatusIcon.setColorFilter(0xFFFFFFFF.toInt())
+            ivStatusIcon.setColorFilter(successAccent)
         } else {
-            tvPlanBadge.visibility = View.GONE
             tvResultTitle.text = "连接失败"
             tvResultTitle.setTextColor(0xFFE25656.toInt())
             tvResultMessage.visibility = View.VISIBLE
@@ -589,7 +623,7 @@ class SettingsActivity : AppCompatActivity() {
             ringInner.setBackgroundResource(R.drawable.bg_connection_ring_failure)
             statusOrb.setBackgroundResource(R.drawable.bg_connection_orb_failure)
             ivStatusIcon.setImageResource(R.drawable.ic_info)
-            ivStatusIcon.setColorFilter(0xFFFFFFFF.toInt())
+            ivStatusIcon.setColorFilter(0xFFDF5D5D.toInt())
         }
 
         dialog.show()
@@ -611,39 +645,37 @@ class SettingsActivity : AppCompatActivity() {
         ringInner: View
     ) {
         root.alpha = 0f
-        root.translationY = dp(18f)
-        root.rotationX = 8f
+        root.translationY = dp(12f)
         root.animate()
             .alpha(1f)
             .translationY(0f)
-            .rotationX(0f)
-            .setDuration(340)
+            .setDuration(280)
             .setInterpolator(DecelerateInterpolator())
             .start()
 
-        orb.scaleX = 0.72f
-        orb.scaleY = 0.72f
+        orb.scaleX = 0.9f
+        orb.scaleY = 0.9f
         icon.alpha = 0f
-        icon.scaleX = 0.6f
-        icon.scaleY = 0.6f
-        icon.rotation = -18f
+        icon.scaleX = 0.82f
+        icon.scaleY = 0.82f
+        icon.rotation = -8f
 
         AnimatorSet().apply {
             playTogether(
-                ObjectAnimator.ofFloat(orb, View.SCALE_X, 0.72f, 1f),
-                ObjectAnimator.ofFloat(orb, View.SCALE_Y, 0.72f, 1f),
+                ObjectAnimator.ofFloat(orb, View.SCALE_X, 0.9f, 1f),
+                ObjectAnimator.ofFloat(orb, View.SCALE_Y, 0.9f, 1f),
                 ObjectAnimator.ofFloat(icon, View.ALPHA, 0f, 1f),
-                ObjectAnimator.ofFloat(icon, View.SCALE_X, 0.6f, 1f),
-                ObjectAnimator.ofFloat(icon, View.SCALE_Y, 0.6f, 1f),
-                ObjectAnimator.ofFloat(icon, View.ROTATION, -18f, 0f)
+                ObjectAnimator.ofFloat(icon, View.SCALE_X, 0.82f, 1f),
+                ObjectAnimator.ofFloat(icon, View.SCALE_Y, 0.82f, 1f),
+                ObjectAnimator.ofFloat(icon, View.ROTATION, -8f, 0f)
             )
-            duration = 520
-            interpolator = OvershootInterpolator(1.15f)
+            duration = 380
+            interpolator = OvershootInterpolator(0.8f)
             start()
         }
 
         val outerPulse = createRingPulseAnimator(ringOuter, delayMs = 0L)
-        val innerPulse = createRingPulseAnimator(ringInner, delayMs = 380L)
+        val innerPulse = createRingPulseAnimator(ringInner, delayMs = 260L)
         outerPulse.start()
         innerPulse.start()
 
@@ -661,20 +693,20 @@ class SettingsActivity : AppCompatActivity() {
         ringInner: View
     ) {
         root.alpha = 0f
-        root.translationY = dp(14f)
+        root.translationY = dp(10f)
         root.animate()
             .alpha(1f)
             .translationY(0f)
-            .setDuration(260)
+            .setDuration(220)
             .setInterpolator(DecelerateInterpolator())
             .start()
 
-        orb.scaleX = 0.84f
-        orb.scaleY = 0.84f
+        orb.scaleX = 0.9f
+        orb.scaleY = 0.9f
         orb.animate()
             .scaleX(1f)
             .scaleY(1f)
-            .setDuration(220)
+            .setDuration(180)
             .setInterpolator(DecelerateInterpolator())
             .start()
 
@@ -691,11 +723,11 @@ class SettingsActivity : AppCompatActivity() {
     private fun createRingPulseAnimator(target: View, delayMs: Long): Animator {
         return ObjectAnimator.ofPropertyValuesHolder(
             target,
-            PropertyValuesHolder.ofFloat(View.SCALE_X, 0.82f, 1.06f, 1.2f),
-            PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.82f, 1.06f, 1.2f),
-            PropertyValuesHolder.ofFloat(View.ALPHA, 0.16f, 0.55f, 0f)
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 0.94f, 1.02f, 1.09f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.94f, 1.02f, 1.09f),
+            PropertyValuesHolder.ofFloat(View.ALPHA, 0.08f, 0.34f, 0f)
         ).apply {
-            duration = 1600
+            duration = 1400
             startDelay = delayMs
             repeatCount = ObjectAnimator.INFINITE
             repeatMode = ObjectAnimator.RESTART

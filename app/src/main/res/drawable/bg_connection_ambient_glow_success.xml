@@ -3,8 +3,8 @@
     android:shape="oval">
     <gradient
         android:type="radial"
-        android:gradientRadius="110dp"
-        android:startColor="#3D10A37F"
-        android:centerColor="#1810A37F"
-        android:endColor="#0010A37F" />
+        android:gradientRadius="88dp"
+        android:startColor="#14000000"
+        android:centerColor="#0A000000"
+        android:endColor="#00000000" />
 </shape>
