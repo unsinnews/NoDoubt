@@ -646,6 +646,8 @@ class SettingsActivity : AppCompatActivity() {
         val tvTitle = dialog.findViewById<TextView>(R.id.tvModelCatalogTitle)
         val tvSubtitle = dialog.findViewById<TextView>(R.id.tvModelCatalogSubtitle)
         val filterContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogFilterContainer)
+        val prefixScroll = dialog.findViewById<android.widget.HorizontalScrollView>(R.id.modelCatalogPrefixScroll)
+        val prefixContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogPrefixContainer)
         val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogOptionsContainer)
         val btnCancel = dialog.findViewById<TextView>(R.id.btnCancelModelCatalog)
         val btnConfirm = dialog.findViewById<TextView>(R.id.btnConfirmModelCatalog)
@@ -678,27 +680,21 @@ class SettingsActivity : AppCompatActivity() {
         }
         tvSubtitle.text = when (target) {
             TestTarget.OCR -> "仅展示识别为视觉能力的模型，点击即使用"
-            TestTarget.FAST -> "展示全部模型，可按类别筛选，点击即添加"
-            TestTarget.DEEP -> "仅展示识别为推理能力的模型，点击即添加"
+            TestTarget.FAST -> "展示全部模型，可按类别与前缀筛选，点击即添加"
+            TestTarget.DEEP -> "仅展示识别为推理能力的模型，可按前缀筛选"
         }
-        btnConfirm.text = if (target == TestTarget.OCR) "使用" else "添加"
+        btnConfirm.text = if (target == TestTarget.OCR) "关闭" else "全选可见"
 
         val categories = buildFilterCategories(target, models)
         var activeCategory = categories.first()
-        val multiSelect = target != TestTarget.OCR
-        val selectedIds = mutableSetOf<String>()
+        val prefixCountMap = buildPrefixCountMap(models)
+        val prefixKeys = prefixCountMap.keys.toList()
+        var activePrefix: String? = null
         val existingOcrModelId = if (target == TestTarget.OCR) sanitizeEditTextInPlace(etOcrModelId) else ""
-        var selectedSingleId = existingOcrModelId.takeIf { id -> id.isNotBlank() && models.any { it.id == id } }
         val existingIds = when (target) {
             TestTarget.OCR -> setOf(existingOcrModelId).filter { it.isNotBlank() }.toSet()
             TestTarget.FAST -> collectModelIds(fastModelListContainer).toSet()
             TestTarget.DEEP -> collectModelIds(deepModelListContainer).toSet()
-        }
-
-        fun updateConfirmState() {
-            val enabled = if (multiSelect) selectedIds.isNotEmpty() else !selectedSingleId.isNullOrBlank()
-            btnConfirm.isEnabled = enabled
-            btnConfirm.alpha = if (enabled) 1f else 0.45f
         }
 
         val categoryViews = mutableListOf<Pair<TextView, ModelFilterCategory>>()
@@ -725,19 +721,37 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        fun filteredModelsByCurrentState(): List<CatalogModel> {
+            val byCategory = filteredModelsByCategory(activeCategory)
+            return if (activePrefix.isNullOrBlank()) {
+                byCategory
+            } else {
+                byCategory.filter { extractModelPrefixKey(it.id) == activePrefix }
+            }
+        }
+
+        fun updateConfirmState() {
+            if (target == TestTarget.OCR) {
+                btnConfirm.isEnabled = true
+                btnConfirm.alpha = 1f
+                return
+            }
+            val hasVisibleModels = filteredModelsByCurrentState().isNotEmpty()
+            btnConfirm.isEnabled = hasVisibleModels
+            btnConfirm.alpha = if (hasVisibleModels) 1f else 0.45f
+        }
+
         fun renderOptions() {
             optionsContainer.removeAllViews()
-            val visibleModels = filteredModelsByCategory(activeCategory)
+            val visibleModels = filteredModelsByCurrentState()
             val optionRows = mutableListOf<Triple<LinearLayout, ImageView, CatalogModel>>()
 
             fun applyOptionSelectionUi() {
                 optionRows.forEach { (optionRoot, ivCheck, model) ->
-                    val isAlreadyAdded = multiSelect && existingIds.contains(model.id)
-                    val isSelected = (if (multiSelect) {
-                        selectedIds.contains(model.id)
-                    } else {
-                        model.id == selectedSingleId
-                    }) || isAlreadyAdded
+                    val isSelected = when (target) {
+                        TestTarget.OCR -> model.id == existingOcrModelId
+                        TestTarget.FAST, TestTarget.DEEP -> existingIds.contains(model.id)
+                    }
                     ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
                     optionRoot.setBackgroundResource(
                         when {
@@ -857,28 +871,82 @@ class SettingsActivity : AppCompatActivity() {
             categoryViews.add(chip to category)
         }
 
+        if (target == TestTarget.OCR || prefixKeys.isEmpty()) {
+            prefixScroll.visibility = View.GONE
+        } else {
+            prefixScroll.visibility = View.VISIBLE
+            val prefixViews = mutableListOf<Pair<TextView, String?>>()
+
+            fun applyPrefixUi() {
+                prefixViews.forEach { (view, key) ->
+                    val isSelected = key == activePrefix
+                    view.setTextColor(if (isSelected) primaryColor else textSecondary)
+                    view.setBackgroundResource(
+                        when {
+                            isSelected && isLightGreenGray -> R.drawable.bg_dialog_item_selected_light_green_gray
+                            isSelected && !isLightGreenGray -> R.drawable.bg_dialog_item_selected_light_brown_black
+                            !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
+                            else -> R.drawable.bg_model_option_unselected_light_brown_black
+                        }
+                    )
+                }
+            }
+
+            fun addPrefixChip(key: String?) {
+                val chip = TextView(this).apply {
+                    text = if (key == null) {
+                        "全部前缀"
+                    } else {
+                        "$key (${prefixCountMap[key] ?: 0})"
+                    }
+                    textSize = 12f
+                    gravity = android.view.Gravity.CENTER
+                    val horizontalPadding = dp(12f).toInt()
+                    val verticalPadding = dp(7f).toInt()
+                    setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+                    setOnClickListener {
+                        activePrefix = key
+                        applyPrefixUi()
+                        renderOptions()
+                    }
+                }
+                val params = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginEnd = dp(8f).toInt()
+                }
+                prefixContainer.addView(chip, params)
+                prefixViews.add(chip to key)
+            }
+
+            prefixContainer.removeAllViews()
+            addPrefixChip(null)
+            prefixKeys.forEach { prefix ->
+                addPrefixChip(prefix)
+            }
+            applyPrefixUi()
+        }
+
         btnCancel.setOnClickListener { dialog.dismiss() }
         btnConfirm.setOnClickListener {
             when (target) {
-                TestTarget.OCR -> {
-                    val selected = selectedSingleId ?: return@setOnClickListener
-                    etOcrModelId.setText(selected)
-                    etOcrModelId.setSelection(selected.length)
-                    markVerificationDirty()
-                }
+                TestTarget.OCR -> Unit
                 TestTarget.FAST -> {
-                    if (selectedIds.isEmpty()) return@setOnClickListener
+                    val visibleIds = filteredModelsByCurrentState().map { it.id }
+                    if (visibleIds.isEmpty()) return@setOnClickListener
                     mergeModelsIntoContainer(
                         container = fastModelListContainer,
-                        additions = selectedIds.toList(),
+                        additions = visibleIds,
                         fallback = AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
                     )
                 }
                 TestTarget.DEEP -> {
-                    if (selectedIds.isEmpty()) return@setOnClickListener
+                    val visibleIds = filteredModelsByCurrentState().map { it.id }
+                    if (visibleIds.isEmpty()) return@setOnClickListener
                     mergeModelsIntoContainer(
                         container = deepModelListContainer,
-                        additions = selectedIds.toList(),
+                        additions = visibleIds,
                         fallback = AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
                     )
                 }
@@ -888,6 +956,7 @@ class SettingsActivity : AppCompatActivity() {
 
         applyCategoryUi()
         renderOptions()
+        updateConfirmState()
         dialog.show()
         applyModelPickerDialogWindowSize(dialog)
         root.alpha = 0f
@@ -914,6 +983,34 @@ class SettingsActivity : AppCompatActivity() {
                 categories
             }
         }
+    }
+
+    private fun buildPrefixCountMap(models: List<CatalogModel>): LinkedHashMap<String, Int> {
+        val counts = HashMap<String, Int>()
+        models.forEach { model ->
+            val prefix = extractModelPrefixKey(model.id)
+            if (prefix.isBlank()) return@forEach
+            counts[prefix] = (counts[prefix] ?: 0) + 1
+        }
+
+        val sorted = counts.entries
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+
+        val result = linkedMapOf<String, Int>()
+        sorted.forEach { (key, value) ->
+            result[key] = value
+        }
+        return result
+    }
+
+    private fun extractModelPrefixKey(modelId: String): String {
+        val normalized = compactInput(modelId).lowercase()
+        if (normalized.isBlank()) return ""
+
+        val separatorIndex = normalized.indexOfFirst { ch ->
+            ch == '-' || ch == '_' || ch == '/' || ch == ':'
+        }
+        return if (separatorIndex <= 0) normalized else normalized.substring(0, separatorIndex)
     }
 
     private fun mergeModelsIntoContainer(
