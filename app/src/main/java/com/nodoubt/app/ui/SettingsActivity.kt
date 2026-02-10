@@ -552,18 +552,18 @@ class SettingsActivity : AppCompatActivity() {
 
         val root = dialog.findViewById<LinearLayout>(R.id.modelPickerRoot)
         val tvTitle = dialog.findViewById<TextView>(R.id.tvModelPickerTitle)
-        val tvSubtitle = dialog.findViewById<TextView>(R.id.tvModelPickerSubtitle)
         val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelPickerOptionsContainer)
         val btnCancel = dialog.findViewById<TextView>(R.id.btnCancelModelPicker)
+        val btnConfirm = dialog.findViewById<TextView>(R.id.btnConfirmModelPicker)
 
         val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
         val textPrimary = if (isLightGreenGray) 0xFF1D2A2F.toInt() else 0xFF2C241F.toInt()
-        val textSecondary = if (isLightGreenGray) 0xFF647177.toInt() else 0xFF6F625B.toInt()
         val selectedModel = when (target) {
             TestTarget.FAST -> AISettings.getSelectedFastModel(this)
             TestTarget.DEEP -> AISettings.getSelectedDeepModel(this)
             TestTarget.OCR -> sanitizeEditTextInPlace(etOcrModelId)
         }
+        var pendingSelectedModel = selectedModel.takeIf { models.contains(it) } ?: models.first()
 
         root.setBackgroundResource(
             if (isLightGreenGray) R.drawable.bg_model_dialog_surface
@@ -575,49 +575,66 @@ class SettingsActivity : AppCompatActivity() {
             TestTarget.OCR -> "选择检测模型"
         }
         tvTitle.setTextColor(textPrimary)
-        tvSubtitle.setTextColor(textSecondary)
         btnCancel.setBackgroundResource(
             if (isLightGreenGray) R.drawable.bg_button_outline
             else R.drawable.bg_button_outline_light_brown_black
         )
         btnCancel.setTextColor(primaryColor)
         btnCancel.setOnClickListener { dialog.dismiss() }
+        btnConfirm.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_button_filled
+            else R.drawable.bg_button_filled_light_brown_black
+        )
+        btnConfirm.setTextColor(0xFFFFFFFF.toInt())
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            onModelSelected(pendingSelectedModel)
+        }
 
         optionsContainer.removeAllViews()
+        val optionRows = mutableListOf<Triple<LinearLayout, ImageView, String>>()
+
+        fun applySelectionUi() {
+            optionRows.forEach { (optionRoot, ivCheck, modelId) ->
+                val isSelected = modelId == pendingSelectedModel
+                ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
+                optionRoot.setBackgroundResource(
+                    when {
+                        isSelected && isLightGreenGray -> R.drawable.bg_model_option_selected
+                        isSelected && !isLightGreenGray -> R.drawable.bg_model_option_selected_light_brown_black
+                        !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
+                        else -> R.drawable.bg_model_option_unselected_light_brown_black
+                    }
+                )
+            }
+        }
+
         models.forEachIndexed { index, model ->
             val row = layoutInflater.inflate(R.layout.item_model_picker_option, optionsContainer, false)
             val optionRoot = row.findViewById<LinearLayout>(R.id.modelPickerOptionRoot)
             val tvModelName = row.findViewById<TextView>(R.id.tvModelPickerName)
             val ivCheck = row.findViewById<ImageView>(R.id.ivModelPickerCheck)
-            val isSelected = model == selectedModel
 
             tvModelName.text = model
             tvModelName.setTextColor(textPrimary)
             ivCheck.setColorFilter(primaryColor)
-            ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
-            optionRoot.setBackgroundResource(
-                when {
-                    isSelected && isLightGreenGray -> R.drawable.bg_model_option_selected
-                    isSelected && !isLightGreenGray -> R.drawable.bg_model_option_selected_light_brown_black
-                    !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
-                    else -> R.drawable.bg_model_option_unselected_light_brown_black
-                }
-            )
 
             optionRoot.setOnClickListener {
-                optionRoot.isEnabled = false
+                pendingSelectedModel = model
+                applySelectionUi()
                 optionRoot.animate()
                     .scaleX(0.98f)
                     .scaleY(0.98f)
                     .setDuration(70)
                     .withEndAction {
-                        dialog.dismiss()
-                        onModelSelected(model)
+                        optionRoot.scaleX = 1f
+                        optionRoot.scaleY = 1f
                     }
                     .start()
             }
 
             optionsContainer.addView(row)
+            optionRows.add(Triple(optionRoot, ivCheck, model))
             optionRoot.alpha = 0f
             optionRoot.translationY = dp(6f)
             optionRoot.animate()
@@ -628,6 +645,7 @@ class SettingsActivity : AppCompatActivity() {
                 .setInterpolator(DecelerateInterpolator())
                 .start()
         }
+        applySelectionUi()
 
         dialog.show()
         applyModelPickerDialogWindowSize(dialog)

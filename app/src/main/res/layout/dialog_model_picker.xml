@@ -22,21 +22,11 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/tvModelPickerSubtitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:gravity="center"
-        android:text="选择后立即发起检测"
-        android:textColor="#647177"
-        android:textSize="12sp" />
-
     <ScrollView
         android:id="@+id/modelPickerScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="9dp"
         android:fillViewport="true"
         android:overScrollMode="never">
 
@@ -48,16 +38,37 @@
 
     </ScrollView>
 
-    <TextView
-        android:id="@+id/btnCancelModelPicker"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_button_outline"
-        android:gravity="center"
-        android:text="取消"
-        android:textColor="#10A37F"
-        android:textSize="13sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btnCancelModelPicker"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/bg_button_outline"
+            android:gravity="center"
+            android:text="取消"
+            android:textColor="#10A37F"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btnConfirmModelPicker"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/bg_button_filled"
+            android:gravity="center"
+            android:text="确定"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
 </LinearLayout>
