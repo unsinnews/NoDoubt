@@ -205,13 +205,14 @@
 
                 <TextView
                     android:id="@+id/btnModelSwitchBottom"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_model_switch_button"
                     android:ellipsize="end"
                     android:fontFamily="monospace"
                     android:gravity="start|center_vertical"
                     android:maxLines="1"
+                    android:maxWidth="180dp"
                     android:paddingStart="10dp"
                     android:paddingTop="4dp"
                     android:paddingEnd="10dp"
