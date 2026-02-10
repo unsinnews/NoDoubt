@@ -39,7 +39,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Collections
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -226,6 +225,10 @@ class SettingsActivity : AppCompatActivity() {
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
 
+            override fun getMoveThreshold(viewHolder: RecyclerView.ViewHolder): Float = 0.12f
+
+            override fun getBoundingBoxMargin(): Int = dp(6f).toInt()
+
             override fun onChildDraw(
                 c: Canvas,
                 recyclerView: RecyclerView,
@@ -257,11 +260,11 @@ class SettingsActivity : AppCompatActivity() {
                     recyclerViewParent(viewHolder.itemView)?.requestDisallowInterceptTouchEvent(true)
                     viewHolder.itemView.animate().cancel()
                     viewHolder.itemView.animate()
-                        .scaleX(1.035f)
-                        .scaleY(1.035f)
+                        .scaleX(1.018f)
+                        .scaleY(1.018f)
                         .translationZ(dp(10f))
-                        .setDuration(140)
-                        .setInterpolator(OvershootInterpolator(0.45f))
+                        .setDuration(90)
+                        .setInterpolator(DecelerateInterpolator())
                         .start()
                 }
             }
@@ -274,7 +277,7 @@ class SettingsActivity : AppCompatActivity() {
                     .scaleX(1f)
                     .scaleY(1f)
                     .translationZ(0f)
-                    .setDuration(180)
+                    .setDuration(120)
                     .setInterpolator(DecelerateInterpolator())
                     .start()
                 if (hasMoved) {
@@ -1827,10 +1830,6 @@ class SettingsActivity : AppCompatActivity() {
             actionButtonBackgroundRes = R.drawable.bg_button_outline
         )
 
-        init {
-            setHasStableIds(true)
-        }
-
         inner class ModelViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             private val rowRoot = view.findViewById<LinearLayout>(R.id.modelRowRoot)
             private val tvModelId = view.findViewById<TextView>(R.id.tvModelId)
@@ -1880,10 +1879,6 @@ class SettingsActivity : AppCompatActivity() {
 
         override fun getItemCount(): Int = items.size
 
-        override fun getItemId(position: Int): Long {
-            return items.getOrNull(position)?.hashCode()?.toLong() ?: RecyclerView.NO_ID
-        }
-
         fun setItems(nextItems: List<String>) {
             items.clear()
             items.addAll(nextItems)
@@ -1908,15 +1903,8 @@ class SettingsActivity : AppCompatActivity() {
 
         fun moveItem(from: Int, to: Int): Boolean {
             if (from !in items.indices || to !in items.indices || from == to) return false
-            if (from < to) {
-                for (index in from until to) {
-                    Collections.swap(items, index, index + 1)
-                }
-            } else {
-                for (index in from downTo (to + 1)) {
-                    Collections.swap(items, index, index - 1)
-                }
-            }
+            val moved = items.removeAt(from)
+            items.add(to, moved)
             notifyItemMoved(from, to)
             return true
         }
