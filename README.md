@@ -1,185 +1,64 @@
 # NoDoubt
 
-Android 悬浮窗，绝对是目前相关悬浮窗开源库最完美的适配方案。目前已经适配华为，小米，vivo，oppo，一加，三星，魅族，索尼，LG，IQOO，努比亚，中兴，金立，360，锤子等目前是市面上主流机型包括非主流机型，支持 Android 6.0 及以上版本。
+NoDoubt 是一个面向 Android 的 AI 悬浮答题助手，核心目标是让你在任意界面快速截屏识题并得到实时答案。
 
-## Demo App - AI 智能解题
+项目重点不在“演示页面”，而在完整的使用闭环：
 
-本项目的 Demo 应用是一个 **AI 智能解题助手**，通过悬浮窗截屏识别题目并给出答案。
+- 一键悬浮截图
+- OCR 识题
+- AI 双模式解答
+- 流式输出结果
+- 无需频繁切回主页面
 
-### 功能特性
+## 项目定位
 
-- **AI 题目识别**: 使用 Vision API 进行 OCR 智能识别
-- **双模式解答**:
-  - 极速解题 - 快速获取答案
-  - 深度思考 - 详细解题步骤
-- **流式回答**: 实时显示 AI 生成的答案
-- **悬浮答题窗口**: 可拖拽调整大小的底部弹窗
-- **平滑动画**: Tab 切换滑块动画效果
-- **截屏功能**: MediaProjection 屏幕截取
-- **智能重授权**: 屏幕关闭后自动重新授权，无需返回主应用
+NoDoubt 适合以下场景：
 
-### 使用方法
+- 日常学习中的题目快速理解
+- 刷题过程中的即时辅助
+- 需要边看题边拿到思路的场景
 
-1. 打开应用，开启悬浮窗权限
-2. 进入设置页面，配置 API Key 和模型
-3. 点击测试按钮验证 API 配置
-4. 返回主页，开启悬浮窗开关
-5. 切换到需要解题的应用界面
-6. 点击悬浮窗按钮截屏识别题目
-7. 查看 AI 生成的答案
+支持系统版本：Android 6.0 及以上。
 
-### API 配置
+## 核心能力
 
-支持 OpenAI 兼容的 API 接口：
+- 悬浮球触发：在任意页面快速发起截图识别
+- OCR 识别：将截图中的题目结构化为可解答文本
+- 双模式回答：
+  - 极速模式：快速给结论
+  - 深度模式：更完整的推理与步骤
+- 流式展示：答案边生成边显示，降低等待感
+- 重授权机制：系统回收截图授权后可快速恢复
+- 主题与交互优化：面向长时间使用的阅读和操作体验
 
-| 配置项 | 说明 | 示例 |
-|-------|------|------|
-| API Key | 你的 API 密钥 | sk-xxx |
-| OCR Base URL | OCR 识别接口地址 | https://api.openai.com/v1 |
-| OCR Model | OCR 模型 ID | gpt-4o |
-| Fast Model | 极速模式模型 | gpt-4o-mini |
-| Deep Model | 深度模式模型 | gpt-4o |
+## 使用流程
 
----
+1. 安装并打开应用
+2. 完成悬浮窗与截图相关权限授权
+3. 在设置中填入 API Key 与模型配置
+4. 开启悬浮球
+5. 在目标界面点击悬浮球截屏识题
+6. 查看 AI 结果并按需要切换解答模式
 
-## 悬浮窗库
+## 使用建议
 
-### 特性
+- 建议优先保证 OCR 模型识别质量，再优化回答模型
+- 网络稳定性会直接影响流式回答体验
+- API 费用由你自己的模型服务提供方计费
 
-1. 支持悬浮窗内容自定义
-2. 内部已处理权限校验，以及设置页面跳转
-3. 支持 builder 模式，方便动态配置
-4. 支持悬浮窗手势滑动
-5. 适配 vivo，oppo 等第三方权限管理器跳转
-6. 支持应用内以及应用外全局弹窗
-7. 权限开启弹窗支持用户自定义
+## 致谢
 
-### 快速开始
+本项目基于并修改自原项目：
 
-#### 1. 添加依赖
+- https://github.com/Alonsol/PerfectFloatWindow
 
-```groovy
-implementation 'com.nodoubt:floatserver:1.0.0'
-```
+感谢原作者和社区贡献者提供的基础能力与适配经验。
 
-#### 2. 添加权限
+## 许可协议（禁止商用）
 
-```xml
-<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-```
+本项目采用非商用许可，默认仅允许个人学习、研究和非商业用途。
 
-#### 3. 初始化悬浮窗
+- 允许：学习、研究、个人项目、非商业二次修改
+- 禁止：任何直接或间接商业用途（含售卖、商用集成、付费服务、企业内部商业场景）
 
-```kotlin
-floatHelper = FloatClient.Builder()
-    .with(this)
-    .addView(view)
-    // 是否需要展示默认权限提示弹窗（默认开启）
-    .enableDefaultPermissionDialog(false)
-    .setClickTarget(MainActivity::class.java)
-    .addPermissionCallback(object : IFloatPermissionCallback {
-        override fun onPermissionResult(granted: Boolean) {
-            if (!granted) {
-                floatHelper?.requestPermission()
-            }
-        }
-    })
-    .build()
-```
-
-### API 文档
-
-#### 开启默认弹窗
-
-```kotlin
-enableDefaultPermissionDialog(true)
-```
-
-#### 悬浮窗权限回调
-
-```kotlin
-addPermissionCallback(object : IFloatPermissionCallback {
-    override fun onPermissionResult(granted: Boolean) {
-        // granted = true 权限通过
-        // granted = false 权限拒绝
-        if (!granted) {
-            floatHelper?.requestPermission()
-        }
-    }
-})
-```
-
-#### 申请悬浮窗权限
-
-```kotlin
-floatHelper?.requestPermission()
-```
-
-#### 设置点击跳转目标
-
-```kotlin
-floatHelper?.setClickTarget(MainActivity::class.java)
-```
-
-#### 开启悬浮窗
-
-```kotlin
-floatHelper?.show()
-```
-
-#### 关闭悬浮窗
-
-```kotlin
-floatHelper?.dismiss()
-```
-
-#### 释放资源
-
-```kotlin
-override fun onDestroy() {
-    super.onDestroy()
-    floatHelper?.release()
-}
-```
-
-#### 更新悬浮窗内容
-
-```kotlin
-private fun initCountDown() {
-    countDownTimer = object : CountDownTimer(Long.MAX_VALUE, 1000) {
-        override fun onTick(millisUntilFinished: Long) {
-            tvContent.text = getLeftTime(millisUntilFinished)
-        }
-        override fun onFinish() {}
-    }
-    countDownTimer?.start()
-}
-```
-
----
-
-## 版本历史
-
-### v1.2.0
-- 新增 AI 智能解题功能
-- 新增 OCR 题目识别
-- 新增流式回答显示
-- 新增设置页面
-- 优化悬浮窗动画效果
-
-### v1.0.1
-- 修复已知问题
-- 优化兼容性
-
-### v1.0.0
-- 初始版本发布
-
----
-
-## 结语
-
-NoDoubt 做了大量的机型测试，满足绝大部分市场上机型，欢迎大家提供宝贵意见。兼容性没有问题，如果需要调整悬浮窗动画以及配置，建议修改 floatServer 中的窗口配置，后续会对外提供相关接口。
-
-## License
-
-MIT License
+完整条款见 `LICENSE` 文件。
