@@ -199,7 +199,7 @@ class SettingsActivity : AppCompatActivity() {
         recyclerView.post {
             val params = recyclerView.layoutParams
             if (params != null) {
-                val parentWidth = (recyclerView.parent as? View)?.width ?: recyclerView.width
+                val parentWidth = (recyclerView.getParent() as? View)?.width ?: recyclerView.width
                 if (parentWidth > 0) {
                     val widthSpec = View.MeasureSpec.makeMeasureSpec(parentWidth, View.MeasureSpec.EXACTLY)
                     val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
@@ -217,11 +217,11 @@ class SettingsActivity : AppCompatActivity() {
             }
             recyclerView.requestLayout()
             recyclerView.invalidate()
-            var parent = recyclerView.parent
-            while (parent is View) {
-                parent.requestLayout()
-                parent.invalidate()
-                parent = parent.parent
+            var currentParent = recyclerView.getParent() as? View
+            while (currentParent != null) {
+                currentParent.requestLayout()
+                currentParent.invalidate()
+                currentParent = currentParent.getParent() as? View
             }
         }
     }
@@ -326,7 +326,7 @@ class SettingsActivity : AppCompatActivity() {
 
             override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(recyclerView, viewHolder)
-                recyclerView.parent?.requestDisallowInterceptTouchEvent(false)
+                recyclerView.getParent()?.requestDisallowInterceptTouchEvent(false)
                 resetRecyclerItemTransforms(recyclerView)
                 viewHolder.itemView.animate().cancel()
                 viewHolder.itemView.animate()
@@ -344,7 +344,8 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             private fun recyclerViewParent(itemView: View): android.view.ViewParent? {
-                return (itemView.parent as? RecyclerView)?.parent
+                val recycler = itemView.getParent() as? RecyclerView ?: return null
+                return recycler.getParent()
             }
         }
     }
