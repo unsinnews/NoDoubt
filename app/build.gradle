@@ -16,7 +16,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.yy.perfectfloatwindow"
+        applicationId "com.nodoubt.app"
         minSdkVersion 19
         targetSdkVersion 31
         versionCode 5

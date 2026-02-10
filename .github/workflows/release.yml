@@ -39,8 +39,8 @@ jobs:
 
     - name: Rename APKs
       run: |
-        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/PerfectFloatWindow-v${{ inputs.version }}-debug.apk
-        mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/PerfectFloatWindow-v${{ inputs.version }}-release.apk
+        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/NoDoubt-v${{ inputs.version }}-debug.apk
+        mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/NoDoubt-v${{ inputs.version }}-release.apk
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -49,7 +49,7 @@ jobs:
         name: v${{ inputs.version }}
         body: ${{ inputs.release_notes }}
         files: |
-          app/build/outputs/apk/debug/PerfectFloatWindow-v${{ inputs.version }}-debug.apk
-          app/build/outputs/apk/release/PerfectFloatWindow-v${{ inputs.version }}-release.apk
+          app/build/outputs/apk/debug/NoDoubt-v${{ inputs.version }}-debug.apk
+          app/build/outputs/apk/release/NoDoubt-v${{ inputs.version }}-release.apk
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}

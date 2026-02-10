@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PerfectFloatWindow is an Android floating window library that provides device-compatible floating window functionality across different Android manufacturers and ROM versions. It handles the complexity of SYSTEM_ALERT_WINDOW permissions and ROM-specific permission managers (Xiaomi, Huawei, Vivo, Oppo, etc.).
+NoDoubt is an Android floating window library that provides device-compatible floating window functionality across different Android manufacturers and ROM versions. It handles the complexity of SYSTEM_ALERT_WINDOW permissions and ROM-specific permission managers (Xiaomi, Huawei, Vivo, Oppo, etc.).
 
 The Demo application is an **AI-powered problem solver** that uses the floating window to capture screenshots and get AI-generated answers.
 
@@ -28,7 +28,7 @@ The Demo application is an **AI-powered problem solver** that uses the floating 
 ## Project Structure
 
 ```
-PerfectFloatWindow/
+NoDoubt/
 ├── floatserver/          # Library module (com.alonsol:floatserver)
 └── app/                  # Demo application (AI problem solver)
 ```
