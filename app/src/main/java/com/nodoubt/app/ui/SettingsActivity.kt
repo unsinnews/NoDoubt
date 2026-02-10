@@ -10,6 +10,7 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.Window
 import android.view.WindowManager
@@ -24,6 +25,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.DefaultItemAnimator
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.nodoubt.app.R
 import com.nodoubt.app.data.AIConfig
 import com.nodoubt.app.data.AISettings
@@ -34,14 +39,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Collections
 
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var etApiKey: EditText
     private lateinit var etBaseUrl: EditText
-    private lateinit var ocrModelListContainer: LinearLayout
-    private lateinit var fastModelListContainer: LinearLayout
-    private lateinit var deepModelListContainer: LinearLayout
+    private lateinit var ocrModelListContainer: RecyclerView
+    private lateinit var fastModelListContainer: RecyclerView
+    private lateinit var deepModelListContainer: RecyclerView
     private lateinit var btnAddOcrModel: TextView
     private lateinit var btnAddFastModel: TextView
     private lateinit var btnAddDeepModel: TextView
@@ -55,6 +61,9 @@ class SettingsActivity : AppCompatActivity() {
 
     private val job = Job()
     private val coroutineScope = CoroutineScope(Dispatchers.Main + job)
+    private lateinit var ocrModelAdapter: ModelListAdapter
+    private lateinit var fastModelAdapter: ModelListAdapter
+    private lateinit var deepModelAdapter: ModelListAdapter
 
     // Track if API has been verified
     private var isApiVerified = false
@@ -99,6 +108,14 @@ class SettingsActivity : AppCompatActivity() {
         val isReasoning: Boolean
     )
 
+    private data class ModelRowPalette(
+        val textPrimary: Int,
+        val textSecondary: Int,
+        val rowBackgroundRes: Int,
+        val rowDraggingBackgroundRes: Int,
+        val actionButtonBackgroundRes: Int
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -130,11 +147,120 @@ class SettingsActivity : AppCompatActivity() {
         btnTestFast = findViewById(R.id.btnTestFast)
         btnTestDeep = findViewById(R.id.btnTestDeep)
         btnSave = findViewById(R.id.btnSave)
+        setupModelRecyclerViews()
 
         // Check if settings already exist (API key is saved)
         val existingApiKey = AISettings.getApiKey(this)
         isApiVerified = existingApiKey.isNotBlank()
         updateSaveButtonState()
+    }
+
+    private fun setupModelRecyclerViews() {
+        ocrModelAdapter = createModelAdapter(ocrModelListContainer)
+        fastModelAdapter = createModelAdapter(fastModelListContainer)
+        deepModelAdapter = createModelAdapter(deepModelListContainer)
+    }
+
+    private fun createModelAdapter(recyclerView: RecyclerView): ModelListAdapter {
+        lateinit var itemTouchHelper: ItemTouchHelper
+        val adapter = ModelListAdapter(
+            onStartDrag = { viewHolder ->
+                viewHolder.itemView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                itemTouchHelper.startDrag(viewHolder)
+            },
+            onRemoveRequest = { modelAdapter, position ->
+                if (modelAdapter.itemCount <= 1) {
+                    Toast.makeText(this, "至少保留一个模型", Toast.LENGTH_SHORT).show()
+                    false
+                } else {
+                    modelAdapter.removeAt(position)
+                    markVerificationDirty()
+                    true
+                }
+            }
+        )
+
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = adapter
+        recyclerView.setHasFixedSize(false)
+        recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
+        recyclerView.itemAnimator = DefaultItemAnimator().apply {
+            addDuration = 160L
+            removeDuration = 120L
+            moveDuration = 200L
+            changeDuration = 140L
+            supportsChangeAnimations = false
+        }
+
+        itemTouchHelper = ItemTouchHelper(createDragCallback(adapter))
+        itemTouchHelper.attachToRecyclerView(recyclerView)
+        return adapter
+    }
+
+    private fun createDragCallback(adapter: ModelListAdapter): ItemTouchHelper.Callback {
+        var hasMoved = false
+        return object : ItemTouchHelper.Callback() {
+            override fun isLongPressDragEnabled(): Boolean = false
+
+            override fun isItemViewSwipeEnabled(): Boolean = false
+
+            override fun getMovementFlags(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder
+            ): Int {
+                return makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+            }
+
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val from = viewHolder.bindingAdapterPosition
+                val to = target.bindingAdapterPosition
+                if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
+                val moved = adapter.moveItem(from, to)
+                if (moved) {
+                    hasMoved = true
+                    adapter.setDraggingPosition(to)
+                }
+                return moved
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && viewHolder != null) {
+                    hasMoved = false
+                    adapter.setDraggingPosition(viewHolder.bindingAdapterPosition)
+                    viewHolder.itemView.animate().cancel()
+                    viewHolder.itemView.animate()
+                        .scaleX(1.035f)
+                        .scaleY(1.035f)
+                        .translationZ(dp(10f))
+                        .setDuration(140)
+                        .setInterpolator(OvershootInterpolator(0.45f))
+                        .start()
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                adapter.clearDraggingPosition()
+                viewHolder.itemView.animate().cancel()
+                viewHolder.itemView.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .translationZ(0f)
+                    .setDuration(180)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+                if (hasMoved) {
+                    markVerificationDirty()
+                }
+            }
+        }
     }
 
     private fun applyTheme() {
@@ -311,26 +437,28 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun applyModelRowsTheme(textPrimary: Int, textSecondary: Int, isLightGreenGray: Boolean) {
-        val containers = listOf(ocrModelListContainer, fastModelListContainer, deepModelListContainer)
-        containers.forEach { container ->
-            for (i in 0 until container.childCount) {
-                val row = container.getChildAt(i) ?: continue
-                val etModelId = row.findViewById<EditText>(R.id.etModelId)
-                val btnRemoveModel = row.findViewById<ImageView>(R.id.btnRemoveModel)
-
-                if (isLightGreenGray) {
-                    etModelId.setBackgroundResource(R.drawable.bg_edittext_settings)
-                    btnRemoveModel.setBackgroundResource(R.drawable.bg_button_outline)
-                } else {
-                    etModelId.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-                    btnRemoveModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
-                }
-
-                etModelId.setTextColor(textPrimary)
-                etModelId.setHintTextColor(textSecondary)
-                btnRemoveModel.setColorFilter(textSecondary)
+        val palette = ModelRowPalette(
+            textPrimary = textPrimary,
+            textSecondary = textSecondary,
+            rowBackgroundRes = if (isLightGreenGray) {
+                R.drawable.bg_model_option_unselected
+            } else {
+                R.drawable.bg_model_option_unselected_light_brown_black
+            },
+            rowDraggingBackgroundRes = if (isLightGreenGray) {
+                R.drawable.bg_model_option_selected
+            } else {
+                R.drawable.bg_model_option_selected_light_brown_black
+            },
+            actionButtonBackgroundRes = if (isLightGreenGray) {
+                R.drawable.bg_button_outline
+            } else {
+                R.drawable.bg_button_outline_light_brown_black
             }
-        }
+        )
+        if (::ocrModelAdapter.isInitialized) ocrModelAdapter.applyPalette(palette)
+        if (::fastModelAdapter.isInitialized) fastModelAdapter.applyPalette(palette)
+        if (::deepModelAdapter.isInitialized) deepModelAdapter.applyPalette(palette)
     }
 
     private fun loadSettings() {
@@ -339,74 +467,66 @@ class SettingsActivity : AppCompatActivity() {
         etBaseUrl.setText(AISettings.getBaseUrl(this))
 
         // OCR Config
-        val ocrModels = AISettings.getOCRModelList(this).toMutableList()
-        val selectedOcr = AISettings.getSelectedOCRModel(this)
-        if (ocrModels.remove(selectedOcr)) {
-            ocrModels.add(0, selectedOcr)
-        }
+        val ocrModels = AISettings.getOCRModelList(this)
         setModelRows(ocrModelListContainer, ocrModels, DEFAULT_OCR_MODEL)
 
         // Fast Config
-        val fastModels = AISettings.getFastModelList(this).toMutableList()
-        val selectedFast = AISettings.getSelectedFastModel(this)
-        if (fastModels.remove(selectedFast)) {
-            fastModels.add(0, selectedFast)
-        }
+        val fastModels = AISettings.getFastModelList(this)
         setModelRows(fastModelListContainer, fastModels, DEFAULT_FAST_MODEL)
 
         // Deep Config
-        val deepModels = AISettings.getDeepModelList(this).toMutableList()
-        val selectedDeep = AISettings.getSelectedDeepModel(this)
-        if (deepModels.remove(selectedDeep)) {
-            deepModels.add(0, selectedDeep)
-        }
+        val deepModels = AISettings.getDeepModelList(this)
         setModelRows(deepModelListContainer, deepModels, DEFAULT_DEEP_MODEL)
     }
 
-    private fun setModelRows(container: LinearLayout, models: List<String>, fallback: String) {
-        container.removeAllViews()
+    private fun setModelRows(container: RecyclerView, models: List<String>, fallback: String) {
         val normalizedModels = normalizeModelIds(models, fallback)
-        normalizedModels.forEach { modelId ->
-            addModelRow(container, modelId, false)
+        getModelAdapter(container).setItems(normalizedModels)
+    }
+
+    private fun collectModelIds(container: RecyclerView): List<String> {
+        return getModelAdapter(container).getItems()
+    }
+
+    private fun getModelAdapter(container: RecyclerView): ModelListAdapter {
+        return when (container.id) {
+            R.id.ocrModelListContainer -> ocrModelAdapter
+            R.id.fastModelListContainer -> fastModelAdapter
+            R.id.deepModelListContainer -> deepModelAdapter
+            else -> error("Unknown model list container: ${container.id}")
         }
     }
 
-    private fun addModelRow(container: LinearLayout, modelId: String, requestFocus: Boolean) {
-        val row = layoutInflater.inflate(R.layout.item_model_input, container, false)
-        val etModelId = row.findViewById<EditText>(R.id.etModelId)
-        val btnRemoveModel = row.findViewById<ImageView>(R.id.btnRemoveModel)
-        etModelId.setText(modelId)
-        addCompactInputWatcher(etModelId) {
-            markVerificationDirty()
-        }
-
-        btnRemoveModel.setOnClickListener {
-            if (container.childCount <= 1) {
-                Toast.makeText(this, "至少保留一个模型", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            container.removeView(row)
-            markVerificationDirty()
-        }
-
-        container.addView(row)
-        if (requestFocus) {
-            etModelId.requestFocus()
-            etModelId.setSelection(etModelId.text.length)
+    private fun getModelAdapter(target: TestTarget): ModelListAdapter {
+        return when (target) {
+            TestTarget.OCR -> ocrModelAdapter
+            TestTarget.FAST -> fastModelAdapter
+            TestTarget.DEEP -> deepModelAdapter
         }
     }
 
-    private fun collectModelIds(container: LinearLayout): List<String> {
-        val modelIds = mutableListOf<String>()
-        for (i in 0 until container.childCount) {
-            val row = container.getChildAt(i) ?: continue
-            val etModelId = row.findViewById<EditText>(R.id.etModelId) ?: continue
-            val modelId = sanitizeEditTextInPlace(etModelId)
-            if (modelId.isNotBlank()) {
-                modelIds.add(modelId)
-            }
+    private fun getModelRecycler(target: TestTarget): RecyclerView {
+        return when (target) {
+            TestTarget.OCR -> ocrModelListContainer
+            TestTarget.FAST -> fastModelListContainer
+            TestTarget.DEEP -> deepModelListContainer
         }
-        return modelIds
+    }
+
+    private fun appendModelToTarget(target: TestTarget, rawModelId: String): Boolean {
+        val modelId = compactInput(rawModelId)
+        if (modelId.isBlank()) return false
+
+        val adapter = getModelAdapter(target)
+        val added = adapter.appendItem(modelId)
+        if (!added) {
+            Toast.makeText(this, "模型已存在", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        markVerificationDirty()
+        getModelRecycler(target).smoothScrollToPosition(adapter.itemCount - 1)
+        return true
     }
 
     private fun normalizeModelIds(rawModels: List<String>, fallback: String): List<String> {
@@ -421,21 +541,15 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         btnAddOcrModel.setOnClickListener {
-            addModelRow(ocrModelListContainer, "", true)
-            markVerificationDirty()
-            applyTheme()
+            showAddModelDialog(TestTarget.OCR)
         }
 
         btnAddFastModel.setOnClickListener {
-            addModelRow(fastModelListContainer, "", true)
-            markVerificationDirty()
-            applyTheme()
+            showAddModelDialog(TestTarget.FAST)
         }
 
         btnAddDeepModel.setOnClickListener {
-            addModelRow(deepModelListContainer, "", true)
-            markVerificationDirty()
-            applyTheme()
+            showAddModelDialog(TestTarget.DEEP)
         }
 
         btnSave.setOnClickListener {
@@ -450,6 +564,90 @@ class SettingsActivity : AppCompatActivity() {
         btnTestDeep.setOnClickListener { testApi(TestTarget.DEEP) }
 
         setupInputGuardrails()
+    }
+
+    private fun showAddModelDialog(target: TestTarget) {
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        val dialog = Dialog(this, R.style.RoundedDialog)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_add_model)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val root = dialog.findViewById<LinearLayout>(R.id.addModelRoot)
+        val tvTitle = dialog.findViewById<TextView>(R.id.tvAddModelTitle)
+        val tvSubtitle = dialog.findViewById<TextView>(R.id.tvAddModelSubtitle)
+        val etModelId = dialog.findViewById<EditText>(R.id.etAddModelInput)
+        val btnCancel = dialog.findViewById<TextView>(R.id.btnCancelAddModel)
+        val btnSaveModel = dialog.findViewById<TextView>(R.id.btnSaveAddModel)
+
+        val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
+        val textPrimary = if (isLightGreenGray) 0xFF1D2A2F.toInt() else 0xFF2C241F.toInt()
+        val textSecondary = if (isLightGreenGray) 0xFF5E6872.toInt() else 0xFF6F625B.toInt()
+
+        root.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_model_dialog_surface
+            else R.drawable.bg_model_dialog_surface_light_brown_black
+        )
+        tvTitle.setTextColor(textPrimary)
+        tvSubtitle.setTextColor(textSecondary)
+        etModelId.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_edittext_settings
+            else R.drawable.bg_edittext_settings_light_brown_black
+        )
+        etModelId.setTextColor(textPrimary)
+        etModelId.setHintTextColor(textSecondary)
+
+        btnCancel.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_button_outline
+            else R.drawable.bg_button_outline_light_brown_black
+        )
+        btnCancel.setTextColor(primaryColor)
+        btnSaveModel.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_button_filled
+            else R.drawable.bg_button_filled_light_brown_black
+        )
+        btnSaveModel.setTextColor(0xFFFFFFFF.toInt())
+
+        tvTitle.text = when (target) {
+            TestTarget.OCR -> "添加 OCR 模型"
+            TestTarget.FAST -> "添加极速模型"
+            TestTarget.DEEP -> "添加深度模型"
+        }
+        tvSubtitle.text = "保存后会追加到列表末尾，可长按排序"
+
+        btnSaveModel.isEnabled = false
+        btnSaveModel.alpha = 0.45f
+
+        addCompactInputWatcher(etModelId) { compact ->
+            val hasText = compact.isNotBlank()
+            btnSaveModel.isEnabled = hasText
+            btnSaveModel.alpha = if (hasText) 1f else 0.45f
+        }
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+        btnSaveModel.setOnClickListener {
+            val modelId = sanitizeEditTextInPlace(etModelId)
+            if (modelId.isBlank()) return@setOnClickListener
+            val added = appendModelToTarget(target, modelId)
+            if (!added) return@setOnClickListener
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        applyModelPickerDialogWindowSize(dialog)
+        root.alpha = 0f
+        root.translationY = dp(8f)
+        root.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(220)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+        etModelId.requestFocus()
+        etModelId.post {
+            val inputManager = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            inputManager?.showSoftInput(etModelId, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
     private fun updateSaveButtonState() {
@@ -1006,29 +1204,27 @@ class SettingsActivity : AppCompatActivity() {
             val orderedSelectedIds = models
                 .map { it.id }
                 .filter { selectedIds.contains(it) }
-            when (target) {
-                TestTarget.OCR -> {
-                    replaceModelsInContainer(
-                        container = ocrModelListContainer,
-                        nextModels = orderedSelectedIds,
-                        fallback = DEFAULT_OCR_MODEL
-                    )
-                }
-                TestTarget.FAST -> {
-                    replaceModelsInContainer(
-                        container = fastModelListContainer,
-                        nextModels = orderedSelectedIds,
-                        fallback = DEFAULT_FAST_MODEL
-                    )
-                }
-                TestTarget.DEEP -> {
-                    replaceModelsInContainer(
-                        container = deepModelListContainer,
-                        nextModels = orderedSelectedIds,
-                        fallback = DEFAULT_DEEP_MODEL
-                    )
+            val container = getModelRecycler(target)
+            val fallback = when (target) {
+                TestTarget.OCR -> DEFAULT_OCR_MODEL
+                TestTarget.FAST -> DEFAULT_FAST_MODEL
+                TestTarget.DEEP -> DEFAULT_DEEP_MODEL
+            }
+            val existing = collectModelIds(container)
+            val catalogIds = models.map { it.id }.toHashSet()
+            val keptExisting = existing.filter { modelId ->
+                if (catalogIds.contains(modelId)) {
+                    selectedIds.contains(modelId)
+                } else {
+                    true
                 }
             }
+            val appendIds = orderedSelectedIds.filterNot { keptExisting.contains(it) }
+            replaceModelsInContainer(
+                container = container,
+                nextModels = keptExisting + appendIds,
+                fallback = fallback
+            )
             dialog.dismiss()
         }
 
@@ -1092,13 +1288,12 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun replaceModelsInContainer(
-        container: LinearLayout,
+        container: RecyclerView,
         nextModels: List<String>,
         fallback: String
     ) {
         setModelRows(container, nextModels, fallback)
         markVerificationDirty()
-        applyTheme()
     }
 
     private fun testApi(target: TestTarget) {
@@ -1597,6 +1792,124 @@ class SettingsActivity : AppCompatActivity() {
                 onCompactChanged?.invoke(compact)
             }
         })
+    }
+
+    private inner class ModelListAdapter(
+        private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
+        private val onRemoveRequest: (ModelListAdapter, Int) -> Boolean
+    ) : RecyclerView.Adapter<ModelListAdapter.ModelViewHolder>() {
+
+        private val items = mutableListOf<String>()
+        private var draggingPosition = RecyclerView.NO_POSITION
+        private var palette = ModelRowPalette(
+            textPrimary = 0xFF202123.toInt(),
+            textSecondary = 0xFF6E6E80.toInt(),
+            rowBackgroundRes = R.drawable.bg_model_option_unselected,
+            rowDraggingBackgroundRes = R.drawable.bg_model_option_selected,
+            actionButtonBackgroundRes = R.drawable.bg_button_outline
+        )
+
+        inner class ModelViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            private val rowRoot = view.findViewById<LinearLayout>(R.id.modelRowRoot)
+            private val tvModelId = view.findViewById<TextView>(R.id.tvModelId)
+            private val ivDragHandle = view.findViewById<ImageView>(R.id.ivDragHandle)
+            private val btnRemoveModel = view.findViewById<ImageView>(R.id.btnRemoveModel)
+
+            init {
+                rowRoot.setOnLongClickListener {
+                    if (bindingAdapterPosition == RecyclerView.NO_POSITION) {
+                        return@setOnLongClickListener false
+                    }
+                    onStartDrag(this)
+                    true
+                }
+                btnRemoveModel.setOnClickListener {
+                    val position = bindingAdapterPosition
+                    if (position == RecyclerView.NO_POSITION) return@setOnClickListener
+                    onRemoveRequest(this@ModelListAdapter, position)
+                }
+            }
+
+            fun bind(modelId: String, isDragging: Boolean) {
+                tvModelId.text = modelId
+                tvModelId.setTextColor(palette.textPrimary)
+                ivDragHandle.setColorFilter(palette.textSecondary)
+                btnRemoveModel.setColorFilter(palette.textSecondary)
+                btnRemoveModel.setBackgroundResource(palette.actionButtonBackgroundRes)
+                rowRoot.setBackgroundResource(
+                    if (isDragging) palette.rowDraggingBackgroundRes else palette.rowBackgroundRes
+                )
+            }
+        }
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ModelViewHolder {
+            val view = layoutInflater.inflate(R.layout.item_model_input, parent, false)
+            return ModelViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ModelViewHolder, position: Int) {
+            holder.bind(items[position], position == draggingPosition)
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        fun setItems(nextItems: List<String>) {
+            items.clear()
+            items.addAll(nextItems)
+            draggingPosition = RecyclerView.NO_POSITION
+            notifyDataSetChanged()
+        }
+
+        fun getItems(): List<String> = items.toList()
+
+        fun appendItem(modelId: String): Boolean {
+            val normalized = compactInput(modelId)
+            if (normalized.isBlank() || items.contains(normalized)) return false
+            items.add(normalized)
+            notifyItemInserted(items.lastIndex)
+            return true
+        }
+
+        fun removeAt(position: Int) {
+            if (position !in items.indices) return
+            items.removeAt(position)
+            notifyItemRemoved(position)
+            notifyItemRangeChanged(position, items.size - position)
+        }
+
+        fun moveItem(from: Int, to: Int): Boolean {
+            if (from !in items.indices || to !in items.indices || from == to) return false
+            if (from < to) {
+                for (index in from until to) {
+                    Collections.swap(items, index, index + 1)
+                }
+            } else {
+                for (index in from downTo (to + 1)) {
+                    Collections.swap(items, index, index - 1)
+                }
+            }
+            notifyItemMoved(from, to)
+            return true
+        }
+
+        fun setDraggingPosition(position: Int) {
+            if (draggingPosition == position) return
+            val previous = draggingPosition
+            draggingPosition = position
+            if (previous != RecyclerView.NO_POSITION) notifyItemChanged(previous)
+            if (position != RecyclerView.NO_POSITION) notifyItemChanged(position)
+        }
+
+        fun clearDraggingPosition() {
+            val previous = draggingPosition
+            draggingPosition = RecyclerView.NO_POSITION
+            if (previous != RecyclerView.NO_POSITION) notifyItemChanged(previous)
+        }
+
+        fun applyPalette(newPalette: ModelRowPalette) {
+            palette = newPalette
+            notifyDataSetChanged()
+        }
     }
 
     override fun onDestroy() {

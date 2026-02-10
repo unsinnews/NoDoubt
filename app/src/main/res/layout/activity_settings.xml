@@ -168,7 +168,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="模型列表（按顺序备用）"
+                        android:text="模型列表（长按排序）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
 
@@ -200,12 +200,14 @@
                         android:textStyle="bold"/>
                 </LinearLayout>
 
-                <LinearLayout
+                <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/ocrModelListContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:orientation="vertical"/>
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    android:scrollbars="none" />
 
                 <TextView
                     android:id="@+id/btnAddOcrModel"
@@ -262,7 +264,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="模型列表（每行一个）"
+                        android:text="模型列表（长按排序）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
 
@@ -294,12 +296,14 @@
                         android:textStyle="bold"/>
                 </LinearLayout>
 
-                <LinearLayout
+                <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/fastModelListContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:orientation="vertical"/>
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    android:scrollbars="none" />
 
                 <TextView
                     android:id="@+id/btnAddFastModel"
@@ -356,7 +360,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="模型列表（每行一个）"
+                        android:text="模型列表（长按排序）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
 
@@ -388,12 +392,14 @@
                         android:textStyle="bold"/>
                 </LinearLayout>
 
-                <LinearLayout
+                <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/deepModelListContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:orientation="vertical"/>
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    android:scrollbars="none" />
 
                 <TextView
                     android:id="@+id/btnAddDeepModel"
