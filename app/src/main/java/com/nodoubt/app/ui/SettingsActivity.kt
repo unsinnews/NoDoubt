@@ -1,9 +1,20 @@
 package com.nodoubt.app.ui
 
+import android.animation.Animator
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
+import android.app.Dialog
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.Window
+import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -12,7 +23,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.nodoubt.app.R
 import com.nodoubt.app.data.AIConfig
@@ -519,15 +529,189 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun showConnectionResultDialog(success: Boolean, responseBody: String = "") {
-        val message = if (success) {
-            "连接成功"
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        val dialog = Dialog(this, R.style.RoundedDialog)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_connection_result)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val root = dialog.findViewById<LinearLayout>(R.id.dialogResultRoot)
+        val tvPlanBadge = dialog.findViewById<TextView>(R.id.tvPlanBadge)
+        val ambientGlow = dialog.findViewById<View>(R.id.vAmbientGlow)
+        val ringOuter = dialog.findViewById<View>(R.id.vRingOuter)
+        val ringInner = dialog.findViewById<View>(R.id.vRingInner)
+        val statusOrb = dialog.findViewById<FrameLayout>(R.id.statusOrb)
+        val ivStatusIcon = dialog.findViewById<ImageView>(R.id.ivStatusIcon)
+        val tvResultTitle = dialog.findViewById<TextView>(R.id.tvResultTitle)
+        val tvResultMessage = dialog.findViewById<TextView>(R.id.tvResultMessage)
+        val btnConfirm = dialog.findViewById<TextView>(R.id.btnResultConfirm)
+
+        val textPrimary = if (isLightGreenGray) 0xFF1C2420.toInt() else 0xFF2C241F.toInt()
+        val textSecondary = if (isLightGreenGray) 0xFF5E6872.toInt() else 0xFF6F625B.toInt()
+        val successAccent = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
+
+        if (isLightGreenGray) {
+            root.setBackgroundResource(R.drawable.bg_connection_dialog_surface)
+            tvPlanBadge.setBackgroundResource(R.drawable.bg_connection_plan_chip)
+            tvPlanBadge.setTextColor(successAccent)
+            btnConfirm.setBackgroundResource(R.drawable.bg_connection_action_button)
         } else {
-            "连接失败\n$responseBody"
+            root.setBackgroundResource(R.drawable.bg_connection_dialog_surface_light_brown_black)
+            tvPlanBadge.setBackgroundResource(R.drawable.bg_connection_plan_chip_light_brown_black)
+            tvPlanBadge.setTextColor(successAccent)
+            btnConfirm.setBackgroundResource(R.drawable.bg_connection_action_button_light_brown_black)
         }
-        AlertDialog.Builder(this)
-            .setMessage(message)
-            .setPositiveButton("确定", null)
-            .show()
+
+        btnConfirm.setOnClickListener { dialog.dismiss() }
+        tvResultTitle.setTextColor(textPrimary)
+        tvResultMessage.setTextColor(textSecondary)
+
+        if (success) {
+            tvPlanBadge.visibility = View.VISIBLE
+            tvResultTitle.text = "连接成功"
+            tvResultTitle.setTextColor(successAccent)
+            tvResultMessage.visibility = View.GONE
+            ambientGlow.setBackgroundResource(R.drawable.bg_connection_ambient_glow_success)
+            ringOuter.setBackgroundResource(R.drawable.bg_connection_ring_success)
+            ringInner.setBackgroundResource(R.drawable.bg_connection_ring_success)
+            statusOrb.setBackgroundResource(R.drawable.bg_connection_orb_success)
+            ivStatusIcon.setImageResource(R.drawable.ic_check)
+            ivStatusIcon.setColorFilter(0xFFFFFFFF.toInt())
+        } else {
+            tvPlanBadge.visibility = View.GONE
+            tvResultTitle.text = "连接失败"
+            tvResultTitle.setTextColor(0xFFE25656.toInt())
+            tvResultMessage.visibility = View.VISIBLE
+            tvResultMessage.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+            tvResultMessage.text = "响应体：\n${responseBody.ifBlank { "Empty response body" }}"
+            ambientGlow.setBackgroundResource(R.drawable.bg_connection_ambient_glow_failure)
+            ringOuter.setBackgroundResource(R.drawable.bg_connection_ring_failure)
+            ringInner.setBackgroundResource(R.drawable.bg_connection_ring_failure)
+            statusOrb.setBackgroundResource(R.drawable.bg_connection_orb_failure)
+            ivStatusIcon.setImageResource(R.drawable.ic_info)
+            ivStatusIcon.setColorFilter(0xFFFFFFFF.toInt())
+        }
+
+        dialog.show()
+        applyResultDialogWindowSize(dialog)
+
+        if (success) {
+            startSuccessResultAnimation(dialog, root, statusOrb, ivStatusIcon, ringOuter, ringInner)
+        } else {
+            startFailureResultAnimation(root, statusOrb, ivStatusIcon, ringOuter, ringInner)
+        }
+    }
+
+    private fun startSuccessResultAnimation(
+        dialog: Dialog,
+        root: View,
+        orb: View,
+        icon: View,
+        ringOuter: View,
+        ringInner: View
+    ) {
+        root.alpha = 0f
+        root.translationY = dp(18f)
+        root.rotationX = 8f
+        root.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .rotationX(0f)
+            .setDuration(340)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
+        orb.scaleX = 0.72f
+        orb.scaleY = 0.72f
+        icon.alpha = 0f
+        icon.scaleX = 0.6f
+        icon.scaleY = 0.6f
+        icon.rotation = -18f
+
+        AnimatorSet().apply {
+            playTogether(
+                ObjectAnimator.ofFloat(orb, View.SCALE_X, 0.72f, 1f),
+                ObjectAnimator.ofFloat(orb, View.SCALE_Y, 0.72f, 1f),
+                ObjectAnimator.ofFloat(icon, View.ALPHA, 0f, 1f),
+                ObjectAnimator.ofFloat(icon, View.SCALE_X, 0.6f, 1f),
+                ObjectAnimator.ofFloat(icon, View.SCALE_Y, 0.6f, 1f),
+                ObjectAnimator.ofFloat(icon, View.ROTATION, -18f, 0f)
+            )
+            duration = 520
+            interpolator = OvershootInterpolator(1.15f)
+            start()
+        }
+
+        val outerPulse = createRingPulseAnimator(ringOuter, delayMs = 0L)
+        val innerPulse = createRingPulseAnimator(ringInner, delayMs = 380L)
+        outerPulse.start()
+        innerPulse.start()
+
+        dialog.setOnDismissListener {
+            outerPulse.cancel()
+            innerPulse.cancel()
+        }
+    }
+
+    private fun startFailureResultAnimation(
+        root: View,
+        orb: View,
+        icon: View,
+        ringOuter: View,
+        ringInner: View
+    ) {
+        root.alpha = 0f
+        root.translationY = dp(14f)
+        root.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(260)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
+        orb.scaleX = 0.84f
+        orb.scaleY = 0.84f
+        orb.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(220)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
+        icon.alpha = 0f
+        icon.animate().alpha(1f).setDuration(180).start()
+        ringOuter.alpha = 0.42f
+        ringInner.alpha = 0.28f
+        ringOuter.scaleX = 1f
+        ringOuter.scaleY = 1f
+        ringInner.scaleX = 1f
+        ringInner.scaleY = 1f
+    }
+
+    private fun createRingPulseAnimator(target: View, delayMs: Long): Animator {
+        return ObjectAnimator.ofPropertyValuesHolder(
+            target,
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 0.82f, 1.06f, 1.2f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.82f, 1.06f, 1.2f),
+            PropertyValuesHolder.ofFloat(View.ALPHA, 0.16f, 0.55f, 0f)
+        ).apply {
+            duration = 1600
+            startDelay = delayMs
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.RESTART
+            interpolator = DecelerateInterpolator()
+        }
+    }
+
+    private fun dp(value: Float): Float {
+        return value * resources.displayMetrics.density
+    }
+
+    private fun applyResultDialogWindowSize(dialog: Dialog) {
+        val screenWidth = resources.displayMetrics.widthPixels
+        val maxWidth = dp(420f).toInt()
+        val targetWidth = minOf((screenWidth * 0.9f).toInt(), maxWidth)
+        dialog.window?.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
     }
 
     private fun setupInputGuardrails() {
