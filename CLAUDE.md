@@ -98,7 +98,6 @@ The library uses a layered architecture with proxy pattern:
 
 ```xml
 <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-<uses-permission android:name="android.permission.SYSTEM_OVERLAY_WINDOW" />
 ```
 
 ## Theme System
@@ -112,7 +111,7 @@ Theme-aware drawables follow naming convention: `bg_*_light_green_gray.xml` / `b
 ## SDK Configuration
 
 - Compile SDK: 31
-- Min SDK: 19 (Android 4.4)
+- Min SDK: 23 (Android 6.0)
 - Target SDK: 31
 - Kotlin: 1.6.10
 

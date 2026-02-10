@@ -16,54 +16,33 @@
 
 package com.nodoubt.floatserver.utils;
 
-import android.Manifest;
-import android.app.AppOpsManager;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.Binder;
-import android.os.Build;
 import android.provider.Settings;
-import android.util.Log;
-import java.lang.reflect.Method;
 
 /**
  * Created by yy on 2020/6/13.
  * function: 权限判断与跳转
  */
 public class SettingsCompat {
-    private static final String TAG = "ezy-settings-compat";
-
-    private static final int OP_WRITE_SETTINGS = 23;
-    private static final int OP_SYSTEM_ALERT_WINDOW = 24;
-
     public static boolean canDrawOverlays(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return Settings.canDrawOverlays(context);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            return checkOp(context, OP_SYSTEM_ALERT_WINDOW);
-        } else {
-            return true;
-        }
+        return Settings.canDrawOverlays(context);
     }
 
     public static void manageDrawOverlays(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            if (manageDrawOverlaysForRom(context)) {
-                return;
-            }
+        if (manageDrawOverlaysForRom(context)) {
+            return;
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
-            intent.setData(Uri.parse("package:" + context.getPackageName()));
-            try {
-                context.startActivity(intent);
-            } catch (ActivityNotFoundException e) {
-                e.printStackTrace();
-            }
+        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+        intent.setData(Uri.parse("package:" + context.getPackageName()));
+        try {
+            context.startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            e.printStackTrace();
         }
     }
 
@@ -86,40 +65,6 @@ public class SettingsCompat {
         }
         if (RomUtil.isQiku()) {
             return manageDrawOverlaysForQihu(context);
-        }
-        if (RomUtil.isSmartisan()) {
-            return manageDrawOverlaysForSmartisan(context);
-        }
-        return false;
-    }
-
-
-    private static boolean checkOp(Context context, int op) {
-        AppOpsManager manager = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
-        try {
-            Method method = AppOpsManager.class.getDeclaredMethod("checkOp", int.class, int.class, String.class);
-            return AppOpsManager.MODE_ALLOWED == (int) method.invoke(manager, op, Binder.getCallingUid(), context.getPackageName());
-        } catch (Exception e) {
-            Log.e(TAG, e.getMessage());
-        }
-        return false;
-    }
-
-    // 可设置Android 4.3/4.4的授权状态
-    private static boolean setMode(Context context, int op, boolean allowed) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2 || Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            return false;
-        }
-
-        AppOpsManager manager = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
-        try {
-            Method method = AppOpsManager.class.getDeclaredMethod("setMode", int.class, int.class, String.class, int.class);
-            method.invoke(manager, op, Binder.getCallingUid(), context.getPackageName(), allowed ? AppOpsManager.MODE_ALLOWED : AppOpsManager
-                    .MODE_IGNORED);
-            return true;
-        } catch (Exception e) {
-            Log.e(TAG, e.getMessage());
-
         }
         return false;
     }
@@ -149,29 +94,18 @@ public class SettingsCompat {
             return true;
         }
         intent.setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity");
-        if (startSafely(context, intent)) {
-            return true;
-        }
-        // miui v5 的支持的android版本最高 4.x
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-            Intent intent1 = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-            intent1.setData(Uri.fromParts("package", context.getPackageName(), null));
-            return startSafely(context, intent1);
-        }
-        return false;
+        return startSafely(context, intent);
     }
 
     private final static String HUAWEI_PACKAGE = "com.huawei.systemmanager";
 
     // 华为
     private static boolean manageDrawOverlaysForEmui(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.getPackageName()));
-            if (startSafely(context, intent)) {
-                return true;
-            }
+        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.getPackageName()));
+        if (startSafely(context, intent)) {
+            return true;
         }
-        Intent intent = new Intent();
+        intent = new Intent();
         // Huawei Honor P6|4.4.4|3.0
         intent.setClassName(HUAWEI_PACKAGE, "com.huawei.notificationmanager.ui.NotificationManagmentActivity");
         intent.putExtra("showTabsNumber", 1);
@@ -270,23 +204,4 @@ public class SettingsCompat {
         return startSafely(context, intent);
     }
 
-    // 锤子
-    private static boolean manageDrawOverlaysForSmartisan(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return false;
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // 锤子 坚果|5.1.1|2.5.3
-            Intent intent = new Intent("com.smartisanos.security.action.SWITCHED_PERMISSIONS_NEW");
-            intent.setClassName("com.smartisanos.security", "com.smartisanos.security.SwitchedPermissions");
-            intent.putExtra("index", 17);
-            return startSafely(context, intent);
-        } else {
-            // 锤子 坚果|4.4.4|2.1.2
-            Intent intent = new Intent("com.smartisanos.security.action.SWITCHED_PERMISSIONS");
-            intent.setClassName("com.smartisanos.security", "com.smartisanos.security.SwitchedPermissions");
-            intent.putExtra("permission", new String[]{Manifest.permission.SYSTEM_ALERT_WINDOW});
-            return startSafely(context, intent);
-        }
-    }
 }

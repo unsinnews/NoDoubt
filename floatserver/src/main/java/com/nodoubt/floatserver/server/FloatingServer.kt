@@ -58,14 +58,8 @@ class FloatingServer : Service() {
         mWindowManager = application.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         wmParams = WindowManager.LayoutParams()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1 || RomUtil.isMiui()) {
             req()
-        } else if (RomUtil.isMiui()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                req()
-            } else {
-                wmParams.type = WindowManager.LayoutParams.TYPE_PHONE
-            }
         } else {
             wmParams.type = WindowManager.LayoutParams.TYPE_TOAST
         }

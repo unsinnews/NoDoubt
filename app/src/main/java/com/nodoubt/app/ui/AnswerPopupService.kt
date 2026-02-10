@@ -784,9 +784,7 @@ class AnswerPopupService : Service() {
         val popupWindow = PopupWindow(menuView, menuWidth, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
             isOutsideTouchable = true
             isFocusable = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                elevation = dp(10)
-            }
+            elevation = dp(10)
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setOnDismissListener { modelMenuPopup = null }
         }
@@ -905,9 +903,7 @@ class AnswerPopupService : Service() {
         val popupWindow = PopupWindow(menuView, menuWidth, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
             isOutsideTouchable = true
             isFocusable = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                elevation = dp(10)
-            }
+            elevation = dp(10)
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setOnDismissListener { copyMenuPopup = null }
         }
