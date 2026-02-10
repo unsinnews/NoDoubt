@@ -75,7 +75,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="所有模型共用同一个 API Key"
+                    android:text="所有模型共用同一个 API Key 和 Base URL"
                     android:textSize="12sp"
                     android:textColor="#6E6E80"/>
 
@@ -86,6 +86,26 @@
                     android:layout_marginTop="8dp"
                     android:hint="输入你的 API Key"
                     android:inputType="textPassword"
+                    android:background="@drawable/bg_edittext_settings"
+                    android:padding="12dp"
+                    android:textSize="14sp"/>
+
+                <TextView
+                    android:id="@+id/tvBaseUrlLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Base URL"
+                    android:textSize="14sp"
+                    android:textColor="#202123"/>
+
+                <EditText
+                    android:id="@+id/etBaseUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:hint="https://api.openai.com/v1"
+                    android:inputType="textUri"
                     android:background="@drawable/bg_edittext_settings"
                     android:padding="12dp"
                     android:textSize="14sp"/>
@@ -120,26 +140,6 @@
                     android:text="用于从截图中提取题目，需要支持视觉能力"
                     android:textSize="12sp"
                     android:textColor="#6E6E80"/>
-
-                <TextView
-                    android:id="@+id/tvOcrUrlLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="Base URL"
-                    android:textSize="14sp"
-                    android:textColor="#202123"/>
-
-                <EditText
-                    android:id="@+id/etOcrBaseUrl"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="https://api.openai.com/v1"
-                    android:inputType="textUri"
-                    android:background="@drawable/bg_edittext_settings"
-                    android:padding="12dp"
-                    android:textSize="14sp"/>
 
                 <TextView
                     android:id="@+id/tvOcrModelLabel"
@@ -191,26 +191,6 @@
                     android:text="快速响应的模型，适合简单题目"
                     android:textSize="12sp"
                     android:textColor="#6E6E80"/>
-
-                <TextView
-                    android:id="@+id/tvFastUrlLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="Base URL"
-                    android:textSize="14sp"
-                    android:textColor="#202123"/>
-
-                <EditText
-                    android:id="@+id/etFastBaseUrl"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="https://api.openai.com/v1"
-                    android:inputType="textUri"
-                    android:background="@drawable/bg_edittext_settings"
-                    android:padding="12dp"
-                    android:textSize="14sp"/>
 
                 <TextView
                     android:id="@+id/tvFastModelLabel"
@@ -270,26 +250,6 @@
                     android:text="能力更强的模型，适合复杂题目"
                     android:textSize="12sp"
                     android:textColor="#6E6E80"/>
-
-                <TextView
-                    android:id="@+id/tvDeepUrlLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="Base URL"
-                    android:textSize="14sp"
-                    android:textColor="#202123"/>
-
-                <EditText
-                    android:id="@+id/etDeepBaseUrl"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="https://api.openai.com/v1"
-                    android:inputType="textUri"
-                    android:background="@drawable/bg_edittext_settings"
-                    android:padding="12dp"
-                    android:textSize="14sp"/>
 
                 <TextView
                     android:id="@+id/tvDeepModelLabel"

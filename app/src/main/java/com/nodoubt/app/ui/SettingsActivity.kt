@@ -27,10 +27,8 @@ import kotlinx.coroutines.withContext
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var etApiKey: EditText
-    private lateinit var etOcrBaseUrl: EditText
+    private lateinit var etBaseUrl: EditText
     private lateinit var etOcrModelId: EditText
-    private lateinit var etFastBaseUrl: EditText
-    private lateinit var etDeepBaseUrl: EditText
     private lateinit var fastModelListContainer: LinearLayout
     private lateinit var deepModelListContainer: LinearLayout
     private lateinit var btnAddFastModel: TextView
@@ -48,6 +46,7 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         private const val DEFAULT_FAST_MODEL = "gpt-4o-mini"
         private const val DEFAULT_DEEP_MODEL = "gpt-4o"
+        private val WHITESPACE_REGEX = "\\s+".toRegex()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,10 +66,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun initViews() {
         etApiKey = findViewById(R.id.etApiKey)
-        etOcrBaseUrl = findViewById(R.id.etOcrBaseUrl)
+        etBaseUrl = findViewById(R.id.etBaseUrl)
         etOcrModelId = findViewById(R.id.etOcrModelId)
-        etFastBaseUrl = findViewById(R.id.etFastBaseUrl)
-        etDeepBaseUrl = findViewById(R.id.etDeepBaseUrl)
         fastModelListContainer = findViewById(R.id.fastModelListContainer)
         deepModelListContainer = findViewById(R.id.deepModelListContainer)
         btnAddFastModel = findViewById(R.id.btnAddFastModel)
@@ -102,17 +99,15 @@ class SettingsActivity : AppCompatActivity() {
         // Labels
         val tvApiKeyLabel = findViewById<TextView>(R.id.tvApiKeyLabel)
         val tvApiKeyHint = findViewById<TextView>(R.id.tvApiKeyHint)
+        val tvBaseUrlLabel = findViewById<TextView>(R.id.tvBaseUrlLabel)
         val tvOcrLabel = findViewById<TextView>(R.id.tvOcrLabel)
         val tvOcrHint = findViewById<TextView>(R.id.tvOcrHint)
-        val tvOcrUrlLabel = findViewById<TextView>(R.id.tvOcrUrlLabel)
         val tvOcrModelLabel = findViewById<TextView>(R.id.tvOcrModelLabel)
         val tvFastLabel = findViewById<TextView>(R.id.tvFastLabel)
         val tvFastHint = findViewById<TextView>(R.id.tvFastHint)
-        val tvFastUrlLabel = findViewById<TextView>(R.id.tvFastUrlLabel)
         val tvFastModelLabel = findViewById<TextView>(R.id.tvFastModelLabel)
         val tvDeepLabel = findViewById<TextView>(R.id.tvDeepLabel)
         val tvDeepHint = findViewById<TextView>(R.id.tvDeepHint)
-        val tvDeepUrlLabel = findViewById<TextView>(R.id.tvDeepUrlLabel)
         val tvDeepModelLabel = findViewById<TextView>(R.id.tvDeepModelLabel)
 
         if (isLightGreenGray) {
@@ -137,32 +132,26 @@ class SettingsActivity : AppCompatActivity() {
 
             // EditTexts
             etApiKey.setBackgroundResource(R.drawable.bg_edittext_settings)
-            etOcrBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
+            etBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
             etOcrModelId.setBackgroundResource(R.drawable.bg_edittext_settings)
-            etFastBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
-            etDeepBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
-            etOcrBaseUrl.setTextColor(textPrimary)
+            etBaseUrl.setTextColor(textPrimary)
             etOcrModelId.setTextColor(textPrimary)
-            etFastBaseUrl.setTextColor(textPrimary)
-            etDeepBaseUrl.setTextColor(textPrimary)
 
             // Labels
             tvApiKeyLabel.setTextColor(textPrimary)
             tvApiKeyHint.setTextColor(textSecondary)
+            tvBaseUrlLabel.setTextColor(textPrimary)
             tvOcrLabel.setTextColor(textPrimary)
             tvOcrHint.setTextColor(textSecondary)
-            tvOcrUrlLabel.setTextColor(textPrimary)
             tvOcrModelLabel.setTextColor(textPrimary)
             tvFastLabel.setTextColor(textPrimary)
             tvFastHint.setTextColor(textSecondary)
-            tvFastUrlLabel.setTextColor(textPrimary)
             tvFastModelLabel.setTextColor(textPrimary)
             tvDeepLabel.setTextColor(textPrimary)
             tvDeepHint.setTextColor(textSecondary)
-            tvDeepUrlLabel.setTextColor(textPrimary)
             tvDeepModelLabel.setTextColor(textPrimary)
 
             btnAddFastModel.setBackgroundResource(R.drawable.bg_button_outline)
@@ -207,32 +196,26 @@ class SettingsActivity : AppCompatActivity() {
 
             // EditTexts
             etApiKey.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-            etOcrBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
+            etBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
             etOcrModelId.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-            etFastBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-            etDeepBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
-            etOcrBaseUrl.setTextColor(textPrimary)
+            etBaseUrl.setTextColor(textPrimary)
             etOcrModelId.setTextColor(textPrimary)
-            etFastBaseUrl.setTextColor(textPrimary)
-            etDeepBaseUrl.setTextColor(textPrimary)
 
             // Labels
             tvApiKeyLabel.setTextColor(textPrimary)
             tvApiKeyHint.setTextColor(textSecondary)
+            tvBaseUrlLabel.setTextColor(textPrimary)
             tvOcrLabel.setTextColor(textPrimary)
             tvOcrHint.setTextColor(textSecondary)
-            tvOcrUrlLabel.setTextColor(textPrimary)
             tvOcrModelLabel.setTextColor(textPrimary)
             tvFastLabel.setTextColor(textPrimary)
             tvFastHint.setTextColor(textSecondary)
-            tvFastUrlLabel.setTextColor(textPrimary)
             tvFastModelLabel.setTextColor(textPrimary)
             tvDeepLabel.setTextColor(textPrimary)
             tvDeepHint.setTextColor(textSecondary)
-            tvDeepUrlLabel.setTextColor(textPrimary)
             tvDeepModelLabel.setTextColor(textPrimary)
 
             btnAddFastModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
@@ -284,15 +267,13 @@ class SettingsActivity : AppCompatActivity() {
     private fun loadSettings() {
         // API Key
         etApiKey.setText(AISettings.getApiKey(this))
+        etBaseUrl.setText(AISettings.getBaseUrl(this))
 
         // OCR Config
         val ocrConfig = AISettings.getOCRConfig(this)
-        etOcrBaseUrl.setText(ocrConfig.baseUrl)
         etOcrModelId.setText(ocrConfig.modelId)
 
         // Fast Config
-        val fastConfig = AISettings.getFastConfig(this)
-        etFastBaseUrl.setText(fastConfig.baseUrl)
         val fastModels = AISettings.getFastModelList(this).toMutableList()
         val selectedFast = AISettings.getSelectedFastModel(this)
         if (fastModels.remove(selectedFast)) {
@@ -301,8 +282,6 @@ class SettingsActivity : AppCompatActivity() {
         setModelRows(fastModelListContainer, fastModels, DEFAULT_FAST_MODEL)
 
         // Deep Config
-        val deepConfig = AISettings.getDeepConfig(this)
-        etDeepBaseUrl.setText(deepConfig.baseUrl)
         val deepModels = AISettings.getDeepModelList(this).toMutableList()
         val selectedDeep = AISettings.getSelectedDeepModel(this)
         if (deepModels.remove(selectedDeep)) {
@@ -324,6 +303,7 @@ class SettingsActivity : AppCompatActivity() {
         val etModelId = row.findViewById<EditText>(R.id.etModelId)
         val btnRemoveModel = row.findViewById<ImageView>(R.id.btnRemoveModel)
         etModelId.setText(modelId)
+        addCompactInputWatcher(etModelId)
 
         btnRemoveModel.setOnClickListener {
             if (container.childCount <= 1) {
@@ -345,7 +325,7 @@ class SettingsActivity : AppCompatActivity() {
         for (i in 0 until container.childCount) {
             val row = container.getChildAt(i) ?: continue
             val etModelId = row.findViewById<EditText>(R.id.etModelId) ?: continue
-            val modelId = etModelId.text.toString().trim()
+            val modelId = sanitizeEditTextInPlace(etModelId)
             if (modelId.isNotBlank()) {
                 modelIds.add(modelId)
             }
@@ -354,8 +334,9 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun normalizeModelIds(rawModels: List<String>, fallback: String): List<String> {
-        val normalized = rawModels.map { it.trim() }.filter { it.isNotBlank() }.distinct()
-        return if (normalized.isEmpty()) listOf(fallback) else normalized
+        val normalized = rawModels.map { compactInput(it) }.filter { it.isNotBlank() }.distinct()
+        val normalizedFallback = compactInput(fallback).ifBlank { DEFAULT_FAST_MODEL }
+        return if (normalized.isEmpty()) listOf(normalizedFallback) else normalized
     }
 
     private fun setupButtons() {
@@ -381,19 +362,7 @@ class SettingsActivity : AppCompatActivity() {
             testApi()
         }
 
-        // Reset verification when API key changes
-        etApiKey.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                // Only reset if the key changed from what was saved
-                val savedKey = AISettings.getApiKey(this@SettingsActivity)
-                if (s.toString().trim() != savedKey) {
-                    isApiVerified = false
-                    updateSaveButtonState()
-                }
-            }
-        })
+        setupInputGuardrails()
     }
 
     private fun updateSaveButtonState() {
@@ -412,15 +381,16 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun saveSettingsWithoutFinish() {
+        val apiKey = sanitizeEditTextInPlace(etApiKey)
+        val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
+        val ocrModelId = sanitizeEditTextInPlace(etOcrModelId)
+
         // Save API Key
-        AISettings.saveApiKey(this, etApiKey.text.toString().trim())
+        AISettings.saveApiKey(this, apiKey)
+        AISettings.saveBaseUrl(this, baseUrl)
 
         // Save OCR Config
-        AISettings.saveOCRConfig(
-            this,
-            etOcrBaseUrl.text.toString().trim(),
-            etOcrModelId.text.toString().trim()
-        )
+        AISettings.saveOCRConfig(this, ocrModelId)
 
         val fastModels = normalizeModelIds(
             collectModelIds(fastModelListContainer),
@@ -439,15 +409,11 @@ class SettingsActivity : AppCompatActivity() {
 
         AISettings.setSelectedFastModel(this, selectedFast)
         AISettings.setSelectedDeepModel(this, selectedDeep)
-
-        // Save base URLs and keep currently selected model
-        AISettings.saveFastConfig(this, etFastBaseUrl.text.toString().trim(), selectedFast)
-        AISettings.saveDeepConfig(this, etDeepBaseUrl.text.toString().trim(), selectedDeep)
     }
 
     private fun testApi() {
-        val apiKey = etApiKey.text.toString().trim()
-        val baseUrl = etFastBaseUrl.text.toString().trim()
+        val apiKey = sanitizeEditTextInPlace(etApiKey)
+        val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
         val modelId = normalizeModelIds(
             collectModelIds(fastModelListContainer),
             AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
@@ -527,6 +493,60 @@ class SettingsActivity : AppCompatActivity() {
                 null -> 0xFF757575.toInt()  // Gray
             }
         )
+    }
+
+    private fun setupInputGuardrails() {
+        addCompactInputWatcher(etApiKey) { compact ->
+            // Only reset if the key changed from what was saved.
+            val savedKey = AISettings.getApiKey(this@SettingsActivity)
+            if (compact != savedKey) {
+                isApiVerified = false
+                updateSaveButtonState()
+            }
+        }
+        addCompactInputWatcher(etBaseUrl)
+        addCompactInputWatcher(etOcrModelId)
+    }
+
+    private fun compactInput(raw: String): String {
+        return raw.replace(WHITESPACE_REGEX, "")
+    }
+
+    private fun sanitizeEditTextInPlace(editText: EditText): String {
+        val raw = editText.text?.toString().orEmpty()
+        val compact = compactInput(raw)
+        if (raw != compact) {
+            editText.setText(compact)
+            editText.setSelection(compact.length)
+        }
+        return compact
+    }
+
+    private fun addCompactInputWatcher(
+        editText: EditText,
+        onCompactChanged: ((String) -> Unit)? = null
+    ) {
+        var isUpdating = false
+        editText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                if (isUpdating) return
+
+                val raw = s?.toString().orEmpty()
+                val compact = compactInput(raw)
+                if (raw != compact) {
+                    val cursor = editText.selectionStart.coerceAtLeast(0)
+                    val removedBeforeCursor = raw.take(cursor).count { it.isWhitespace() }
+                    val newCursor = (cursor - removedBeforeCursor).coerceIn(0, compact.length)
+                    isUpdating = true
+                    editText.setText(compact)
+                    editText.setSelection(newCursor)
+                    isUpdating = false
+                }
+                onCompactChanged?.invoke(compact)
+            }
+        })
     }
 
     override fun onDestroy() {
