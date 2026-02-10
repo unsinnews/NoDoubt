@@ -14,6 +14,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.HapticFeedbackConstants
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
@@ -176,6 +177,9 @@ class SettingsActivity : AppCompatActivity() {
                     markVerificationDirty()
                     true
                 }
+            },
+            onDataChanged = {
+                requestModelListRelayout(recyclerView)
             }
         )
 
@@ -189,6 +193,17 @@ class SettingsActivity : AppCompatActivity() {
         itemTouchHelper = ItemTouchHelper(createDragCallback(adapter))
         itemTouchHelper.attachToRecyclerView(recyclerView)
         return adapter
+    }
+
+    private fun requestModelListRelayout(recyclerView: RecyclerView) {
+        recyclerView.post {
+            recyclerView.layoutParams = recyclerView.layoutParams?.apply {
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            recyclerView.requestLayout()
+            (recyclerView.parent as? View)?.requestLayout()
+            ((recyclerView.parent as? View)?.parent as? View)?.requestLayout()
+        }
     }
 
     private fun createDragCallback(adapter: ModelListAdapter): ItemTouchHelper.Callback {
@@ -525,6 +540,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun setModelRows(container: RecyclerView, models: List<String>, fallback: String) {
         val normalizedModels = normalizeModelIds(models, fallback)
         getModelAdapter(container).setItems(normalizedModels)
+        requestModelListRelayout(container)
     }
 
     private fun collectModelIds(container: RecyclerView): List<String> {
@@ -570,7 +586,7 @@ class SettingsActivity : AppCompatActivity() {
         markVerificationDirty()
         val recycler = getModelRecycler(target)
         recycler.post {
-            recycler.requestLayout()
+            requestModelListRelayout(recycler)
             recycler.smoothScrollToPosition(adapter.itemCount - 1)
         }
         return true
@@ -1843,7 +1859,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private inner class ModelListAdapter(
         private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
-        private val onRemoveRequest: (ModelListAdapter, Int) -> Boolean
+        private val onRemoveRequest: (ModelListAdapter, Int) -> Boolean,
+        private val onDataChanged: () -> Unit
     ) : RecyclerView.Adapter<ModelListAdapter.ModelViewHolder>() {
 
         private val items = mutableListOf<String>()
@@ -1907,6 +1924,7 @@ class SettingsActivity : AppCompatActivity() {
             items.clear()
             items.addAll(nextItems)
             notifyDataSetChanged()
+            onDataChanged()
         }
 
         fun getItems(): List<String> = items.toList()
@@ -1918,6 +1936,7 @@ class SettingsActivity : AppCompatActivity() {
             // RecyclerView is embedded in a ScrollView and uses wrap_content height.
             // Full refresh avoids occasional partial-update desync causing invisible rows.
             notifyDataSetChanged()
+            onDataChanged()
             return true
         }
 
@@ -1925,6 +1944,7 @@ class SettingsActivity : AppCompatActivity() {
             if (position !in items.indices) return
             items.removeAt(position)
             notifyDataSetChanged()
+            onDataChanged()
         }
 
         fun moveItem(from: Int, to: Int): Boolean {
@@ -1938,6 +1958,7 @@ class SettingsActivity : AppCompatActivity() {
         fun applyPalette(newPalette: ModelRowPalette) {
             palette = newPalette
             notifyDataSetChanged()
+            onDataChanged()
         }
     }
 
