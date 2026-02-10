@@ -677,9 +677,9 @@ class SettingsActivity : AppCompatActivity() {
             TestTarget.DEEP -> "添加深度模型"
         }
         tvSubtitle.text = when (target) {
-            TestTarget.OCR -> "仅展示识别为视觉能力的模型"
-            TestTarget.FAST -> "展示全部模型，可按类别筛选后添加"
-            TestTarget.DEEP -> "仅展示识别为推理能力的模型"
+            TestTarget.OCR -> "仅展示识别为视觉能力的模型，点击即使用"
+            TestTarget.FAST -> "展示全部模型，可按类别筛选，点击即添加"
+            TestTarget.DEEP -> "仅展示识别为推理能力的模型，点击即添加"
         }
         btnConfirm.text = if (target == TestTarget.OCR) "使用" else "添加"
 
@@ -776,16 +776,6 @@ class SettingsActivity : AppCompatActivity() {
                 tvModelMeta.text = tags.joinToString(" · ")
 
                 optionRoot.setOnClickListener {
-                    if (multiSelect) {
-                        if (selectedIds.contains(model.id)) {
-                            selectedIds.remove(model.id)
-                        } else {
-                            selectedIds.add(model.id)
-                        }
-                    } else {
-                        selectedSingleId = model.id
-                    }
-                    applyOptionSelectionUi()
                     optionRoot.animate()
                         .scaleX(0.98f)
                         .scaleY(0.98f)
@@ -793,6 +783,46 @@ class SettingsActivity : AppCompatActivity() {
                         .withEndAction {
                             optionRoot.scaleX = 1f
                             optionRoot.scaleY = 1f
+                            when (target) {
+                                TestTarget.OCR -> {
+                                    etOcrModelId.setText(model.id)
+                                    etOcrModelId.setSelection(model.id.length)
+                                    markVerificationDirty()
+                                    dialog.dismiss()
+                                }
+                                TestTarget.FAST -> {
+                                    val added = addSingleModelIntoContainerIfMissing(
+                                        container = fastModelListContainer,
+                                        modelId = model.id,
+                                        fallback = AISettings.getSelectedFastModel(this@SettingsActivity)
+                                            .ifBlank { DEFAULT_FAST_MODEL }
+                                    )
+                                    if (!added) {
+                                        Toast.makeText(
+                                            this@SettingsActivity,
+                                            "模型已在极速列表中",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    dialog.dismiss()
+                                }
+                                TestTarget.DEEP -> {
+                                    val added = addSingleModelIntoContainerIfMissing(
+                                        container = deepModelListContainer,
+                                        modelId = model.id,
+                                        fallback = AISettings.getSelectedDeepModel(this@SettingsActivity)
+                                            .ifBlank { DEFAULT_DEEP_MODEL }
+                                    )
+                                    if (!added) {
+                                        Toast.makeText(
+                                            this@SettingsActivity,
+                                            "模型已在深度列表中",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    dialog.dismiss()
+                                }
+                            }
                         }
                         .start()
                 }
@@ -910,6 +940,24 @@ class SettingsActivity : AppCompatActivity() {
         setModelRows(container, merged, fallback)
         markVerificationDirty()
         applyTheme()
+    }
+
+    private fun addSingleModelIntoContainerIfMissing(
+        container: LinearLayout,
+        modelId: String,
+        fallback: String
+    ): Boolean {
+        val normalized = compactInput(modelId)
+        if (normalized.isBlank()) return false
+
+        val current = collectModelIds(container)
+        if (current.contains(normalized)) return false
+
+        val merged = normalizeModelIds(current + normalized, fallback)
+        setModelRows(container, merged, fallback)
+        markVerificationDirty()
+        applyTheme()
+        return true
     }
 
     private fun testApi(target: TestTarget) {
