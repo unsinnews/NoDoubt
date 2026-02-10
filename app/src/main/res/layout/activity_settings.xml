@@ -173,6 +173,20 @@
                         android:textColor="#202123"/>
 
                     <TextView
+                        android:id="@+id/btnFetchOcrModels"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_button_outline"
+                        android:gravity="center"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:text="获取模型"
+                        android:textColor="#10A37F"
+                        android:textSize="12sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
                         android:id="@+id/btnTestOcr"
                         android:layout_width="wrap_content"
                         android:layout_height="32dp"
@@ -243,6 +257,20 @@
                         android:text="模型列表（每行一个）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
+
+                    <TextView
+                        android:id="@+id/btnFetchFastModels"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_button_outline"
+                        android:gravity="center"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:text="获取模型"
+                        android:textColor="#10A37F"
+                        android:textSize="12sp"
+                        android:textStyle="bold"/>
 
                     <TextView
                         android:id="@+id/btnTestFast"
@@ -323,6 +351,20 @@
                         android:text="模型列表（每行一个）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
+
+                    <TextView
+                        android:id="@+id/btnFetchDeepModels"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_button_outline"
+                        android:gravity="center"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:text="获取模型"
+                        android:textColor="#10A37F"
+                        android:textSize="12sp"
+                        android:textStyle="bold"/>
 
                     <TextView
                         android:id="@+id/btnTestDeep"

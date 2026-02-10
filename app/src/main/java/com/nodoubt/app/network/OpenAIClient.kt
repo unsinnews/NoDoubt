@@ -14,6 +14,19 @@ import java.util.concurrent.TimeUnit
 
 class OpenAIClient(private val config: AIConfig) {
 
+    data class RemoteModel(
+        val id: String,
+        val name: String,
+        val ownedBy: String?,
+        val supportedEndpointTypes: List<String>
+    )
+
+    data class ModelListResult(
+        val success: Boolean,
+        val models: List<RemoteModel> = emptyList(),
+        val responseBody: String = ""
+    )
+
     private val reasoningFieldKeys = listOf(
         "reasoning_content",
         "reasoning"
@@ -128,6 +141,33 @@ class OpenAIClient(private val config: AIConfig) {
             }
         })
         return call
+    }
+
+    fun fetchModels(): ModelListResult {
+        val request = Request.Builder()
+            .url(normalizeBaseUrl(config.baseUrl) + "/models")
+            .header("Authorization", "Bearer ${config.apiKey}")
+            .header("Content-Type", "application/json")
+            .get()
+            .build()
+
+        return try {
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    val error = body.ifBlank { "HTTP ${response.code}" }
+                    return ModelListResult(success = false, responseBody = error)
+                }
+
+                val models = parseModelList(body)
+                ModelListResult(success = true, models = models, responseBody = body)
+            }
+        } catch (e: Exception) {
+            ModelListResult(
+                success = false,
+                responseBody = e.message?.ifBlank { "Unknown error" } ?: "Unknown error"
+            )
+        }
     }
 
     private fun extractReasoningText(choice: JsonObject, delta: JsonObject?): String? {
@@ -250,6 +290,86 @@ class OpenAIClient(private val config: AIConfig) {
             "stream" to stream
         )
         return gson.toJson(body).toRequestBody(jsonMediaType)
+    }
+
+    private fun parseModelList(rawBody: String): List<RemoteModel> {
+        if (rawBody.isBlank()) return emptyList()
+
+        val parsedRoot = try {
+            JsonParser.parseString(rawBody)
+        } catch (_: Exception) {
+            return emptyList()
+        }
+
+        val modelEntries = when {
+            parsedRoot.isJsonArray -> parsedRoot.asJsonArray
+            parsedRoot.isJsonObject -> parsedRoot.asJsonObject.getAsJsonArray("data")
+            else -> null
+        } ?: return emptyList()
+
+        val normalized = mutableListOf<RemoteModel>()
+        val seen = HashSet<String>()
+
+        modelEntries.forEach { entry ->
+            if (!entry.isJsonObject) return@forEach
+            val obj = entry.asJsonObject
+
+            val id = firstNonBlank(
+                obj.get("id")?.takeIf { it.isJsonPrimitive }?.asString,
+                obj.get("model")?.takeIf { it.isJsonPrimitive }?.asString,
+                obj.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+            ) ?: return@forEach
+
+            val normalizedId = id.trim()
+            if (normalizedId.isBlank() || seen.contains(normalizedId)) return@forEach
+
+            val name = firstNonBlank(
+                obj.get("name")?.takeIf { it.isJsonPrimitive }?.asString,
+                obj.get("display_name")?.takeIf { it.isJsonPrimitive }?.asString,
+                obj.get("displayName")?.takeIf { it.isJsonPrimitive }?.asString,
+                normalizedId
+            ) ?: normalizedId
+
+            val ownedBy = firstNonBlank(
+                obj.get("owned_by")?.takeIf { it.isJsonPrimitive }?.asString,
+                obj.get("publisher")?.takeIf { it.isJsonPrimitive }?.asString,
+                obj.get("organization")?.takeIf { it.isJsonPrimitive }?.asString
+            )
+
+            val endpointTypes = mutableListOf<String>()
+            val supportedEndpointTypesElement = obj.get("supported_endpoint_types")
+            if (supportedEndpointTypesElement != null && supportedEndpointTypesElement.isJsonArray) {
+                supportedEndpointTypesElement.asJsonArray.forEach { type ->
+                    if (type.isJsonPrimitive) {
+                        val endpoint = type.asString.trim()
+                        if (endpoint.isNotBlank() && !endpointTypes.contains(endpoint)) {
+                            endpointTypes.add(endpoint)
+                        }
+                    }
+                }
+            }
+
+            seen.add(normalizedId)
+            normalized.add(
+                RemoteModel(
+                    id = normalizedId,
+                    name = name.trim().ifBlank { normalizedId },
+                    ownedBy = ownedBy?.trim()?.ifBlank { null },
+                    supportedEndpointTypes = endpointTypes
+                )
+            )
+        }
+
+        return normalized
+    }
+
+    private fun firstNonBlank(vararg values: String?): String? {
+        values.forEach { candidate ->
+            if (!candidate.isNullOrBlank()) {
+                return candidate
+            }
+        }
+        return null
     }
 
     private fun buildRequest(endpoint: String, body: RequestBody): Request {

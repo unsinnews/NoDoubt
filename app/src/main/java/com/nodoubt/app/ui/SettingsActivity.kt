@@ -44,6 +44,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var deepModelListContainer: LinearLayout
     private lateinit var btnAddFastModel: TextView
     private lateinit var btnAddDeepModel: TextView
+    private lateinit var btnFetchOcrModels: TextView
+    private lateinit var btnFetchFastModels: TextView
+    private lateinit var btnFetchDeepModels: TextView
     private lateinit var btnTestOcr: TextView
     private lateinit var btnTestFast: TextView
     private lateinit var btnTestDeep: TextView
@@ -59,11 +62,40 @@ class SettingsActivity : AppCompatActivity() {
         private const val DEFAULT_FAST_MODEL = "gpt-4o-mini"
         private const val DEFAULT_DEEP_MODEL = "gpt-4o"
         private val WHITESPACE_REGEX = "\\s+".toRegex()
+        private val NON_CHAT_MODEL_REGEX = "(embedding|rerank|tts|whisper|speech|moderation|transcription)".toRegex(
+            RegexOption.IGNORE_CASE
+        )
+        private val IMAGE_GENERATION_ONLY_REGEX =
+            "(dall-e|gpt-image|imagen|stable[-_]?diffusion|flux|midjourney|qwen-image|cogview|seedream|hunyuanimage)".toRegex(
+                RegexOption.IGNORE_CASE
+            )
+        private val VISION_MODEL_REGEX =
+            "(vision|(^|[-_.])vl([-.]|$)|omni|gpt-4o|gpt-4\\.1|gpt-5|chatgpt-4o|claude-3|claude-(haiku|sonnet|opus)-4|gemini|qwen2?-?\\.?(5)?-?vl|llava|minicpm|internvl|pixtral|glm-4v|deepseek-vl|step-1v|qvq)".toRegex(
+                RegexOption.IGNORE_CASE
+            )
+        private val REASONING_MODEL_REGEX =
+            "(^o[1345]([-.].*)?$|reasoning|reasoner|thinking|think|(^|[-_.])r1($|[-_.])|(^|[-_.])r\\d+($|[-_.])|qwq|deepseek-r1|grok-(3|4)|qwen.*thinking|magistral|seed-oss)".toRegex(
+                RegexOption.IGNORE_CASE
+            )
+        private val NON_REASONING_HINT_REGEX = "non-reasoning".toRegex(RegexOption.IGNORE_CASE)
     }
 
     private enum class TestTarget {
         OCR, FAST, DEEP
     }
+
+    private enum class ModelFilterCategory {
+        ALL, REASONING, VISION
+    }
+
+    private data class CatalogModel(
+        val id: String,
+        val name: String,
+        val ownedBy: String?,
+        val supportedEndpointTypes: List<String>,
+        val isVision: Boolean,
+        val isReasoning: Boolean
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,6 +120,9 @@ class SettingsActivity : AppCompatActivity() {
         deepModelListContainer = findViewById(R.id.deepModelListContainer)
         btnAddFastModel = findViewById(R.id.btnAddFastModel)
         btnAddDeepModel = findViewById(R.id.btnAddDeepModel)
+        btnFetchOcrModels = findViewById(R.id.btnFetchOcrModels)
+        btnFetchFastModels = findViewById(R.id.btnFetchFastModels)
+        btnFetchDeepModels = findViewById(R.id.btnFetchDeepModels)
         btnTestOcr = findViewById(R.id.btnTestOcr)
         btnTestFast = findViewById(R.id.btnTestFast)
         btnTestDeep = findViewById(R.id.btnTestDeep)
@@ -175,6 +210,12 @@ class SettingsActivity : AppCompatActivity() {
             btnAddFastModel.setTextColor(primaryColor)
             btnAddDeepModel.setBackgroundResource(R.drawable.bg_button_outline)
             btnAddDeepModel.setTextColor(primaryColor)
+            btnFetchOcrModels.setBackgroundResource(R.drawable.bg_button_outline)
+            btnFetchOcrModels.setTextColor(primaryColor)
+            btnFetchFastModels.setBackgroundResource(R.drawable.bg_button_outline)
+            btnFetchFastModels.setTextColor(primaryColor)
+            btnFetchDeepModels.setBackgroundResource(R.drawable.bg_button_outline)
+            btnFetchDeepModels.setTextColor(primaryColor)
             btnTestOcr.setBackgroundResource(R.drawable.bg_button_outline)
             btnTestOcr.setTextColor(primaryColor)
             btnTestFast.setBackgroundResource(R.drawable.bg_button_outline)
@@ -240,6 +281,12 @@ class SettingsActivity : AppCompatActivity() {
             btnAddFastModel.setTextColor(primaryColor)
             btnAddDeepModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
             btnAddDeepModel.setTextColor(primaryColor)
+            btnFetchOcrModels.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnFetchOcrModels.setTextColor(primaryColor)
+            btnFetchFastModels.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnFetchFastModels.setTextColor(primaryColor)
+            btnFetchDeepModels.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnFetchDeepModels.setTextColor(primaryColor)
             btnTestOcr.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
             btnTestOcr.setTextColor(primaryColor)
             btnTestFast.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
@@ -382,6 +429,9 @@ class SettingsActivity : AppCompatActivity() {
             saveSettings()
         }
 
+        btnFetchOcrModels.setOnClickListener { fetchModelCatalog(TestTarget.OCR) }
+        btnFetchFastModels.setOnClickListener { fetchModelCatalog(TestTarget.FAST) }
+        btnFetchDeepModels.setOnClickListener { fetchModelCatalog(TestTarget.DEEP) }
         btnTestOcr.setOnClickListener { testApi(TestTarget.OCR) }
         btnTestFast.setOnClickListener { testApi(TestTarget.FAST) }
         btnTestDeep.setOnClickListener { testApi(TestTarget.DEEP) }
@@ -433,6 +483,433 @@ class SettingsActivity : AppCompatActivity() {
 
         AISettings.setSelectedFastModel(this, selectedFast)
         AISettings.setSelectedDeepModel(this, selectedDeep)
+    }
+
+    private fun fetchModelCatalog(target: TestTarget) {
+        val apiKey = sanitizeEditTextInPlace(etApiKey)
+        val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
+
+        if (apiKey.isBlank()) {
+            showConnectionResultDialog(success = false, responseBody = "API Key 不能为空")
+            return
+        }
+
+        if (baseUrl.isBlank()) {
+            showConnectionResultDialog(success = false, responseBody = "Base URL 不能为空")
+            return
+        }
+
+        val fallbackModelId = when (target) {
+            TestTarget.OCR -> sanitizeEditTextInPlace(etOcrModelId).ifBlank { DEFAULT_DEEP_MODEL }
+            TestTarget.FAST -> AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
+            TestTarget.DEEP -> AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
+        }
+
+        val fetchButton = getFetchButton(target)
+        fetchButton.isEnabled = false
+        fetchButton.text = "获取中..."
+
+        coroutineScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val client = OpenAIClient(AIConfig(baseUrl, fallbackModelId, apiKey))
+                    client.fetchModels()
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (!result.success) {
+                        showConnectionResultDialog(
+                            success = false,
+                            responseBody = result.responseBody.ifBlank { "获取模型列表失败" }
+                        )
+                        return@withContext
+                    }
+
+                    val catalogModels = buildCatalogModels(result.models)
+                    if (catalogModels.isEmpty()) {
+                        showConnectionResultDialog(
+                            success = false,
+                            responseBody = "模型列表为空，或返回格式不受支持"
+                        )
+                        return@withContext
+                    }
+
+                    val targetModels = filterCatalogModelsForTarget(target, catalogModels)
+                    if (targetModels.isEmpty()) {
+                        val hint = when (target) {
+                            TestTarget.OCR -> "未识别到视觉模型"
+                            TestTarget.FAST -> "未识别到可用模型"
+                            TestTarget.DEEP -> "未识别到推理模型"
+                        }
+                        showConnectionResultDialog(success = false, responseBody = hint)
+                        return@withContext
+                    }
+
+                    showModelCatalogDialog(target, targetModels)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    showConnectionResultDialog(
+                        success = false,
+                        responseBody = e.message?.ifBlank { "Unknown error" } ?: "Unknown error"
+                    )
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    fetchButton.isEnabled = true
+                    fetchButton.text = "获取模型"
+                }
+            }
+        }
+    }
+
+    private fun buildCatalogModels(rawModels: List<OpenAIClient.RemoteModel>): List<CatalogModel> {
+        val normalizedModels = mutableListOf<CatalogModel>()
+        val seen = HashSet<String>()
+
+        rawModels.forEach { model ->
+            val normalizedId = compactInput(model.id)
+            if (normalizedId.isBlank() || seen.contains(normalizedId)) return@forEach
+
+            val normalizedName = model.name.trim().ifBlank { normalizedId }
+            val endpointTypes = model.supportedEndpointTypes.map { it.trim().lowercase() }
+                .filter { it.isNotBlank() }
+                .distinct()
+
+            val haystack = "${normalizedId.lowercase()} ${normalizedName.lowercase()}"
+            val isVision = isVisionModelCandidate(haystack, endpointTypes)
+            val isReasoning = isReasoningModelCandidate(haystack, endpointTypes)
+
+            normalizedModels.add(
+                CatalogModel(
+                    id = normalizedId,
+                    name = normalizedName,
+                    ownedBy = model.ownedBy?.trim()?.ifBlank { null },
+                    supportedEndpointTypes = endpointTypes,
+                    isVision = isVision,
+                    isReasoning = isReasoning
+                )
+            )
+            seen.add(normalizedId)
+        }
+
+        return normalizedModels.sortedBy { it.id.lowercase() }
+    }
+
+    private fun filterCatalogModelsForTarget(
+        target: TestTarget,
+        models: List<CatalogModel>
+    ): List<CatalogModel> {
+        return when (target) {
+            TestTarget.OCR -> models.filter { it.isVision }
+            TestTarget.FAST -> models
+            TestTarget.DEEP -> models.filter { it.isReasoning }
+        }
+    }
+
+    private fun isVisionModelCandidate(
+        modelText: String,
+        supportedEndpointTypes: List<String>
+    ): Boolean {
+        if (NON_CHAT_MODEL_REGEX.containsMatchIn(modelText)) return false
+        if (IMAGE_GENERATION_ONLY_REGEX.containsMatchIn(modelText) && !VISION_MODEL_REGEX.containsMatchIn(modelText)) {
+            return false
+        }
+        if (supportedEndpointTypes.contains("image-generation") && !VISION_MODEL_REGEX.containsMatchIn(modelText)) {
+            return false
+        }
+        return VISION_MODEL_REGEX.containsMatchIn(modelText)
+    }
+
+    private fun isReasoningModelCandidate(
+        modelText: String,
+        supportedEndpointTypes: List<String>
+    ): Boolean {
+        if (NON_CHAT_MODEL_REGEX.containsMatchIn(modelText)) return false
+        if (IMAGE_GENERATION_ONLY_REGEX.containsMatchIn(modelText)) return false
+        if (NON_REASONING_HINT_REGEX.containsMatchIn(modelText)) return false
+        if (supportedEndpointTypes.contains("jina-rerank")) return false
+        return REASONING_MODEL_REGEX.containsMatchIn(modelText)
+    }
+
+    private fun showModelCatalogDialog(
+        target: TestTarget,
+        models: List<CatalogModel>
+    ) {
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        val dialog = Dialog(this, R.style.RoundedDialog)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_model_catalog)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val root = dialog.findViewById<LinearLayout>(R.id.modelCatalogRoot)
+        val tvTitle = dialog.findViewById<TextView>(R.id.tvModelCatalogTitle)
+        val tvSubtitle = dialog.findViewById<TextView>(R.id.tvModelCatalogSubtitle)
+        val filterContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogFilterContainer)
+        val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogOptionsContainer)
+        val btnCancel = dialog.findViewById<TextView>(R.id.btnCancelModelCatalog)
+        val btnConfirm = dialog.findViewById<TextView>(R.id.btnConfirmModelCatalog)
+
+        val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
+        val textPrimary = if (isLightGreenGray) 0xFF1D2A2F.toInt() else 0xFF2C241F.toInt()
+        val textSecondary = if (isLightGreenGray) 0xFF5E6872.toInt() else 0xFF6F625B.toInt()
+
+        root.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_model_dialog_surface
+            else R.drawable.bg_model_dialog_surface_light_brown_black
+        )
+        tvTitle.setTextColor(textPrimary)
+        tvSubtitle.setTextColor(textSecondary)
+        btnCancel.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_button_outline
+            else R.drawable.bg_button_outline_light_brown_black
+        )
+        btnCancel.setTextColor(primaryColor)
+        btnConfirm.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_button_filled
+            else R.drawable.bg_button_filled_light_brown_black
+        )
+        btnConfirm.setTextColor(0xFFFFFFFF.toInt())
+
+        tvTitle.text = when (target) {
+            TestTarget.OCR -> "选择 OCR 模型"
+            TestTarget.FAST -> "添加极速模型"
+            TestTarget.DEEP -> "添加深度模型"
+        }
+        tvSubtitle.text = when (target) {
+            TestTarget.OCR -> "仅展示识别为视觉能力的模型"
+            TestTarget.FAST -> "展示全部模型，可按类别筛选后添加"
+            TestTarget.DEEP -> "仅展示识别为推理能力的模型"
+        }
+        btnConfirm.text = if (target == TestTarget.OCR) "使用" else "添加"
+
+        val categories = buildFilterCategories(target, models)
+        var activeCategory = categories.first()
+        val multiSelect = target != TestTarget.OCR
+        val selectedIds = mutableSetOf<String>()
+        val existingOcrModelId = if (target == TestTarget.OCR) sanitizeEditTextInPlace(etOcrModelId) else ""
+        var selectedSingleId = existingOcrModelId.takeIf { id -> id.isNotBlank() && models.any { it.id == id } }
+        val existingIds = when (target) {
+            TestTarget.OCR -> setOf(existingOcrModelId).filter { it.isNotBlank() }.toSet()
+            TestTarget.FAST -> collectModelIds(fastModelListContainer).toSet()
+            TestTarget.DEEP -> collectModelIds(deepModelListContainer).toSet()
+        }
+
+        fun updateConfirmState() {
+            val enabled = if (multiSelect) selectedIds.isNotEmpty() else !selectedSingleId.isNullOrBlank()
+            btnConfirm.isEnabled = enabled
+            btnConfirm.alpha = if (enabled) 1f else 0.45f
+        }
+
+        val categoryViews = mutableListOf<Pair<TextView, ModelFilterCategory>>()
+        fun applyCategoryUi() {
+            categoryViews.forEach { (view, category) ->
+                val isSelected = category == activeCategory
+                view.setTextColor(if (isSelected) primaryColor else textSecondary)
+                view.setBackgroundResource(
+                    when {
+                        isSelected && isLightGreenGray -> R.drawable.bg_dialog_item_selected_light_green_gray
+                        isSelected && !isLightGreenGray -> R.drawable.bg_dialog_item_selected_light_brown_black
+                        !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
+                        else -> R.drawable.bg_model_option_unselected_light_brown_black
+                    }
+                )
+            }
+        }
+
+        fun filteredModelsByCategory(category: ModelFilterCategory): List<CatalogModel> {
+            return when (category) {
+                ModelFilterCategory.ALL -> models
+                ModelFilterCategory.REASONING -> models.filter { it.isReasoning }
+                ModelFilterCategory.VISION -> models.filter { it.isVision }
+            }
+        }
+
+        fun renderOptions() {
+            optionsContainer.removeAllViews()
+            val visibleModels = filteredModelsByCategory(activeCategory)
+            val optionRows = mutableListOf<Triple<LinearLayout, ImageView, CatalogModel>>()
+
+            fun applyOptionSelectionUi() {
+                optionRows.forEach { (optionRoot, ivCheck, model) ->
+                    val isSelected = if (multiSelect) {
+                        selectedIds.contains(model.id)
+                    } else {
+                        model.id == selectedSingleId
+                    }
+                    ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
+                    optionRoot.setBackgroundResource(
+                        when {
+                            isSelected && isLightGreenGray -> R.drawable.bg_model_option_selected
+                            isSelected && !isLightGreenGray -> R.drawable.bg_model_option_selected_light_brown_black
+                            !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
+                            else -> R.drawable.bg_model_option_unselected_light_brown_black
+                        }
+                    )
+                }
+                updateConfirmState()
+            }
+
+            visibleModels.forEachIndexed { index, model ->
+                val row = layoutInflater.inflate(R.layout.item_model_catalog_option, optionsContainer, false)
+                val optionRoot = row.findViewById<LinearLayout>(R.id.modelCatalogOptionRoot)
+                val tvModelName = row.findViewById<TextView>(R.id.tvModelCatalogName)
+                val tvModelMeta = row.findViewById<TextView>(R.id.tvModelCatalogMeta)
+                val ivCheck = row.findViewById<ImageView>(R.id.ivModelCatalogCheck)
+
+                tvModelName.text = model.id
+                tvModelName.setTextColor(textPrimary)
+                tvModelMeta.setTextColor(textSecondary)
+                ivCheck.setColorFilter(primaryColor)
+
+                val tags = mutableListOf<String>()
+                if (model.isReasoning) tags.add("推理")
+                if (model.isVision) tags.add("视觉")
+                if (model.supportedEndpointTypes.isNotEmpty()) {
+                    tags.add(model.supportedEndpointTypes.joinToString("/"))
+                }
+                if (multiSelect && existingIds.contains(model.id)) tags.add("已添加")
+                if (tags.isEmpty()) {
+                    val owner = model.ownedBy?.trim().orEmpty()
+                    tags.add(if (owner.isNotBlank()) owner else "OpenAI-Compatible")
+                }
+                tvModelMeta.text = tags.joinToString(" · ")
+
+                optionRoot.setOnClickListener {
+                    if (multiSelect) {
+                        if (selectedIds.contains(model.id)) {
+                            selectedIds.remove(model.id)
+                        } else {
+                            selectedIds.add(model.id)
+                        }
+                    } else {
+                        selectedSingleId = model.id
+                    }
+                    applyOptionSelectionUi()
+                    optionRoot.animate()
+                        .scaleX(0.98f)
+                        .scaleY(0.98f)
+                        .setDuration(70)
+                        .withEndAction {
+                            optionRoot.scaleX = 1f
+                            optionRoot.scaleY = 1f
+                        }
+                        .start()
+                }
+
+                optionsContainer.addView(row)
+                optionRows.add(Triple(optionRoot, ivCheck, model))
+                optionRoot.alpha = 0f
+                optionRoot.translationY = dp(6f)
+                optionRoot.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setStartDelay(index * 28L)
+                    .setDuration(180)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+            applyOptionSelectionUi()
+        }
+
+        filterContainer.removeAllViews()
+        categories.forEach { category ->
+            val chip = TextView(this).apply {
+                text = when (category) {
+                    ModelFilterCategory.ALL -> "全部"
+                    ModelFilterCategory.REASONING -> "推理"
+                    ModelFilterCategory.VISION -> "视觉"
+                }
+                textSize = 12f
+                gravity = android.view.Gravity.CENTER
+                val horizontalPadding = dp(12f).toInt()
+                val verticalPadding = dp(7f).toInt()
+                setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+                setOnClickListener {
+                    activeCategory = category
+                    applyCategoryUi()
+                    renderOptions()
+                }
+            }
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                marginEnd = dp(8f).toInt()
+            }
+            filterContainer.addView(chip, params)
+            categoryViews.add(chip to category)
+        }
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+        btnConfirm.setOnClickListener {
+            when (target) {
+                TestTarget.OCR -> {
+                    val selected = selectedSingleId ?: return@setOnClickListener
+                    etOcrModelId.setText(selected)
+                    etOcrModelId.setSelection(selected.length)
+                    markVerificationDirty()
+                }
+                TestTarget.FAST -> {
+                    if (selectedIds.isEmpty()) return@setOnClickListener
+                    mergeModelsIntoContainer(
+                        container = fastModelListContainer,
+                        additions = selectedIds.toList(),
+                        fallback = AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
+                    )
+                }
+                TestTarget.DEEP -> {
+                    if (selectedIds.isEmpty()) return@setOnClickListener
+                    mergeModelsIntoContainer(
+                        container = deepModelListContainer,
+                        additions = selectedIds.toList(),
+                        fallback = AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
+                    )
+                }
+            }
+            dialog.dismiss()
+        }
+
+        applyCategoryUi()
+        renderOptions()
+        dialog.show()
+        applyModelPickerDialogWindowSize(dialog)
+        root.alpha = 0f
+        root.translationY = dp(8f)
+        root.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(220)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+    }
+
+    private fun buildFilterCategories(
+        target: TestTarget,
+        models: List<CatalogModel>
+    ): List<ModelFilterCategory> {
+        return when (target) {
+            TestTarget.OCR -> listOf(ModelFilterCategory.VISION)
+            TestTarget.DEEP -> listOf(ModelFilterCategory.REASONING)
+            TestTarget.FAST -> {
+                val categories = mutableListOf(ModelFilterCategory.ALL)
+                if (models.any { it.isReasoning }) categories.add(ModelFilterCategory.REASONING)
+                if (models.any { it.isVision }) categories.add(ModelFilterCategory.VISION)
+                categories
+            }
+        }
+    }
+
+    private fun mergeModelsIntoContainer(
+        container: LinearLayout,
+        additions: List<String>,
+        fallback: String
+    ) {
+        val current = collectModelIds(container)
+        val merged = normalizeModelIds(current + additions, fallback)
+        setModelRows(container, merged, fallback)
+        markVerificationDirty()
+        applyTheme()
     }
 
     private fun testApi(target: TestTarget) {
@@ -661,6 +1138,14 @@ class SettingsActivity : AppCompatActivity() {
             .setDuration(220)
             .setInterpolator(DecelerateInterpolator())
             .start()
+    }
+
+    private fun getFetchButton(target: TestTarget): TextView {
+        return when (target) {
+            TestTarget.OCR -> btnFetchOcrModels
+            TestTarget.FAST -> btnFetchFastModels
+            TestTarget.DEEP -> btnFetchDeepModels
+        }
     }
 
     private fun getTestButton(target: TestTarget): TextView {
