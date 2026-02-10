@@ -469,6 +469,7 @@ class SettingsActivity : AppCompatActivity() {
         val testButton = getTestButton(target)
         testButton.isEnabled = false
         testButton.text = "检测中..."
+        var testSucceeded = false
 
         coroutineScope.launch {
             try {
@@ -497,7 +498,8 @@ class SettingsActivity : AppCompatActivity() {
                         isApiVerified = true
                         updateSaveButtonState()
                         saveSettingsWithoutFinish()
-                        showConnectionResultDialog(success = true)
+                        testSucceeded = true
+                        testButton.text = "连接成功"
                     } else {
                         isApiVerified = false
                         updateSaveButtonState()
@@ -516,7 +518,9 @@ class SettingsActivity : AppCompatActivity() {
             } finally {
                 withContext(Dispatchers.Main) {
                     testButton.isEnabled = true
-                    testButton.text = "检测"
+                    if (!testSucceeded) {
+                        testButton.text = "检测"
+                    }
                 }
             }
         }
@@ -871,9 +875,16 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun markVerificationDirty() {
+        resetTestStatusLabels()
         if (!isApiVerified) return
         isApiVerified = false
         updateSaveButtonState()
+    }
+
+    private fun resetTestStatusLabels() {
+        if (::btnTestOcr.isInitialized) btnTestOcr.text = "检测"
+        if (::btnTestFast.isInitialized) btnTestFast.text = "检测"
+        if (::btnTestDeep.isInitialized) btnTestDeep.text = "检测"
     }
 
     private fun compactInput(raw: String): String {
