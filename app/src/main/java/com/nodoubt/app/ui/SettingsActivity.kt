@@ -7,6 +7,7 @@ import android.animation.PropertyValuesHolder
 import android.app.Dialog
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.text.Editable
@@ -193,6 +194,9 @@ class SettingsActivity : AppCompatActivity() {
     private fun createDragCallback(adapter: ModelListAdapter): ItemTouchHelper.Callback {
         var hasMoved = false
         return object : ItemTouchHelper.Callback() {
+            private val visibleRect = Rect()
+            private val recyclerLocation = IntArray(2)
+
             override fun isLongPressDragEnabled(): Boolean = false
 
             override fun isItemViewSwipeEnabled(): Boolean = false
@@ -240,8 +244,9 @@ class SettingsActivity : AppCompatActivity() {
             ) {
                 if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
                     val itemView = viewHolder.itemView
-                    val maxUp = -itemView.top.toFloat()
-                    val maxDown = (recyclerView.height - itemView.bottom).toFloat()
+                    val (visibleTop, visibleBottom) = resolveVisibleBoundsInRecycler(recyclerView)
+                    val maxUp = visibleTop - itemView.top.toFloat()
+                    val maxDown = visibleBottom - itemView.bottom.toFloat()
                     val clampedDY = if (maxUp <= maxDown) {
                         dY.coerceIn(maxUp, maxDown)
                     } else {
@@ -251,6 +256,21 @@ class SettingsActivity : AppCompatActivity() {
                     return
                 }
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            }
+
+            private fun resolveVisibleBoundsInRecycler(recyclerView: RecyclerView): Pair<Float, Float> {
+                val hasVisible = recyclerView.getGlobalVisibleRect(visibleRect)
+                if (!hasVisible) {
+                    return 0f to recyclerView.height.toFloat()
+                }
+
+                recyclerView.getLocationOnScreen(recyclerLocation)
+                val top = (visibleRect.top - recyclerLocation[1]).coerceIn(0, recyclerView.height)
+                val bottom = (visibleRect.bottom - recyclerLocation[1]).coerceIn(0, recyclerView.height)
+                if (bottom <= top) {
+                    return 0f to recyclerView.height.toFloat()
+                }
+                return top.toFloat() to bottom.toFloat()
             }
 
             override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
