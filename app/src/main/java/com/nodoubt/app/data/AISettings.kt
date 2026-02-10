@@ -19,6 +19,7 @@ object AISettings {
 
     // OCR AI
     private const val KEY_OCR_MODEL_ID = "ocr_model_id"
+    private const val KEY_OCR_MODEL_LIST = "ocr_model_list"
 
     // Fast Mode AI
     private const val KEY_FAST_MODEL_ID = "fast_model_id"
@@ -89,22 +90,54 @@ object AISettings {
 
     // OCR Config
     fun getOCRConfig(context: Context): AIConfig {
-        val prefs = getPrefs(context)
-        val modelId = compactInput(
-            prefs.getString(KEY_OCR_MODEL_ID, DEFAULT_OCR_MODEL) ?: DEFAULT_OCR_MODEL
-        ).ifBlank { DEFAULT_OCR_MODEL }
         return AIConfig(
             baseUrl = getBaseUrl(context),
-            modelId = modelId,
+            modelId = getSelectedOCRModel(context),
             apiKey = getApiKey(context)
         )
     }
 
     fun saveOCRConfig(context: Context, modelId: String) {
+        val prefs = getPrefs(context)
         val normalizedModel = compactInput(modelId).ifBlank { DEFAULT_OCR_MODEL }
-        getPrefs(context).edit()
-            .putString(KEY_OCR_MODEL_ID, normalizedModel)
+        val mergedModels = normalizeModelList(listOf(normalizedModel) + getOCRModelList(context), DEFAULT_OCR_MODEL)
+        prefs.edit()
+            .putString(KEY_OCR_MODEL_ID, mergedModels.first())
+            .putString(KEY_OCR_MODEL_LIST, serializeModelList(mergedModels))
             .apply()
+    }
+
+    fun getOCRModelList(context: Context): List<String> {
+        val prefs = getPrefs(context)
+        val raw = prefs.getString(KEY_OCR_MODEL_LIST, null)
+        val fallback = compactInput(
+            prefs.getString(KEY_OCR_MODEL_ID, DEFAULT_OCR_MODEL) ?: DEFAULT_OCR_MODEL
+        ).ifBlank { DEFAULT_OCR_MODEL }
+        return parseModelList(raw, fallback)
+    }
+
+    fun saveOCRModelList(context: Context, modelIds: List<String>) {
+        val prefs = getPrefs(context)
+        val normalized = normalizeModelList(modelIds, DEFAULT_OCR_MODEL)
+        prefs.edit()
+            .putString(KEY_OCR_MODEL_LIST, serializeModelList(normalized))
+            .putString(KEY_OCR_MODEL_ID, normalized.first())
+            .apply()
+    }
+
+    fun getSelectedOCRModel(context: Context): String {
+        return getOCRModelList(context).first()
+    }
+
+    fun setSelectedOCRModel(context: Context, modelId: String) {
+        val normalized = compactInput(modelId)
+        if (normalized.isBlank()) return
+        val models = getOCRModelList(context)
+        if (!models.contains(normalized)) return
+        val reordered = mutableListOf(normalized).apply {
+            addAll(models.filter { it != normalized })
+        }
+        saveOCRModelList(context, reordered)
     }
 
     // Fast Mode Config

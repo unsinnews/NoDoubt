@@ -1448,63 +1448,86 @@ class AnswerPopupService : Service() {
             return
         }
 
-        val visionAPI = VisionAPI(config)
+        val ocrModels = AISettings.getOCRModelList(this@AnswerPopupService)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .ifEmpty { listOf(config.modelId) }
         var currentStreamingIndex = 1
 
-        ocrCall = visionAPI.extractQuestionsStreaming(bitmap, object : OCRStreamingCallback {
-            override fun onChunk(text: String, currentQuestionIndex: Int) {
-                handler.post {
-                    // 如果题目索引变了，说明进入了新题目
-                    if (currentQuestionIndex != currentStreamingIndex) {
-                        currentStreamingIndex = currentQuestionIndex
-                        // 为新题目创建卡片
-                        addNewQuestionCard(currentQuestionIndex)
+        fun startOcrAttempt(attemptIndex: Int) {
+            val modelId = ocrModels.getOrNull(attemptIndex) ?: run {
+                showError("OCR失败: 所有备选模型都请求失败")
+                return
+            }
+            val visionAPI = VisionAPI(config.copy(modelId = modelId))
+            var hasReceivedOutput = false
+
+            ocrCall = visionAPI.extractQuestionsStreaming(bitmap, object : OCRStreamingCallback {
+                override fun onChunk(text: String, currentQuestionIndex: Int) {
+                    hasReceivedOutput = true
+                    handler.post {
+                        // 如果题目索引变了，说明进入了新题目
+                        if (currentQuestionIndex != currentStreamingIndex) {
+                            currentStreamingIndex = currentQuestionIndex
+                            // 为新题目创建卡片
+                            addNewQuestionCard(currentQuestionIndex)
+                        }
+                        appendOCRTextToQuestion(text, currentStreamingIndex)
                     }
-                    appendOCRTextToQuestion(text, currentStreamingIndex)
                 }
-            }
 
-            override fun onQuestionReady(question: Question) {
-                handler.post {
-                    // 更新题目卡片的标题
-                    updateQuestionCardTitle(question.id)
-                    (currentQuestions as MutableList).add(question)
-                    // 立即开始解答这道题
-                    startSolvingQuestion(question)
+                override fun onQuestionReady(question: Question) {
+                    hasReceivedOutput = true
+                    handler.post {
+                        // 更新题目卡片的标题
+                        updateQuestionCardTitle(question.id)
+                        (currentQuestions as MutableList).add(question)
+                        // 立即开始解答这道题
+                        startSolvingQuestion(question)
+                    }
                 }
-            }
 
-            override fun onNoQuestionDetected() {
-                handler.post {
-                    // Cancel all pending requests (also clears ocrCall)
-                    cancelAllRequests()
-                    // Show no questions detected UI
-                    showNoQuestionsDetected()
-                    // Update header
-                    val view = popupView ?: return@post
-                    view.findViewById<ProgressBar>(R.id.headerLoading)?.visibility = View.GONE
-                    view.findViewById<TextView>(R.id.tvHeaderTitle)?.text = "未识别到题目"
-                    animateActionButtonIcon(R.drawable.ic_arrow_up_white)
-                }
-            }
-
-            override fun onComplete() {
-                handler.post {
-                    ocrCall = null  // Clear OCR call reference when complete
-                    if (currentQuestions.isEmpty()) {
+                override fun onNoQuestionDetected() {
+                    hasReceivedOutput = true
+                    handler.post {
+                        // Cancel all pending requests (also clears ocrCall)
+                        cancelAllRequests()
+                        // Show no questions detected UI
                         showNoQuestionsDetected()
+                        // Update header
+                        val view = popupView ?: return@post
+                        view.findViewById<ProgressBar>(R.id.headerLoading)?.visibility = View.GONE
+                        view.findViewById<TextView>(R.id.tvHeaderTitle)?.text = "未识别到题目"
+                        animateActionButtonIcon(R.drawable.ic_arrow_up_white)
                     }
-                    // 题目已经在 onQuestionReady 中开始解答了
                 }
-            }
 
-            override fun onError(error: Exception) {
-                handler.post {
-                    ocrCall = null  // Clear OCR call reference on error
-                    showError("OCR失败: ${error.message}")
+                override fun onComplete() {
+                    handler.post {
+                        ocrCall = null  // Clear OCR call reference when complete
+                        if (currentQuestions.isEmpty()) {
+                            showNoQuestionsDetected()
+                        }
+                        // 题目已经在 onQuestionReady 中开始解答了
+                    }
                 }
-            }
-        })
+
+                override fun onError(error: Exception) {
+                    handler.post {
+                        ocrCall = null  // Clear OCR call reference on error
+                        val hasBackup = attemptIndex < ocrModels.lastIndex
+                        val canFallback = hasBackup && !hasReceivedOutput && !isCancellationError(error)
+                        if (canFallback) {
+                            startOcrAttempt(attemptIndex + 1)
+                        } else {
+                            showError("OCR失败: ${error.message}")
+                        }
+                    }
+                }
+            })
+        }
+
+        startOcrAttempt(0)
     }
 
     private fun showOCRStreaming() {
@@ -1665,6 +1688,11 @@ class AnswerPopupService : Service() {
             hideLoading()
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun isCancellationError(error: Exception): Boolean {
+        val message = error.message?.lowercase().orEmpty()
+        return message.contains("canceled") || message.contains("cancelled")
     }
 
     private fun showReminder(message: String) {

@@ -168,7 +168,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="模型 ID"
+                        android:text="模型列表（按顺序备用）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
 
@@ -200,16 +200,24 @@
                         android:textStyle="bold"/>
                 </LinearLayout>
 
-                <EditText
-                    android:id="@+id/etOcrModelId"
+                <LinearLayout
+                    android:id="@+id/ocrModelListContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:hint="gpt-4o"
-                    android:inputType="text"
-                    android:background="@drawable/bg_edittext_settings"
-                    android:padding="12dp"
-                    android:textSize="14sp"/>
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"/>
+
+                <TextView
+                    android:id="@+id/btnAddOcrModel"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_dialog_item_unselected"
+                    android:gravity="center"
+                    android:text="+ 添加模型"
+                    android:textColor="#6E6E80"
+                    android:textSize="13sp"
+                    android:textStyle="bold"/>
 
             </LinearLayout>
 

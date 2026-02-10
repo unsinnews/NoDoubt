@@ -39,9 +39,10 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var etApiKey: EditText
     private lateinit var etBaseUrl: EditText
-    private lateinit var etOcrModelId: EditText
+    private lateinit var ocrModelListContainer: LinearLayout
     private lateinit var fastModelListContainer: LinearLayout
     private lateinit var deepModelListContainer: LinearLayout
+    private lateinit var btnAddOcrModel: TextView
     private lateinit var btnAddFastModel: TextView
     private lateinit var btnAddDeepModel: TextView
     private lateinit var btnFetchOcrModels: TextView
@@ -59,6 +60,7 @@ class SettingsActivity : AppCompatActivity() {
     private var isApiVerified = false
 
     companion object {
+        private const val DEFAULT_OCR_MODEL = "gpt-4o"
         private const val DEFAULT_FAST_MODEL = "gpt-4o-mini"
         private const val DEFAULT_DEEP_MODEL = "gpt-4o"
         private val WHITESPACE_REGEX = "\\s+".toRegex()
@@ -115,9 +117,10 @@ class SettingsActivity : AppCompatActivity() {
     private fun initViews() {
         etApiKey = findViewById(R.id.etApiKey)
         etBaseUrl = findViewById(R.id.etBaseUrl)
-        etOcrModelId = findViewById(R.id.etOcrModelId)
+        ocrModelListContainer = findViewById(R.id.ocrModelListContainer)
         fastModelListContainer = findViewById(R.id.fastModelListContainer)
         deepModelListContainer = findViewById(R.id.deepModelListContainer)
+        btnAddOcrModel = findViewById(R.id.btnAddOcrModel)
         btnAddFastModel = findViewById(R.id.btnAddFastModel)
         btnAddDeepModel = findViewById(R.id.btnAddDeepModel)
         btnFetchOcrModels = findViewById(R.id.btnFetchOcrModels)
@@ -185,12 +188,10 @@ class SettingsActivity : AppCompatActivity() {
             // EditTexts
             etApiKey.setBackgroundResource(R.drawable.bg_edittext_settings)
             etBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
-            etOcrModelId.setBackgroundResource(R.drawable.bg_edittext_settings)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
             etBaseUrl.setTextColor(textPrimary)
-            etOcrModelId.setTextColor(textPrimary)
 
             // Labels
             tvApiKeyLabel.setTextColor(textPrimary)
@@ -206,6 +207,8 @@ class SettingsActivity : AppCompatActivity() {
             tvDeepHint.setTextColor(textSecondary)
             tvDeepModelLabel.setTextColor(textPrimary)
 
+            btnAddOcrModel.setBackgroundResource(R.drawable.bg_button_outline)
+            btnAddOcrModel.setTextColor(primaryColor)
             btnAddFastModel.setBackgroundResource(R.drawable.bg_button_outline)
             btnAddFastModel.setTextColor(primaryColor)
             btnAddDeepModel.setBackgroundResource(R.drawable.bg_button_outline)
@@ -256,12 +259,10 @@ class SettingsActivity : AppCompatActivity() {
             // EditTexts
             etApiKey.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
             etBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-            etOcrModelId.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
             etBaseUrl.setTextColor(textPrimary)
-            etOcrModelId.setTextColor(textPrimary)
 
             // Labels
             tvApiKeyLabel.setTextColor(textPrimary)
@@ -277,6 +278,8 @@ class SettingsActivity : AppCompatActivity() {
             tvDeepHint.setTextColor(textSecondary)
             tvDeepModelLabel.setTextColor(textPrimary)
 
+            btnAddOcrModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnAddOcrModel.setTextColor(primaryColor)
             btnAddFastModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
             btnAddFastModel.setTextColor(primaryColor)
             btnAddDeepModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
@@ -308,7 +311,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun applyModelRowsTheme(textPrimary: Int, textSecondary: Int, isLightGreenGray: Boolean) {
-        val containers = listOf(fastModelListContainer, deepModelListContainer)
+        val containers = listOf(ocrModelListContainer, fastModelListContainer, deepModelListContainer)
         containers.forEach { container ->
             for (i in 0 until container.childCount) {
                 val row = container.getChildAt(i) ?: continue
@@ -336,8 +339,12 @@ class SettingsActivity : AppCompatActivity() {
         etBaseUrl.setText(AISettings.getBaseUrl(this))
 
         // OCR Config
-        val ocrConfig = AISettings.getOCRConfig(this)
-        etOcrModelId.setText(ocrConfig.modelId)
+        val ocrModels = AISettings.getOCRModelList(this).toMutableList()
+        val selectedOcr = AISettings.getSelectedOCRModel(this)
+        if (ocrModels.remove(selectedOcr)) {
+            ocrModels.add(0, selectedOcr)
+        }
+        setModelRows(ocrModelListContainer, ocrModels, DEFAULT_OCR_MODEL)
 
         // Fast Config
         val fastModels = AISettings.getFastModelList(this).toMutableList()
@@ -413,6 +420,12 @@ class SettingsActivity : AppCompatActivity() {
             finish()
         }
 
+        btnAddOcrModel.setOnClickListener {
+            addModelRow(ocrModelListContainer, "", true)
+            markVerificationDirty()
+            applyTheme()
+        }
+
         btnAddFastModel.setOnClickListener {
             addModelRow(fastModelListContainer, "", true)
             markVerificationDirty()
@@ -457,14 +470,15 @@ class SettingsActivity : AppCompatActivity() {
     private fun saveSettingsWithoutFinish() {
         val apiKey = sanitizeEditTextInPlace(etApiKey)
         val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
-        val ocrModelId = sanitizeEditTextInPlace(etOcrModelId)
 
         // Save API Key
         AISettings.saveApiKey(this, apiKey)
         AISettings.saveBaseUrl(this, baseUrl)
 
-        // Save OCR Config
-        AISettings.saveOCRConfig(this, ocrModelId)
+        val ocrModels = normalizeModelIds(
+            collectModelIds(ocrModelListContainer),
+            AISettings.getSelectedOCRModel(this).ifBlank { DEFAULT_OCR_MODEL }
+        )
 
         val fastModels = normalizeModelIds(
             collectModelIds(fastModelListContainer),
@@ -475,6 +489,7 @@ class SettingsActivity : AppCompatActivity() {
             AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
         )
 
+        AISettings.saveOCRModelList(this, ocrModels)
         AISettings.saveFastModelList(this, fastModels)
         AISettings.saveDeepModelList(this, deepModels)
 
@@ -500,9 +515,18 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         val fallbackModelId = when (target) {
-            TestTarget.OCR -> sanitizeEditTextInPlace(etOcrModelId).ifBlank { DEFAULT_DEEP_MODEL }
-            TestTarget.FAST -> AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
-            TestTarget.DEEP -> AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
+            TestTarget.OCR -> normalizeModelIds(
+                collectModelIds(ocrModelListContainer),
+                AISettings.getSelectedOCRModel(this).ifBlank { DEFAULT_OCR_MODEL }
+            ).first()
+            TestTarget.FAST -> normalizeModelIds(
+                collectModelIds(fastModelListContainer),
+                AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
+            ).first()
+            TestTarget.DEEP -> normalizeModelIds(
+                collectModelIds(deepModelListContainer),
+                AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
+            ).first()
         }
 
         val fetchButton = getFetchButton(target)
@@ -658,7 +682,6 @@ class SettingsActivity : AppCompatActivity() {
         val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
         val textPrimary = if (isLightGreenGray) 0xFF1D2A2F.toInt() else 0xFF2C241F.toInt()
         val textSecondary = if (isLightGreenGray) 0xFF5E6872.toInt() else 0xFF6F625B.toInt()
-        val multiSelect = target != TestTarget.OCR
 
         root.setBackgroundResource(
             if (isLightGreenGray) R.drawable.bg_model_dialog_surface
@@ -695,11 +718,11 @@ class SettingsActivity : AppCompatActivity() {
             TestTarget.DEEP -> "添加深度模型"
         }
         tvSubtitle.text = when (target) {
-            TestTarget.OCR -> "仅展示识别为视觉能力的模型，点击即使用"
+            TestTarget.OCR -> "支持手动多选，按顺序作为 OCR 备用模型"
             TestTarget.FAST -> "支持手动多选，可按类别/前缀筛选，底部固定确定"
             TestTarget.DEEP -> "支持手动多选，可按前缀筛选，底部固定确定"
         }
-        btnConfirm.text = if (multiSelect) "确定" else "关闭"
+        btnConfirm.text = "确定"
 
         val categories = buildFilterCategories(target, models)
         var activeCategory = categories.first()
@@ -707,16 +730,13 @@ class SettingsActivity : AppCompatActivity() {
         val prefixKeys = prefixCountMap.keys.toList()
         var activePrefix: String? = null
 
-        val existingOcrModelId = if (target == TestTarget.OCR) sanitizeEditTextInPlace(etOcrModelId) else ""
         val existingIds = when (target) {
-            TestTarget.OCR -> setOf(existingOcrModelId).filter { it.isNotBlank() }.toSet()
+            TestTarget.OCR -> collectModelIds(ocrModelListContainer).toSet()
             TestTarget.FAST -> collectModelIds(fastModelListContainer).toSet()
             TestTarget.DEEP -> collectModelIds(deepModelListContainer).toSet()
         }
         val selectedIds = mutableSetOf<String>()
-        if (multiSelect) {
-            selectedIds.addAll(models.map { it.id }.filter { existingIds.contains(it) })
-        }
+        selectedIds.addAll(models.map { it.id }.filter { existingIds.contains(it) })
 
         // Keep option list in a fixed-height scroll area so bottom actions stay anchored.
         val screenHeight = resources.displayMetrics.heightPixels
@@ -766,14 +786,6 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         fun updateConfirmStateAndBulkButtons() {
-            if (!multiSelect) {
-                btnConfirm.isEnabled = true
-                btnConfirm.alpha = 1f
-                btnToggleAllSelection.visibility = View.GONE
-                btnTogglePrefixSelection.visibility = View.GONE
-                return
-            }
-
             btnToggleAllSelection.visibility = View.VISIBLE
             btnTogglePrefixSelection.visibility =
                 if (prefixRow.visibility == View.VISIBLE) View.VISIBLE else View.GONE
@@ -799,11 +811,7 @@ class SettingsActivity : AppCompatActivity() {
 
         fun applyOptionSelectionUi() {
             optionRows.forEach { (optionRoot, ivCheck, model) ->
-                val isSelected = if (multiSelect) {
-                    selectedIds.contains(model.id)
-                } else {
-                    model.id == existingOcrModelId
-                }
+                val isSelected = selectedIds.contains(model.id)
                 ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
                 optionRoot.setBackgroundResource(
                     when {
@@ -854,19 +862,12 @@ class SettingsActivity : AppCompatActivity() {
                         .withEndAction {
                             optionRoot.scaleX = 1f
                             optionRoot.scaleY = 1f
-                            if (multiSelect) {
-                                if (selectedIds.contains(model.id)) {
-                                    selectedIds.remove(model.id)
-                                } else {
-                                    selectedIds.add(model.id)
-                                }
-                                applyOptionSelectionUi()
+                            if (selectedIds.contains(model.id)) {
+                                selectedIds.remove(model.id)
                             } else {
-                                etOcrModelId.setText(model.id)
-                                etOcrModelId.setSelection(model.id.length)
-                                markVerificationDirty()
-                                dialog.dismiss()
+                                selectedIds.add(model.id)
                             }
+                            applyOptionSelectionUi()
                         }
                         .start()
                 }
@@ -935,7 +936,7 @@ class SettingsActivity : AppCompatActivity() {
             categoryViews.add(chip to category)
         }
 
-        if (target == TestTarget.OCR || prefixKeys.isEmpty()) {
+        if (prefixKeys.isEmpty()) {
             prefixRow.visibility = View.GONE
         } else {
             prefixRow.visibility = View.VISIBLE
@@ -977,7 +978,6 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         btnToggleAllSelection.setOnClickListener {
-            if (!multiSelect) return@setOnClickListener
             val categoryIds = currentCategoryModels().map { it.id }
             if (categoryIds.isEmpty()) return@setOnClickListener
             val allSelected = categoryIds.all { selectedIds.contains(it) }
@@ -990,7 +990,6 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         btnTogglePrefixSelection.setOnClickListener {
-            if (!multiSelect) return@setOnClickListener
             val prefixIds = currentPrefixModels().map { it.id }
             if (prefixIds.isEmpty()) return@setOnClickListener
             val allPrefixSelected = prefixIds.all { selectedIds.contains(it) }
@@ -1008,7 +1007,13 @@ class SettingsActivity : AppCompatActivity() {
                 .map { it.id }
                 .filter { selectedIds.contains(it) }
             when (target) {
-                TestTarget.OCR -> Unit
+                TestTarget.OCR -> {
+                    replaceModelsInContainer(
+                        container = ocrModelListContainer,
+                        nextModels = orderedSelectedIds,
+                        fallback = DEFAULT_OCR_MODEL
+                    )
+                }
                 TestTarget.FAST -> {
                     replaceModelsInContainer(
                         container = fastModelListContainer,
@@ -1116,7 +1121,7 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
 
-        if (target == TestTarget.OCR || modelCandidates.size == 1) {
+        if (modelCandidates.size == 1) {
             runApiTest(target, apiKey, baseUrl, modelCandidates.first())
             return
         }
@@ -1189,10 +1194,10 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun getModelCandidatesForTest(target: TestTarget): List<String> {
         return when (target) {
-            TestTarget.OCR -> {
-                val model = sanitizeEditTextInPlace(etOcrModelId)
-                if (model.isBlank()) emptyList() else listOf(model)
-            }
+            TestTarget.OCR -> normalizeModelIds(
+                collectModelIds(ocrModelListContainer),
+                AISettings.getSelectedOCRModel(this).ifBlank { DEFAULT_OCR_MODEL }
+            )
             TestTarget.FAST -> normalizeModelIds(
                 collectModelIds(fastModelListContainer),
                 AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
@@ -1226,7 +1231,7 @@ class SettingsActivity : AppCompatActivity() {
         val selectedModel = when (target) {
             TestTarget.FAST -> AISettings.getSelectedFastModel(this)
             TestTarget.DEEP -> AISettings.getSelectedDeepModel(this)
-            TestTarget.OCR -> sanitizeEditTextInPlace(etOcrModelId)
+            TestTarget.OCR -> AISettings.getSelectedOCRModel(this)
         }
         var pendingSelectedModel = selectedModel.takeIf { models.contains(it) } ?: models.first()
 
@@ -1536,9 +1541,6 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         addCompactInputWatcher(etBaseUrl) {
-            markVerificationDirty()
-        }
-        addCompactInputWatcher(etOcrModelId) {
             markVerificationDirty()
         }
     }
