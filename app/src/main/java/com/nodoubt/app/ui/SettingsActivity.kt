@@ -732,11 +732,12 @@ class SettingsActivity : AppCompatActivity() {
 
             fun applyOptionSelectionUi() {
                 optionRows.forEach { (optionRoot, ivCheck, model) ->
-                    val isSelected = if (multiSelect) {
+                    val isAlreadyAdded = multiSelect && existingIds.contains(model.id)
+                    val isSelected = (if (multiSelect) {
                         selectedIds.contains(model.id)
                     } else {
                         model.id == selectedSingleId
-                    }
+                    }) || isAlreadyAdded
                     ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
                     optionRoot.setBackgroundResource(
                         when {
@@ -768,7 +769,6 @@ class SettingsActivity : AppCompatActivity() {
                 if (model.supportedEndpointTypes.isNotEmpty()) {
                     tags.add(model.supportedEndpointTypes.joinToString("/"))
                 }
-                if (multiSelect && existingIds.contains(model.id)) tags.add("已添加")
                 if (tags.isEmpty()) {
                     val owner = model.ownedBy?.trim().orEmpty()
                     tags.add(if (owner.isNotBlank()) owner else "OpenAI-Compatible")
@@ -791,35 +791,21 @@ class SettingsActivity : AppCompatActivity() {
                                     dialog.dismiss()
                                 }
                                 TestTarget.FAST -> {
-                                    val added = addSingleModelIntoContainerIfMissing(
+                                    addSingleModelIntoContainerIfMissing(
                                         container = fastModelListContainer,
                                         modelId = model.id,
                                         fallback = AISettings.getSelectedFastModel(this@SettingsActivity)
                                             .ifBlank { DEFAULT_FAST_MODEL }
                                     )
-                                    if (!added) {
-                                        Toast.makeText(
-                                            this@SettingsActivity,
-                                            "模型已在极速列表中",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
                                     dialog.dismiss()
                                 }
                                 TestTarget.DEEP -> {
-                                    val added = addSingleModelIntoContainerIfMissing(
+                                    addSingleModelIntoContainerIfMissing(
                                         container = deepModelListContainer,
                                         modelId = model.id,
                                         fallback = AISettings.getSelectedDeepModel(this@SettingsActivity)
                                             .ifBlank { DEFAULT_DEEP_MODEL }
                                     )
-                                    if (!added) {
-                                        Toast.makeText(
-                                            this@SettingsActivity,
-                                            "模型已在深度列表中",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
                                     dialog.dismiss()
                                 }
                             }
