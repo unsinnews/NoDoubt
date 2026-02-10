@@ -23,7 +23,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.nodoubt.app.R
 import com.nodoubt.app.data.AIConfig
@@ -545,18 +544,101 @@ class SettingsActivity : AppCompatActivity() {
         models: List<String>,
         onModelSelected: (String) -> Unit
     ) {
-        val title = when (target) {
+        val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
+        val dialog = Dialog(this, R.style.RoundedDialog)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_model_picker)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val root = dialog.findViewById<LinearLayout>(R.id.modelPickerRoot)
+        val tvTitle = dialog.findViewById<TextView>(R.id.tvModelPickerTitle)
+        val tvSubtitle = dialog.findViewById<TextView>(R.id.tvModelPickerSubtitle)
+        val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelPickerOptionsContainer)
+        val btnCancel = dialog.findViewById<TextView>(R.id.btnCancelModelPicker)
+
+        val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
+        val textPrimary = if (isLightGreenGray) 0xFF1D2A2F.toInt() else 0xFF2C241F.toInt()
+        val textSecondary = if (isLightGreenGray) 0xFF647177.toInt() else 0xFF6F625B.toInt()
+        val selectedModel = when (target) {
+            TestTarget.FAST -> AISettings.getSelectedFastModel(this)
+            TestTarget.DEEP -> AISettings.getSelectedDeepModel(this)
+            TestTarget.OCR -> sanitizeEditTextInPlace(etOcrModelId)
+        }
+
+        root.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_model_dialog_surface
+            else R.drawable.bg_model_dialog_surface_light_brown_black
+        )
+        tvTitle.text = when (target) {
             TestTarget.FAST -> "选择极速模式检测模型"
             TestTarget.DEEP -> "选择深度模式检测模型"
             TestTarget.OCR -> "选择检测模型"
         }
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setItems(models.toTypedArray()) { _, which ->
-                onModelSelected(models[which])
+        tvTitle.setTextColor(textPrimary)
+        tvSubtitle.setTextColor(textSecondary)
+        btnCancel.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_button_outline
+            else R.drawable.bg_button_outline_light_brown_black
+        )
+        btnCancel.setTextColor(primaryColor)
+        btnCancel.setOnClickListener { dialog.dismiss() }
+
+        optionsContainer.removeAllViews()
+        models.forEachIndexed { index, model ->
+            val row = layoutInflater.inflate(R.layout.item_model_picker_option, optionsContainer, false)
+            val optionRoot = row.findViewById<LinearLayout>(R.id.modelPickerOptionRoot)
+            val tvModelName = row.findViewById<TextView>(R.id.tvModelPickerName)
+            val ivCheck = row.findViewById<ImageView>(R.id.ivModelPickerCheck)
+            val isSelected = model == selectedModel
+
+            tvModelName.text = model
+            tvModelName.setTextColor(textPrimary)
+            ivCheck.setColorFilter(primaryColor)
+            ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
+            optionRoot.setBackgroundResource(
+                when {
+                    isSelected && isLightGreenGray -> R.drawable.bg_model_option_selected
+                    isSelected && !isLightGreenGray -> R.drawable.bg_model_option_selected_light_brown_black
+                    !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
+                    else -> R.drawable.bg_model_option_unselected_light_brown_black
+                }
+            )
+
+            optionRoot.setOnClickListener {
+                optionRoot.isEnabled = false
+                optionRoot.animate()
+                    .scaleX(0.98f)
+                    .scaleY(0.98f)
+                    .setDuration(70)
+                    .withEndAction {
+                        dialog.dismiss()
+                        onModelSelected(model)
+                    }
+                    .start()
             }
-            .setNegativeButton("取消", null)
-            .show()
+
+            optionsContainer.addView(row)
+            optionRoot.alpha = 0f
+            optionRoot.translationY = dp(6f)
+            optionRoot.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay((index * 35L))
+                .setDuration(180)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
+
+        dialog.show()
+        applyModelPickerDialogWindowSize(dialog)
+        root.alpha = 0f
+        root.translationY = dp(8f)
+        root.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(220)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
     }
 
     private fun getTestButton(target: TestTarget): TextView {
@@ -627,7 +709,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         dialog.show()
-        applyResultDialogWindowSize(dialog)
+        applyResultDialogWindowSize(dialog, success)
 
         if (success) {
             startSuccessResultAnimation(dialog, root, statusOrb, ivStatusIcon, ringOuter, ringInner)
@@ -645,37 +727,37 @@ class SettingsActivity : AppCompatActivity() {
         ringInner: View
     ) {
         root.alpha = 0f
-        root.translationY = dp(12f)
+        root.translationY = dp(6f)
         root.animate()
             .alpha(1f)
             .translationY(0f)
-            .setDuration(280)
+            .setDuration(220)
             .setInterpolator(DecelerateInterpolator())
             .start()
 
-        orb.scaleX = 0.9f
-        orb.scaleY = 0.9f
+        orb.scaleX = 0.92f
+        orb.scaleY = 0.92f
         icon.alpha = 0f
-        icon.scaleX = 0.82f
-        icon.scaleY = 0.82f
-        icon.rotation = -8f
+        icon.scaleX = 0.88f
+        icon.scaleY = 0.88f
+        icon.rotation = -5f
 
         AnimatorSet().apply {
             playTogether(
-                ObjectAnimator.ofFloat(orb, View.SCALE_X, 0.9f, 1f),
-                ObjectAnimator.ofFloat(orb, View.SCALE_Y, 0.9f, 1f),
+                ObjectAnimator.ofFloat(orb, View.SCALE_X, 0.92f, 1f),
+                ObjectAnimator.ofFloat(orb, View.SCALE_Y, 0.92f, 1f),
                 ObjectAnimator.ofFloat(icon, View.ALPHA, 0f, 1f),
-                ObjectAnimator.ofFloat(icon, View.SCALE_X, 0.82f, 1f),
-                ObjectAnimator.ofFloat(icon, View.SCALE_Y, 0.82f, 1f),
-                ObjectAnimator.ofFloat(icon, View.ROTATION, -8f, 0f)
+                ObjectAnimator.ofFloat(icon, View.SCALE_X, 0.88f, 1f),
+                ObjectAnimator.ofFloat(icon, View.SCALE_Y, 0.88f, 1f),
+                ObjectAnimator.ofFloat(icon, View.ROTATION, -5f, 0f)
             )
-            duration = 380
-            interpolator = OvershootInterpolator(0.8f)
+            duration = 300
+            interpolator = OvershootInterpolator(0.6f)
             start()
         }
 
         val outerPulse = createRingPulseAnimator(ringOuter, delayMs = 0L)
-        val innerPulse = createRingPulseAnimator(ringInner, delayMs = 260L)
+        val innerPulse = createRingPulseAnimator(ringInner, delayMs = 200L)
         outerPulse.start()
         innerPulse.start()
 
@@ -693,20 +775,20 @@ class SettingsActivity : AppCompatActivity() {
         ringInner: View
     ) {
         root.alpha = 0f
-        root.translationY = dp(10f)
+        root.translationY = dp(6f)
         root.animate()
             .alpha(1f)
             .translationY(0f)
-            .setDuration(220)
+            .setDuration(200)
             .setInterpolator(DecelerateInterpolator())
             .start()
 
-        orb.scaleX = 0.9f
-        orb.scaleY = 0.9f
+        orb.scaleX = 0.93f
+        orb.scaleY = 0.93f
         orb.animate()
             .scaleX(1f)
             .scaleY(1f)
-            .setDuration(180)
+            .setDuration(150)
             .setInterpolator(DecelerateInterpolator())
             .start()
 
@@ -723,11 +805,11 @@ class SettingsActivity : AppCompatActivity() {
     private fun createRingPulseAnimator(target: View, delayMs: Long): Animator {
         return ObjectAnimator.ofPropertyValuesHolder(
             target,
-            PropertyValuesHolder.ofFloat(View.SCALE_X, 0.94f, 1.02f, 1.09f),
-            PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.94f, 1.02f, 1.09f),
-            PropertyValuesHolder.ofFloat(View.ALPHA, 0.08f, 0.34f, 0f)
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 0.95f, 1.01f, 1.06f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.95f, 1.01f, 1.06f),
+            PropertyValuesHolder.ofFloat(View.ALPHA, 0.06f, 0.26f, 0f)
         ).apply {
-            duration = 1400
+            duration = 1200
             startDelay = delayMs
             repeatCount = ObjectAnimator.INFINITE
             repeatMode = ObjectAnimator.RESTART
@@ -739,10 +821,18 @@ class SettingsActivity : AppCompatActivity() {
         return value * resources.displayMetrics.density
     }
 
-    private fun applyResultDialogWindowSize(dialog: Dialog) {
+    private fun applyResultDialogWindowSize(dialog: Dialog, success: Boolean) {
         val screenWidth = resources.displayMetrics.widthPixels
-        val maxWidth = dp(420f).toInt()
-        val targetWidth = minOf((screenWidth * 0.9f).toInt(), maxWidth)
+        val maxWidth = if (success) dp(230f).toInt() else dp(360f).toInt()
+        val ratio = if (success) 0.72f else 0.9f
+        val targetWidth = minOf((screenWidth * ratio).toInt(), maxWidth)
+        dialog.window?.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun applyModelPickerDialogWindowSize(dialog: Dialog) {
+        val screenWidth = resources.displayMetrics.widthPixels
+        val maxWidth = dp(340f).toInt()
+        val targetWidth = minOf((screenWidth * 0.88f).toInt(), maxWidth)
         dialog.window?.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
     }
 
