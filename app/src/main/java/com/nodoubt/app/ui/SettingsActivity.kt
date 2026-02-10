@@ -5,6 +5,7 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.app.Dialog
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
@@ -25,7 +26,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -112,7 +112,6 @@ class SettingsActivity : AppCompatActivity() {
         val textPrimary: Int,
         val textSecondary: Int,
         val rowBackgroundRes: Int,
-        val rowDraggingBackgroundRes: Int,
         val actionButtonBackgroundRes: Int
     )
 
@@ -184,13 +183,8 @@ class SettingsActivity : AppCompatActivity() {
         recyclerView.adapter = adapter
         recyclerView.setHasFixedSize(false)
         recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
-        recyclerView.itemAnimator = DefaultItemAnimator().apply {
-            addDuration = 160L
-            removeDuration = 120L
-            moveDuration = 200L
-            changeDuration = 140L
-            supportsChangeAnimations = false
-        }
+        // ItemTouchHelper + ScrollView scene can produce stale alpha/translation with default animator.
+        recyclerView.itemAnimator = null
 
         itemTouchHelper = ItemTouchHelper(createDragCallback(adapter))
         itemTouchHelper.attachToRecyclerView(recyclerView)
@@ -216,24 +210,51 @@ class SettingsActivity : AppCompatActivity() {
                 viewHolder: RecyclerView.ViewHolder,
                 target: RecyclerView.ViewHolder
             ): Boolean {
-                val from = viewHolder.bindingAdapterPosition
-                val to = target.bindingAdapterPosition
-                if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
-                val moved = adapter.moveItem(from, to)
-                if (moved) {
-                    hasMoved = true
-                    adapter.setDraggingPosition(to)
+                return try {
+                    val from = viewHolder.bindingAdapterPosition
+                    val to = target.bindingAdapterPosition
+                    if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
+                    val moved = adapter.moveItem(from, to)
+                    if (moved) {
+                        hasMoved = true
+                    }
+                    moved
+                } catch (_: Exception) {
+                    false
                 }
-                return moved
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
+            override fun onChildDraw(
+                c: Canvas,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                dX: Float,
+                dY: Float,
+                actionState: Int,
+                isCurrentlyActive: Boolean
+            ) {
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    val itemView = viewHolder.itemView
+                    val maxUp = -itemView.top.toFloat()
+                    val maxDown = (recyclerView.height - itemView.bottom).toFloat()
+                    val clampedDY = if (maxUp <= maxDown) {
+                        dY.coerceIn(maxUp, maxDown)
+                    } else {
+                        dY
+                    }
+                    super.onChildDraw(c, recyclerView, viewHolder, dX, clampedDY, actionState, isCurrentlyActive)
+                    return
+                }
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            }
 
             override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
                 super.onSelectedChanged(viewHolder, actionState)
                 if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && viewHolder != null) {
                     hasMoved = false
-                    adapter.setDraggingPosition(viewHolder.bindingAdapterPosition)
+                    recyclerViewParent(viewHolder.itemView)?.requestDisallowInterceptTouchEvent(true)
                     viewHolder.itemView.animate().cancel()
                     viewHolder.itemView.animate()
                         .scaleX(1.035f)
@@ -247,7 +268,7 @@ class SettingsActivity : AppCompatActivity() {
 
             override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(recyclerView, viewHolder)
-                adapter.clearDraggingPosition()
+                recyclerView.parent?.requestDisallowInterceptTouchEvent(false)
                 viewHolder.itemView.animate().cancel()
                 viewHolder.itemView.animate()
                     .scaleX(1f)
@@ -259,6 +280,10 @@ class SettingsActivity : AppCompatActivity() {
                 if (hasMoved) {
                     markVerificationDirty()
                 }
+            }
+
+            private fun recyclerViewParent(itemView: View): android.view.ViewParent? {
+                return (itemView.parent as? RecyclerView)?.parent
             }
         }
     }
@@ -444,11 +469,6 @@ class SettingsActivity : AppCompatActivity() {
                 R.drawable.bg_model_option_unselected
             } else {
                 R.drawable.bg_model_option_unselected_light_brown_black
-            },
-            rowDraggingBackgroundRes = if (isLightGreenGray) {
-                R.drawable.bg_model_option_selected
-            } else {
-                R.drawable.bg_model_option_selected_light_brown_black
             },
             actionButtonBackgroundRes = if (isLightGreenGray) {
                 R.drawable.bg_button_outline
@@ -1800,14 +1820,16 @@ class SettingsActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<ModelListAdapter.ModelViewHolder>() {
 
         private val items = mutableListOf<String>()
-        private var draggingPosition = RecyclerView.NO_POSITION
         private var palette = ModelRowPalette(
             textPrimary = 0xFF202123.toInt(),
             textSecondary = 0xFF6E6E80.toInt(),
             rowBackgroundRes = R.drawable.bg_model_option_unselected,
-            rowDraggingBackgroundRes = R.drawable.bg_model_option_selected,
             actionButtonBackgroundRes = R.drawable.bg_button_outline
         )
+
+        init {
+            setHasStableIds(true)
+        }
 
         inner class ModelViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             private val rowRoot = view.findViewById<LinearLayout>(R.id.modelRowRoot)
@@ -1830,15 +1852,20 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
 
-            fun bind(modelId: String, isDragging: Boolean) {
+            fun bind(modelId: String) {
+                // Defensive reset to avoid recycled stale animation state after drag.
+                itemView.alpha = 1f
+                itemView.translationX = 0f
+                itemView.translationY = 0f
+                itemView.scaleX = 1f
+                itemView.scaleY = 1f
+                itemView.translationZ = 0f
                 tvModelId.text = modelId
                 tvModelId.setTextColor(palette.textPrimary)
                 ivDragHandle.setColorFilter(palette.textSecondary)
                 btnRemoveModel.setColorFilter(palette.textSecondary)
                 btnRemoveModel.setBackgroundResource(palette.actionButtonBackgroundRes)
-                rowRoot.setBackgroundResource(
-                    if (isDragging) palette.rowDraggingBackgroundRes else palette.rowBackgroundRes
-                )
+                rowRoot.setBackgroundResource(palette.rowBackgroundRes)
             }
         }
 
@@ -1848,15 +1875,18 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         override fun onBindViewHolder(holder: ModelViewHolder, position: Int) {
-            holder.bind(items[position], position == draggingPosition)
+            holder.bind(items[position])
         }
 
         override fun getItemCount(): Int = items.size
 
+        override fun getItemId(position: Int): Long {
+            return items.getOrNull(position)?.hashCode()?.toLong() ?: RecyclerView.NO_ID
+        }
+
         fun setItems(nextItems: List<String>) {
             items.clear()
             items.addAll(nextItems)
-            draggingPosition = RecyclerView.NO_POSITION
             notifyDataSetChanged()
         }
 
@@ -1874,7 +1904,6 @@ class SettingsActivity : AppCompatActivity() {
             if (position !in items.indices) return
             items.removeAt(position)
             notifyItemRemoved(position)
-            notifyItemRangeChanged(position, items.size - position)
         }
 
         fun moveItem(from: Int, to: Int): Boolean {
@@ -1890,20 +1919,6 @@ class SettingsActivity : AppCompatActivity() {
             }
             notifyItemMoved(from, to)
             return true
-        }
-
-        fun setDraggingPosition(position: Int) {
-            if (draggingPosition == position) return
-            val previous = draggingPosition
-            draggingPosition = position
-            if (previous != RecyclerView.NO_POSITION) notifyItemChanged(previous)
-            if (position != RecyclerView.NO_POSITION) notifyItemChanged(position)
-        }
-
-        fun clearDraggingPosition() {
-            val previous = draggingPosition
-            draggingPosition = RecyclerView.NO_POSITION
-            if (previous != RecyclerView.NO_POSITION) notifyItemChanged(previous)
         }
 
         fun applyPalette(newPalette: ModelRowPalette) {
