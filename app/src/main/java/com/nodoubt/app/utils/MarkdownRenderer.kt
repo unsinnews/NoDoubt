@@ -90,9 +90,7 @@ object MarkdownRenderer {
 
     private const val TAG = "MarkdownRenderer"
     private const val DEBOUNCE_DELAY = 150L
-    private const val STREAM_FRAME_DELAY = 48L
-    private const val STREAM_MARKDOWN_INTERVAL = 220L
-    private const val STREAM_MARKDOWN_LENGTH_THRESHOLD = 1200
+    private const val STREAM_FRAME_DELAY = 24L
 
     @Volatile
     private var basicMarkwon: Markwon? = null
@@ -113,7 +111,6 @@ object MarkdownRenderer {
     private val streamingContent = ConcurrentHashMap<Int, String>()
     private val pendingStreamingRenders = ConcurrentHashMap<Int, Runnable>()
     private val lastStreamingRenderAt = ConcurrentHashMap<Int, Long>()
-    private val lastStreamingMarkdownAt = ConcurrentHashMap<Int, Long>()
 
     private fun getBasicMarkwon(context: Context): Markwon {
         return basicMarkwon ?: synchronized(this) {
@@ -304,7 +301,6 @@ object MarkdownRenderer {
         streamingContent.remove(viewId)
         lastStreamingRenderedContent.remove(viewId)
         lastStreamingRenderAt.remove(viewId)
-        lastStreamingMarkdownAt.remove(viewId)
 
         if (text.isEmpty()) {
             textView.text = ""
@@ -347,16 +343,17 @@ object MarkdownRenderer {
             streamingContent.remove(viewId)
             lastStreamingRenderedContent.remove(viewId)
             lastStreamingRenderAt.remove(viewId)
-            lastStreamingMarkdownAt.remove(viewId)
             return
         }
 
-        // Streaming phase: throttle and render markdown in real time.
+        // Streaming phase: prioritize low-latency plain text updates.
+        // Full markdown/latex formatting is applied in flushAIResponse().
         pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
         pendingRenders.remove(viewId)
-        val previous = streamingContent.put(viewId, text)
+        val normalized = normalizeDelimiters(text)
+        val previous = streamingContent.put(viewId, normalized)
         val hasPendingRender = pendingStreamingRenders.containsKey(viewId)
-        if (previous == text && hasPendingRender) {
+        if (previous == normalized && hasPendingRender) {
             return
         }
         scheduleStreamingRender(viewId, textView)
@@ -369,28 +366,19 @@ object MarkdownRenderer {
         val applyTask = Runnable {
             pendingStreamingRenders.remove(viewId)
             val latest = streamingContent[viewId] ?: return@Runnable
-            val normalizedLatest = normalizeDelimiters(latest)
-            val hasRenderedSame = lastStreamingRenderedContent[viewId] == normalizedLatest
-            val now = SystemClock.uptimeMillis()
-            val lastMarkdownAt = lastStreamingMarkdownAt[viewId] ?: 0L
-            val shouldRenderMarkdown = normalizedLatest.length <= STREAM_MARKDOWN_LENGTH_THRESHOLD ||
-                (now - lastMarkdownAt) >= STREAM_MARKDOWN_INTERVAL
-
-            if (!hasRenderedSame) {
-                if (shouldRenderMarkdown) {
-                    try {
-                        getBasicMarkwon(textView.context).setMarkdown(textView, normalizedLatest)
-                        lastStreamingRenderedContent[viewId] = normalizedLatest
-                        lastStreamingMarkdownAt[viewId] = now
-                    } catch (e: Throwable) {
-                        Log.e(TAG, "Streaming render error", e)
-                        textView.text = normalizedLatest
-                    }
-                } else if (textView.text?.toString() != normalizedLatest) {
-                    // Keep real-time feedback smooth for long streams; final flush applies full formatting.
-                    textView.text = normalizedLatest
+            val lastRendered = lastStreamingRenderedContent[viewId].orEmpty()
+            if (latest != lastRendered) {
+                val canAppend = lastRendered.isNotEmpty() &&
+                    latest.startsWith(lastRendered) &&
+                    textView.text?.toString() == lastRendered
+                if (canAppend) {
+                    textView.append(latest.substring(lastRendered.length))
+                } else {
+                    textView.text = latest
                 }
+                lastStreamingRenderedContent[viewId] = latest
             }
+            val now = SystemClock.uptimeMillis()
             lastStreamingRenderAt[viewId] = now
             // If text changed while this frame was rendering, queue another frame.
             if (streamingContent[viewId] != latest) {
@@ -416,8 +404,30 @@ object MarkdownRenderer {
         streamingContent.remove(viewId)
         lastStreamingRenderedContent.remove(viewId)
         lastStreamingRenderAt.remove(viewId)
-        lastStreamingMarkdownAt.remove(viewId)
-        renderAIResponse(context, textView, text)
+        pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+        pendingRenders.remove(viewId)
+
+        if (text.isEmpty()) {
+            lastRenderedContent.remove(viewId)
+            textView.text = ""
+            return
+        }
+
+        if (lastRenderedContent[viewId] == text) {
+            return
+        }
+
+        try {
+            lastRenderedContent[viewId] = text
+            processLatex(context, textView, text)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Flush render error", e)
+            try {
+                getBasicMarkwon(context).setMarkdown(textView, text)
+            } catch (_: Throwable) {
+                textView.text = text
+            }
+        }
     }
 
     fun renderQuestionText(context: Context, textView: TextView, text: String) {
@@ -464,7 +474,6 @@ object MarkdownRenderer {
         pendingStreamingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
         pendingStreamingRenders.remove(viewId)
         lastStreamingRenderAt.remove(viewId)
-        lastStreamingMarkdownAt.remove(viewId)
     }
 
     fun clearCache() {
@@ -477,6 +486,5 @@ object MarkdownRenderer {
         streamingContent.clear()
         lastStreamingRenderedContent.clear()
         lastStreamingRenderAt.clear()
-        lastStreamingMarkdownAt.clear()
     }
 }

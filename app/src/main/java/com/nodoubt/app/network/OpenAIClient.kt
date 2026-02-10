@@ -83,8 +83,8 @@ class OpenAIClient(private val config: AIConfig) {
                         var thinkingActive = false
                         while (!call.isCanceled() && reader.readLine().also { line = it } != null) {
                             val currentLine = line ?: continue
-                            if (currentLine.startsWith("data: ")) {
-                                val data = currentLine.substring(6).trim()
+                            if (currentLine.startsWith("data:")) {
+                                val data = currentLine.removePrefix("data:").trim()
                                 if (data == "[DONE]") {
                                     if (!call.isCanceled()) {
                                         if (thinkingActive) {
@@ -215,6 +215,15 @@ class OpenAIClient(private val config: AIConfig) {
         )
         if (!choiceText.isNullOrEmpty()) {
             return choiceText
+        }
+
+        val messageText = extractTextFromElement(
+            element = choice.get("message"),
+            preferredKeys = listOf("content", "text"),
+            excludedKeys = reasoningFieldKeys.toSet()
+        )
+        if (!messageText.isNullOrEmpty()) {
+            return messageText
         }
 
         return null

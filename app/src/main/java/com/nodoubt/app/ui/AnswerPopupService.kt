@@ -2237,10 +2237,48 @@ class AnswerPopupService : Service() {
 
     private fun updateModelSwitchButton(itemView: View, questionId: Int, isFast: Boolean) {
         val modelName = getSelectedModelForQuestion(questionId, isFast)
+        val foldedName = foldModelNameForButton(modelName)
         val button = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom) ?: return
-        button.text = "$modelName ▾"
+        button.text = "$foldedName ▾"
+        button.contentDescription = "当前模型：$modelName，点击切换"
         button.visibility = View.VISIBLE
         applyThemeToQuestionCard(itemView)
+    }
+
+    private fun foldModelNameForButton(rawModelId: String): String {
+        val normalized = rawModelId.trim()
+        if (normalized.isBlank()) return "未设置"
+
+        val noProvider = normalized.substringAfterLast('/').substringAfterLast(':')
+        val candidate = noProvider.ifBlank { normalized }
+        if (candidate.length <= 20) return candidate
+
+        val alias = when {
+            candidate.startsWith("deepseek", ignoreCase = true) -> "DeepSeek"
+            candidate.startsWith("qwen", ignoreCase = true) -> "Qwen"
+            candidate.startsWith("glm", ignoreCase = true) || candidate.startsWith("chatglm", ignoreCase = true) -> "GLM"
+            candidate.startsWith("hunyuan", ignoreCase = true) -> "Hunyuan"
+            candidate.startsWith("baichuan", ignoreCase = true) -> "Baichuan"
+            candidate.startsWith("moonshot", ignoreCase = true) || candidate.startsWith("kimi", ignoreCase = true) -> "Kimi"
+            candidate.startsWith("doubao", ignoreCase = true) -> "Doubao"
+            candidate.startsWith("ernie", ignoreCase = true) -> "ERNIE"
+            candidate.startsWith("spark", ignoreCase = true) || candidate.startsWith("x1", ignoreCase = true) -> "Spark"
+            candidate.startsWith("yi-", ignoreCase = true) || candidate.equals("yi", ignoreCase = true) -> "Yi"
+            else -> candidate.substringBefore('-').substringBefore('_').ifBlank { candidate.take(6) }
+        }
+
+        val suffix = candidate
+            .split('-', '_', '.')
+            .lastOrNull { it.isNotBlank() && it.length <= 10 }
+            ?.take(10)
+            ?: candidate.takeLast(8)
+
+        val folded = "$alias·$suffix"
+        return if (folded.length <= 20) {
+            folded
+        } else {
+            candidate.take(9) + "..." + candidate.takeLast(7)
+        }
     }
 
     private fun hideRetryButtons(
