@@ -32,39 +32,83 @@
         android:textColor="#5F6A72"
         android:textSize="12sp" />
 
-    <HorizontalScrollView
-        android:id="@+id/modelCatalogFilterScroll"
+    <LinearLayout
+        android:id="@+id/modelCatalogFilterRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:fillViewport="false"
-        android:overScrollMode="never"
-        android:scrollbars="none">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <LinearLayout
-            android:id="@+id/modelCatalogFilterContainer"
-            android:layout_width="wrap_content"
+        <HorizontalScrollView
+            android:id="@+id/modelCatalogFilterScroll"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal" />
+            android:layout_weight="1"
+            android:fillViewport="false"
+            android:overScrollMode="never"
+            android:scrollbars="none">
 
-    </HorizontalScrollView>
+            <LinearLayout
+                android:id="@+id/modelCatalogFilterContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
 
-    <HorizontalScrollView
-        android:id="@+id/modelCatalogPrefixScroll"
+        </HorizontalScrollView>
+
+        <TextView
+            android:id="@+id/btnToggleAllSelection"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_button_outline"
+            android:gravity="center"
+            android:text="+"
+            android:textColor="#10A37F"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/modelCatalogPrefixRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:fillViewport="false"
-        android:overScrollMode="never"
-        android:scrollbars="none">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <LinearLayout
-            android:id="@+id/modelCatalogPrefixContainer"
-            android:layout_width="wrap_content"
+        <HorizontalScrollView
+            android:id="@+id/modelCatalogPrefixScroll"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal" />
+            android:layout_weight="1"
+            android:fillViewport="false"
+            android:overScrollMode="never"
+            android:scrollbars="none">
 
-    </HorizontalScrollView>
+            <LinearLayout
+                android:id="@+id/modelCatalogPrefixContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+
+        </HorizontalScrollView>
+
+        <TextView
+            android:id="@+id/btnTogglePrefixSelection"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_button_outline"
+            android:gravity="center"
+            android:text="+"
+            android:textColor="#10A37F"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
 
     <ScrollView
         android:id="@+id/modelCatalogScroll"
@@ -81,40 +125,6 @@
             android:orientation="vertical" />
 
     </ScrollView>
-
-    <LinearLayout
-        android:id="@+id/modelCatalogBulkActionRow"
-        android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:layout_marginTop="8dp"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/btnTogglePrefixSelection"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginEnd="5dp"
-            android:background="@drawable/bg_button_outline"
-            android:gravity="center"
-            android:text="+"
-            android:textColor="#10A37F"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/btnToggleAllSelection"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginStart="5dp"
-            android:background="@drawable/bg_button_outline"
-            android:gravity="center"
-            android:text="+"
-            android:textColor="#10A37F"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"

@@ -646,12 +646,10 @@ class SettingsActivity : AppCompatActivity() {
         val tvTitle = dialog.findViewById<TextView>(R.id.tvModelCatalogTitle)
         val tvSubtitle = dialog.findViewById<TextView>(R.id.tvModelCatalogSubtitle)
         val filterContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogFilterContainer)
-        val prefixScroll =
-            dialog.findViewById<android.widget.HorizontalScrollView>(R.id.modelCatalogPrefixScroll)
+        val prefixRow = dialog.findViewById<LinearLayout>(R.id.modelCatalogPrefixRow)
         val prefixContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogPrefixContainer)
         val modelCatalogScroll = dialog.findViewById<android.widget.ScrollView>(R.id.modelCatalogScroll)
         val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogOptionsContainer)
-        val bulkActionRow = dialog.findViewById<LinearLayout>(R.id.modelCatalogBulkActionRow)
         val btnTogglePrefixSelection = dialog.findViewById<TextView>(R.id.btnTogglePrefixSelection)
         val btnToggleAllSelection = dialog.findViewById<TextView>(R.id.btnToggleAllSelection)
         val btnCancel = dialog.findViewById<TextView>(R.id.btnCancelModelCatalog)
@@ -688,6 +686,8 @@ class SettingsActivity : AppCompatActivity() {
             else R.drawable.bg_button_outline_light_brown_black
         )
         btnToggleAllSelection.setTextColor(primaryColor)
+        btnToggleAllSelection.contentDescription = "全部模型选择切换"
+        btnTogglePrefixSelection.contentDescription = "前缀模型选择切换"
 
         tvTitle.text = when (target) {
             TestTarget.OCR -> "选择 OCR 模型"
@@ -769,11 +769,14 @@ class SettingsActivity : AppCompatActivity() {
             if (!multiSelect) {
                 btnConfirm.isEnabled = true
                 btnConfirm.alpha = 1f
-                bulkActionRow.visibility = View.GONE
+                btnToggleAllSelection.visibility = View.GONE
+                btnTogglePrefixSelection.visibility = View.GONE
                 return
             }
 
-            bulkActionRow.visibility = View.VISIBLE
+            btnToggleAllSelection.visibility = View.VISIBLE
+            btnTogglePrefixSelection.visibility =
+                if (prefixRow.visibility == View.VISIBLE) View.VISIBLE else View.GONE
             val selectedCount = selectedIds.size
             btnConfirm.isEnabled = selectedCount > 0
             btnConfirm.alpha = if (selectedCount > 0) 1f else 0.45f
@@ -934,9 +937,9 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         if (target == TestTarget.OCR || prefixKeys.isEmpty()) {
-            prefixScroll.visibility = View.GONE
+            prefixRow.visibility = View.GONE
         } else {
-            prefixScroll.visibility = View.VISIBLE
+            prefixRow.visibility = View.VISIBLE
             fun addPrefixChip(key: String?) {
                 val chip = TextView(this).apply {
                     text = if (key == null) {
