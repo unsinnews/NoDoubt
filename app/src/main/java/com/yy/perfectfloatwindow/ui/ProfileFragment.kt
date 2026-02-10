@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
+import android.view.animation.DecelerateInterpolator
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -386,50 +387,119 @@ class ProfileFragment : Fragment() {
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         // Get views
+        val root = dialog.findViewById<LinearLayout>(R.id.aboutDialogRoot)
         val headerContainer = dialog.findViewById<LinearLayout>(R.id.headerContainer)
+        val dividerAbout = dialog.findViewById<View>(R.id.dividerAbout)
         val iconContainer = dialog.findViewById<FrameLayout>(R.id.iconContainer)
         val ivIcon = dialog.findViewById<ImageView>(R.id.ivIcon)
         val tvDialogTitle = dialog.findViewById<TextView>(R.id.tvDialogTitle)
+        val tvSubtitle = dialog.findViewById<TextView>(R.id.tvSubtitle)
         val tvVersion = dialog.findViewById<TextView>(R.id.tvVersion)
         val tvFeaturesTitle = dialog.findViewById<TextView>(R.id.tvFeaturesTitle)
+        val rowFeature1 = dialog.findViewById<LinearLayout>(R.id.rowFeature1)
+        val rowFeature2 = dialog.findViewById<LinearLayout>(R.id.rowFeature2)
+        val rowFeature3 = dialog.findViewById<LinearLayout>(R.id.rowFeature3)
+        val rowFeature4 = dialog.findViewById<LinearLayout>(R.id.rowFeature4)
+        val tvFeature1 = dialog.findViewById<TextView>(R.id.tvFeature1)
+        val tvFeature2 = dialog.findViewById<TextView>(R.id.tvFeature2)
+        val tvFeature3 = dialog.findViewById<TextView>(R.id.tvFeature3)
+        val tvFeature4 = dialog.findViewById<TextView>(R.id.tvFeature4)
+        val tvAboutFootnote = dialog.findViewById<TextView>(R.id.tvAboutFootnote)
         val ivFeature1 = dialog.findViewById<ImageView>(R.id.ivFeature1)
         val ivFeature2 = dialog.findViewById<ImageView>(R.id.ivFeature2)
         val ivFeature3 = dialog.findViewById<ImageView>(R.id.ivFeature3)
         val ivFeature4 = dialog.findViewById<ImageView>(R.id.ivFeature4)
         val btnOk = dialog.findViewById<TextView>(R.id.btnOk)
 
-        // Apply theme colors
-        val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
-        val textPrimary = if (isLightGreenGray) 0xFF202123.toInt() else 0xFF141413.toInt()
+        val primaryColor = if (isLightGreenGray) 0xFF228D75.toInt() else 0xFFA1634A.toInt()
+        val textPrimary = if (isLightGreenGray) 0xFF1D232A.toInt() else 0xFF2B221E.toInt()
+        val textSecondary = if (isLightGreenGray) 0xFF667078.toInt() else 0xFF7A6A61.toInt()
+        val dividerColor = if (isLightGreenGray) 0x15000000 else 0x1F3A2D27
 
         if (isLightGreenGray) {
-            // Header with green background, white text
-            headerContainer.setBackgroundResource(R.drawable.bg_about_header_light_green_gray)
-            iconContainer.setBackgroundResource(R.drawable.float_bg_about_icon_light_green_gray)
-            ivIcon.setColorFilter(0xFF10A37F.toInt())  // Green icon on white background
-            btnOk.setBackgroundResource(R.drawable.bg_button_filled)
+            root.setBackgroundResource(R.drawable.bg_about_dialog_surface)
+            iconContainer.setBackgroundResource(R.drawable.bg_about_icon_orb)
+            tvVersion.setBackgroundResource(R.drawable.bg_about_version_chip)
+            rowFeature1.setBackgroundResource(R.drawable.bg_about_feature_row)
+            rowFeature2.setBackgroundResource(R.drawable.bg_about_feature_row)
+            rowFeature3.setBackgroundResource(R.drawable.bg_about_feature_row)
+            rowFeature4.setBackgroundResource(R.drawable.bg_about_feature_row)
+            btnOk.setBackgroundResource(R.drawable.bg_about_action_button)
         } else {
-            // Header with warm orange background (#DA7A5A), white text
-            headerContainer.setBackgroundResource(R.drawable.bg_about_header_light_brown_black)
-            iconContainer.setBackgroundResource(R.drawable.float_bg_about_icon_light_brown_black)
-            ivIcon.setColorFilter(0xFF141413.toInt())  // Black icon on light background
-            btnOk.setBackgroundResource(R.drawable.bg_button_filled_light_brown_black)
+            root.setBackgroundResource(R.drawable.bg_about_dialog_surface_light_brown_black)
+            iconContainer.setBackgroundResource(R.drawable.bg_about_icon_orb_light_brown_black)
+            tvVersion.setBackgroundResource(R.drawable.bg_about_version_chip_light_brown_black)
+            rowFeature1.setBackgroundResource(R.drawable.bg_about_feature_row_light_brown_black)
+            rowFeature2.setBackgroundResource(R.drawable.bg_about_feature_row_light_brown_black)
+            rowFeature3.setBackgroundResource(R.drawable.bg_about_feature_row_light_brown_black)
+            rowFeature4.setBackgroundResource(R.drawable.bg_about_feature_row_light_brown_black)
+            btnOk.setBackgroundResource(R.drawable.bg_about_action_button_light_brown_black)
         }
-        // Title and version are always white on the header background
-        tvDialogTitle.setTextColor(0xFFFFFFFF.toInt())
-        tvVersion.text = "版本 ${BuildConfig.VERSION_NAME}"
-        tvVersion.setTextColor(0xFFFFFFFF.toInt())
+
+        tvDialogTitle.setTextColor(textPrimary)
+        tvSubtitle.setTextColor(textSecondary)
+        tvVersion.text = "v${BuildConfig.VERSION_NAME}"
+        tvVersion.setTextColor(primaryColor)
         tvFeaturesTitle.setTextColor(textPrimary)
+        tvFeature1.setTextColor(textSecondary)
+        tvFeature2.setTextColor(textSecondary)
+        tvFeature3.setTextColor(textSecondary)
+        tvFeature4.setTextColor(textSecondary)
+        tvAboutFootnote.setTextColor(textSecondary)
+        dividerAbout.setBackgroundColor(dividerColor)
+        ivIcon.setColorFilter(primaryColor)
         ivFeature1.setColorFilter(primaryColor)
         ivFeature2.setColorFilter(primaryColor)
         ivFeature3.setColorFilter(primaryColor)
         ivFeature4.setColorFilter(primaryColor)
+        btnOk.setTextColor(0xFFFFFFFF.toInt())
 
         btnOk.setOnClickListener {
             dialog.dismiss()
         }
 
+        dialog.setOnShowListener {
+            val animatedViews = listOf<View>(
+                headerContainer,
+                tvFeaturesTitle,
+                rowFeature1,
+                rowFeature2,
+                rowFeature3,
+                rowFeature4,
+                tvAboutFootnote,
+                btnOk
+            )
+            val interpolator = DecelerateInterpolator()
+
+            root.alpha = 0f
+            root.scaleX = 0.97f
+            root.scaleY = 0.97f
+            root.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(220)
+                .setInterpolator(interpolator)
+                .start()
+
+            animatedViews.forEachIndexed { index, v ->
+                v.alpha = 0f
+                v.translationY = dp(10)
+                v.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setStartDelay((index * 35L).coerceAtMost(220L))
+                    .setDuration(220)
+                    .setInterpolator(interpolator)
+                    .start()
+            }
+        }
+
         dialog.show()
+    }
+
+    private fun dp(value: Int): Float {
+        return value * resources.displayMetrics.density
     }
 
     private fun showEditProfileDialog() {

@@ -1,191 +1,242 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/aboutDialogRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:background="@drawable/bg_about_dialog_surface"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:paddingStart="16dp"
+    android:paddingTop="16dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="16dp">
 
-    <!-- Header with icon and background -->
     <LinearLayout
         android:id="@+id/headerContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:layout_marginBottom="20dp"
-        android:padding="20dp"
-        android:background="@drawable/bg_about_header_light_green_gray">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <FrameLayout
             android:id="@+id/iconContainer"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:background="@drawable/float_bg_about_icon_light_green_gray">
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_about_icon_orb">
 
             <ImageView
                 android:id="@+id/ivIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_float_ai"/>
+                android:src="@drawable/ic_float_ai" />
 
         </FrameLayout>
 
-        <TextView
-            android:id="@+id/tvDialogTitle"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="AI 解题助手"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:layout_marginTop="16dp"/>
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvDialogTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="AI 解题助手"
+                android:textColor="#1D232A"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="sans-serif"
+                android:text="智能拍题 · 双模式解答 · 模型切换"
+                android:textColor="#6B737D"
+                android:textSize="12sp" />
+
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvVersion"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="版本 1.2.0"
-            android:textSize="14sp"
-            android:textColor="#FFFFFF"
-            android:alpha="0.8"
-            android:layout_marginTop="4dp"/>
+            android:background="@drawable/bg_about_version_chip"
+            android:fontFamily="sans-serif-medium"
+            android:paddingStart="10dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="5dp"
+            android:text="v1.3.5"
+            android:textColor="#2C8A74"
+            android:textSize="12sp" />
 
     </LinearLayout>
 
-    <!-- Divider -->
     <View
+        android:id="@+id/dividerAbout"
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#ECECF1"
-        android:layout_marginBottom="20dp"/>
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="14dp"
+        android:background="#15000000" />
 
-    <!-- Features list -->
+    <TextView
+        android:id="@+id/tvFeaturesTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:text="核心能力"
+        android:textColor="#212A32"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
     <LinearLayout
-        android:id="@+id/featuresContainer"
+        android:id="@+id/rowFeature1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginBottom="20dp"
-        android:padding="16dp"
-        android:background="@drawable/bg_dialog_item_unselected">
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_about_feature_row"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
+
+        <ImageView
+            android:id="@+id/ivFeature1"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_check" />
 
         <TextView
-            android:id="@+id/tvFeaturesTitle"
+            android:id="@+id/tvFeature1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="功能特点"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="#202123"
-            android:layout_marginBottom="12dp"/>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
-
-            <ImageView
-                android:id="@+id/ivFeature1"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_check"
-                android:tint="#10A37F"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="截图识别题目"
-                android:textSize="14sp"
-                android:textColor="#6E6E80"
-                android:layout_marginStart="12dp"/>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
-
-            <ImageView
-                android:id="@+id/ivFeature2"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_check"
-                android:tint="#10A37F"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="AI 智能解答"
-                android:textSize="14sp"
-                android:textColor="#6E6E80"
-                android:layout_marginStart="12dp"/>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
-
-            <ImageView
-                android:id="@+id/ivFeature3"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_check"
-                android:tint="#10A37F"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="快速/深度两种模式"
-                android:textSize="14sp"
-                android:textColor="#6E6E80"
-                android:layout_marginStart="12dp"/>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <ImageView
-                android:id="@+id/ivFeature4"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_check"
-                android:tint="#10A37F"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="支持多种 AI 模型"
-                android:textSize="14sp"
-                android:textColor="#6E6E80"
-                android:layout_marginStart="12dp"/>
-
-        </LinearLayout>
+            android:layout_marginStart="10dp"
+            android:text="截图识别题目"
+            android:textColor="#4A5560"
+            android:textSize="13sp" />
 
     </LinearLayout>
 
-    <!-- OK Button -->
+    <LinearLayout
+        android:id="@+id/rowFeature2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_about_feature_row"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
+
+        <ImageView
+            android:id="@+id/ivFeature2"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_check" />
+
+        <TextView
+            android:id="@+id/tvFeature2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="AI 智能解答"
+            android:textColor="#4A5560"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/rowFeature3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_about_feature_row"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
+
+        <ImageView
+            android:id="@+id/ivFeature3"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_check" />
+
+        <TextView
+            android:id="@+id/tvFeature3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="极速/深度双模式"
+            android:textColor="#4A5560"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/rowFeature4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_about_feature_row"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
+
+        <ImageView
+            android:id="@+id/ivFeature4"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_check" />
+
+        <TextView
+            android:id="@+id/tvFeature4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="支持多模型切换"
+            android:textColor="#4A5560"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvAboutFootnote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:text="Designed for fast, focused solving."
+        android:textColor="#7F8790"
+        android:textSize="11sp" />
+
     <TextView
         android:id="@+id/btnOk"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="44dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_about_action_button"
+        android:fontFamily="sans-serif-medium"
         android:gravity="center"
-        android:text="确定"
-        android:textSize="15sp"
+        android:text="知道了"
         android:textColor="#FFFFFF"
-        android:background="@drawable/bg_button_filled"/>
+        android:textSize="14sp" />
 
 </LinearLayout>
