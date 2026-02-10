@@ -9,6 +9,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.ImageSpan
@@ -22,7 +23,6 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import ru.noties.jlatexmath.JLatexMathDrawable
-import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
@@ -90,6 +90,7 @@ object MarkdownRenderer {
 
     private const val TAG = "MarkdownRenderer"
     private const val DEBOUNCE_DELAY = 150L
+    private const val STREAM_FRAME_DELAY = 48L
 
     @Volatile
     private var basicMarkwon: Markwon? = null
@@ -106,6 +107,9 @@ object MarkdownRenderer {
     private val latexCache = LruCache<String, Bitmap>(50)
     private val lastRenderedContent = ConcurrentHashMap<Int, String>()
     private val pendingRenders = ConcurrentHashMap<Int, Runnable>()
+    private val streamingContent = ConcurrentHashMap<Int, String>()
+    private val pendingStreamingRenders = ConcurrentHashMap<Int, Runnable>()
+    private val lastStreamingRenderAt = ConcurrentHashMap<Int, Long>()
 
     private fun getBasicMarkwon(context: Context): Markwon {
         return basicMarkwon ?: synchronized(this) {
@@ -290,12 +294,16 @@ object MarkdownRenderer {
     }
 
     fun renderAIResponse(context: Context, textView: TextView, text: String) {
+        val viewId = System.identityHashCode(textView)
+        pendingStreamingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+        pendingStreamingRenders.remove(viewId)
+        streamingContent.remove(viewId)
+        lastStreamingRenderAt.remove(viewId)
+
         if (text.isEmpty()) {
             textView.text = ""
             return
         }
-
-        val viewId = System.identityHashCode(textView)
 
         if (lastRenderedContent[viewId] == text) {
             return
@@ -321,6 +329,58 @@ object MarkdownRenderer {
 
         pendingRenders[viewId] = renderTask
         mainHandler.postDelayed(renderTask, DEBOUNCE_DELAY)
+    }
+
+    fun renderAIResponseStreaming(textView: TextView, text: String) {
+        val viewId = System.identityHashCode(textView)
+
+        if (text.isEmpty()) {
+            textView.text = ""
+            pendingStreamingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+            pendingStreamingRenders.remove(viewId)
+            streamingContent.remove(viewId)
+            lastStreamingRenderAt.remove(viewId)
+            return
+        }
+
+        if (streamingContent[viewId] == text) {
+            return
+        }
+
+        // Streaming phase: skip expensive markdown task and use lightweight plain text updates.
+        pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+        pendingRenders.remove(viewId)
+        streamingContent[viewId] = text
+
+        pendingStreamingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+
+        val applyTask = Runnable {
+            val latest = streamingContent[viewId] ?: return@Runnable
+            if (textView.text?.toString() != latest) {
+                textView.text = latest
+            }
+            lastStreamingRenderAt[viewId] = SystemClock.uptimeMillis()
+            pendingStreamingRenders.remove(viewId)
+        }
+
+        val now = SystemClock.uptimeMillis()
+        val last = lastStreamingRenderAt[viewId] ?: 0L
+        val delay = (STREAM_FRAME_DELAY - (now - last)).coerceAtLeast(0L)
+        if (delay == 0L) {
+            applyTask.run()
+        } else {
+            pendingStreamingRenders[viewId] = applyTask
+            mainHandler.postDelayed(applyTask, delay)
+        }
+    }
+
+    fun flushAIResponse(context: Context, textView: TextView, text: String) {
+        val viewId = System.identityHashCode(textView)
+        pendingStreamingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+        pendingStreamingRenders.remove(viewId)
+        streamingContent.remove(viewId)
+        lastStreamingRenderAt.remove(viewId)
+        renderAIResponse(context, textView, text)
     }
 
     fun renderQuestionText(context: Context, textView: TextView, text: String) {
@@ -362,10 +422,20 @@ object MarkdownRenderer {
         lastRenderedContent.remove(viewId)
         pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
         pendingRenders.remove(viewId)
+        streamingContent.remove(viewId)
+        pendingStreamingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
+        pendingStreamingRenders.remove(viewId)
+        lastStreamingRenderAt.remove(viewId)
     }
 
     fun clearCache() {
+        pendingRenders.values.forEach { mainHandler.removeCallbacks(it) }
+        pendingStreamingRenders.values.forEach { mainHandler.removeCallbacks(it) }
+        pendingRenders.clear()
+        pendingStreamingRenders.clear()
         latexCache.evictAll()
         lastRenderedContent.clear()
+        streamingContent.clear()
+        lastStreamingRenderAt.clear()
     }
 }

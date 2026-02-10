@@ -100,6 +100,8 @@ class AnswerPopupService : Service() {
     private var tabIndicator: View? = null
     private var tabIndicatorWidth = 0
     private val TAB_ANIM_DURATION = 250L
+    private val MODE_SWITCH_COOLDOWN_MS = 220L
+    private var lastModeSwitchAt = 0L
 
     // For header status
     private var hasStartedAnswering = false
@@ -126,6 +128,9 @@ class AnswerPopupService : Service() {
     private var pendingScrollRestoreMode: Boolean? = null
     private var pendingScrollRestoreTargetY: Int = 0
     private var pendingScrollRestoreKick: Runnable? = null
+    private val questionItemViews: MutableMap<Int, View> = mutableMapOf()
+    private val thinkingUiFrameIntervalMs = 66L
+    private val lastThinkingUiUpdateAt: MutableMap<Int, Long> = mutableMapOf()
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -581,9 +586,9 @@ class AnswerPopupService : Service() {
             }
         })
 
-        scrollView.setOnTouchListener { v, event ->
+        scrollView.setOnTouchListener { _, event ->
             gestureDetector?.onTouchEvent(event)
-            if (event.action == MotionEvent.ACTION_DOWN || event.action == MotionEvent.ACTION_MOVE) {
+            if (event.action == MotionEvent.ACTION_DOWN) {
                 cancelPendingScrollRestore()
             }
             false // Let scroll view handle its own scrolling
@@ -605,6 +610,58 @@ class AnswerPopupService : Service() {
         } else {
             deepModeScrollY = scrollY.coerceAtLeast(0)
         }
+    }
+
+    private fun canSwitchMode(): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - lastModeSwitchAt < MODE_SWITCH_COOLDOWN_MS) {
+            return false
+        }
+        lastModeSwitchAt = now
+        return true
+    }
+
+    private fun cacheQuestionItemView(questionId: Int, itemView: View) {
+        if (questionId > 0) {
+            questionItemViews[questionId] = itemView
+        }
+    }
+
+    private fun getQuestionItemView(questionId: Int): View? {
+        if (questionId <= 0) return null
+        questionItemViews[questionId]?.let { cached ->
+            if (cached.parent != null) {
+                return cached
+            }
+            questionItemViews.remove(questionId)
+        }
+
+        val view = popupView ?: return null
+        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return null
+        val resolved = container.findViewWithTag<View>("question_$questionId")
+            ?: run {
+                val index = currentQuestions.indexOfFirst { it.id == questionId }
+                if (index >= 0 && index < container.childCount) container.getChildAt(index) else null
+            }
+        if (resolved != null) {
+            cacheQuestionItemView(questionId, resolved)
+        }
+        return resolved
+    }
+
+    private fun shouldUpdateThinkingUi(questionId: Int, force: Boolean = false): Boolean {
+        if (questionId <= 0) return true
+        if (force) {
+            lastThinkingUiUpdateAt[questionId] = System.currentTimeMillis()
+            return true
+        }
+        val now = System.currentTimeMillis()
+        val last = lastThinkingUiUpdateAt[questionId] ?: 0L
+        if (now - last < thinkingUiFrameIntervalMs) {
+            return false
+        }
+        lastThinkingUiUpdateAt[questionId] = now
+        return true
     }
 
     private fun captureCurrentModeScroll() {
@@ -644,10 +701,11 @@ class AnswerPopupService : Service() {
         }
     }
 
-    private fun schedulePendingScrollRestoreKick(delayMs: Long = 240L) {
+    private fun schedulePendingScrollRestoreKick(delayMs: Long = 240L, forceReschedule: Boolean = false) {
         val restoreMode = pendingScrollRestoreMode ?: return
         if (restoreMode != isFastMode) return
 
+        if (!forceReschedule && pendingScrollRestoreKick != null) return
         pendingScrollRestoreKick?.let { handler.removeCallbacks(it) }
         val restoreToken = scrollRestoreToken
         val restoreTask = Runnable {
@@ -663,7 +721,7 @@ class AnswerPopupService : Service() {
         pendingScrollRestoreTargetY = if (isFast) fastModeScrollY else deepModeScrollY
 
         val restoreToken = ++scrollRestoreToken
-        val restoreDelays = longArrayOf(0L, 120L, 260L, 480L, 760L, 1100L, 1500L, 2000L, 2600L, 3300L)
+        val restoreDelays = longArrayOf(0L, 120L, 280L, 520L, 900L)
         restoreDelays.forEach { delay ->
             handler.postDelayed({
                 if (restoreToken != scrollRestoreToken) return@postDelayed
@@ -1171,6 +1229,7 @@ class AnswerPopupService : Service() {
     }
 
     private fun switchToFastMode() {
+        if (isFastMode || !canSwitchMode()) return
         val view = popupView ?: return
         val tabFast = view.findViewById<TextView>(R.id.tabFast)
         val tabDeep = view.findViewById<TextView>(R.id.tabDeep)
@@ -1196,6 +1255,7 @@ class AnswerPopupService : Service() {
             it.alpha = 0.3f
             it.translationX = -it.width * 0.3f
             it.animate()
+                .withLayer()
                 .translationX(0f)
                 .alpha(1f)
                 .setDuration(TAB_ANIM_DURATION)
@@ -1209,6 +1269,7 @@ class AnswerPopupService : Service() {
     }
 
     private fun switchToDeepMode() {
+        if (!isFastMode || !canSwitchMode()) return
         val view = popupView ?: return
         val tabFast = view.findViewById<TextView>(R.id.tabFast)
         val tabDeep = view.findViewById<TextView>(R.id.tabDeep)
@@ -1234,6 +1295,7 @@ class AnswerPopupService : Service() {
             it.alpha = 0.3f
             it.translationX = it.width * 0.3f
             it.animate()
+                .withLayer()
                 .translationX(0f)
                 .alpha(1f)
                 .setDuration(TAB_ANIM_DURATION)
@@ -1354,6 +1416,8 @@ class AnswerPopupService : Service() {
         deepAnswers.clear()
         fastAnswerViews.clear()
         deepAnswerViews.clear()
+        questionItemViews.clear()
+        lastThinkingUiUpdateAt.clear()
         questionTexts.clear()
         fastQuestionModelIds.clear()
         deepQuestionModelIds.clear()
@@ -1450,6 +1514,7 @@ class AnswerPopupService : Service() {
             val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return@post
             container.visibility = View.VISIBLE
             container.removeAllViews()
+            questionItemViews.clear()
 
             // 创建第一个题目卡片
             addNewQuestionCard(1)
@@ -1475,15 +1540,14 @@ class AnswerPopupService : Service() {
         showBottomActionRow(itemView, questionIndex, isFastMode, showRetry = false)
 
         container.addView(itemView)
+        cacheQuestionItemView(questionIndex, itemView)
 
         // Initialize StringBuilder for this question
         questionTexts[questionIndex] = StringBuilder()
     }
 
     private fun appendOCRTextToQuestion(text: String, questionIndex: Int) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        val questionView = container.findViewWithTag<View>("question_$questionIndex") ?: return
+        val questionView = getQuestionItemView(questionIndex) ?: return
         val tvQuestion = questionView.findViewById<TextView>(R.id.tvQuestionText)
 
         // Accumulate text
@@ -1495,9 +1559,7 @@ class AnswerPopupService : Service() {
     }
 
     private fun updateQuestionCardTitle(questionId: Int) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        val questionView = container.findViewWithTag<View>("question_$questionId") ?: return
+        val questionView = getQuestionItemView(questionId) ?: return
         questionView.findViewById<TextView>(R.id.tvQuestionTitle).text = "题目$questionId"
         // 保存view引用用于后续答案更新
         fastAnswerViews[questionId] = questionView
@@ -1620,6 +1682,7 @@ class AnswerPopupService : Service() {
             val view = popupView ?: return@post
             val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return@post
             container.removeAllViews()
+            questionItemViews.clear()
 
             // Create a centered message view
             val messageView = LayoutInflater.from(this)
@@ -1648,6 +1711,7 @@ class AnswerPopupService : Service() {
         val view = popupView ?: return
         val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
         container.removeAllViews()
+        questionItemViews.clear()
 
         questions.forEachIndexed { index, question ->
             val itemView = LayoutInflater.from(this)
@@ -1668,6 +1732,7 @@ class AnswerPopupService : Service() {
             showBottomActionRow(itemView, question.id, isFastMode, showRetry = false)
 
             container.addView(itemView)
+            cacheQuestionItemView(question.id, itemView)
 
             // Store views for both modes
             fastAnswerViews[question.id] = itemView
@@ -1681,62 +1746,70 @@ class AnswerPopupService : Service() {
         val answers = if (isFast) fastAnswers else deepAnswers
 
         // Update answer text and title for current mode
-        currentQuestions.forEach { question ->
-            val answer = answers[question.id]
-            // Use tag-based lookup for more reliable view finding
-            val answerView = container.findViewWithTag<View>("question_${question.id}")
-                ?: run {
-                    val index = currentQuestions.indexOf(question)
-                    if (index >= 0 && index < container.childCount) {
-                        container.getChildAt(index)
-                    } else null
+        val canSuppressLayout = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        if (canSuppressLayout) {
+            container.suppressLayout(true)
+        }
+        try {
+            currentQuestions.forEach { question ->
+                val answer = answers[question.id]
+                val answerView = getQuestionItemView(question.id)
+
+                answerView?.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
+                    // Show error message if error exists, otherwise show answer text
+                    val displayText = if (answer?.error != null) {
+                        "错误: ${answer.error}"
+                    } else {
+                        answer?.text ?: ""
+                    }
+                    if (displayText.isNotEmpty()) {
+                        val finalRender = answer?.isComplete == true || answer?.isStopped == true || answer?.error != null
+                        if (finalRender) {
+                            MarkdownRenderer.flushAIResponse(this@AnswerPopupService, textView, displayText)
+                        } else {
+                            MarkdownRenderer.renderAIResponseStreaming(textView, displayText)
+                        }
+                    } else {
+                        // Clear the cached content so that when switching back to a mode with content,
+                        // the renderer won't skip rendering due to stale cache
+                        MarkdownRenderer.clearViewCache(textView)
+                        textView.text = ""
+                    }
                 }
 
-            answerView?.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
-                // Show error message if error exists, otherwise show answer text
-                val displayText = if (answer?.error != null) {
-                    "错误: ${answer.error}"
-                } else {
-                    answer?.text ?: ""
+                answerView?.let {
+                    renderThinkingSection(it, question.id, answer, isFast)
                 }
-                if (displayText.isNotEmpty()) {
-                    MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, displayText)
-                } else {
-                    // Clear the cached content so that when switching back to a mode with content,
-                    // the renderer won't skip rendering due to stale cache
-                    MarkdownRenderer.clearViewCache(textView)
-                    textView.text = ""
+
+                // Update answer title based on completion and stopped status
+                val titleText = when {
+                    answer?.error != null -> "请求错误"
+                    answer?.isStopped == true -> "已停止"
+                    answer?.isComplete == true -> "解答${question.id}"
+                    else -> "解答中..."
+                }
+                answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = titleText
+                answerView?.let { updateModelSwitchButton(it, question.id, isFast) }
+
+                // Show/hide retry buttons based on state
+                when {
+                    answer?.isComplete == true || answer?.isStopped == true || answer?.error != null -> {
+                        // Show both buttons for completed, stopped, or error states
+                        answerView?.let { showRetryButton(it, question.id, isFast) }
+                    }
+                    !answer?.text.isNullOrEmpty() || answer?.isThinking == true || !answer?.thinkingText.isNullOrEmpty() -> {
+                        // Streaming state: only show header button, not bottom button
+                        answerView?.let { showHeaderRetryButton(it, question.id, isFast) }
+                    }
+                    else -> {
+                        // Hide all retry buttons when not started yet
+                        answerView?.let { hideRetryButtons(it, isFast) }
+                    }
                 }
             }
-
-            answerView?.let {
-                renderThinkingSection(it, question.id, answer, isFast)
-            }
-
-            // Update answer title based on completion and stopped status
-            val titleText = when {
-                answer?.error != null -> "请求错误"
-                answer?.isStopped == true -> "已停止"
-                answer?.isComplete == true -> "解答${question.id}"
-                else -> "解答中..."
-            }
-            answerView?.findViewById<TextView>(R.id.tvAnswerTitle)?.text = titleText
-            answerView?.let { updateModelSwitchButton(it, question.id, isFast) }
-
-            // Show/hide retry buttons based on state
-            when {
-                answer?.isComplete == true || answer?.isStopped == true || answer?.error != null -> {
-                    // Show both buttons for completed, stopped, or error states
-                    answerView?.let { showRetryButton(it, question.id, isFast) }
-                }
-                !answer?.text.isNullOrEmpty() || answer?.isThinking == true || !answer?.thinkingText.isNullOrEmpty() -> {
-                    // Streaming state: only show header button, not bottom button
-                    answerView?.let { showHeaderRetryButton(it, question.id, isFast) }
-                }
-                else -> {
-                    // Hide all retry buttons when not started yet
-                    answerView?.let { hideRetryButtons(it, isFast) }
-                }
+        } finally {
+            if (canSuppressLayout) {
+                container.suppressLayout(false)
             }
         }
 
@@ -1794,6 +1867,9 @@ class AnswerPopupService : Service() {
                             answer.isComplete = true
                         }
                         if (isFastMode) {
+                            fastAnswers[question.id]?.let { answer ->
+                                updateAnswerText(question.id, answer.text, finalRender = true)
+                            }
                             updateAnswerTitleComplete(question.id)
                             renderThinkingSectionForQuestion(question.id, fastAnswers[question.id], true)
                         }
@@ -1809,7 +1885,7 @@ class AnswerPopupService : Service() {
                             answer.error = error.message
                             answer.isComplete = true
                             if (isFastMode) {
-                                updateAnswerText(question.id, "错误: ${error.message}")
+                                updateAnswerText(question.id, "错误: ${error.message}", finalRender = true)
                                 updateAnswerTitleWithError(question.id)
                                 renderThinkingSectionForQuestion(question.id, answer, true)
                             }
@@ -1829,7 +1905,7 @@ class AnswerPopupService : Service() {
                         updateHeaderToAnswering()
                         deepAnswers[question.id]?.let { answer ->
                             markThinkingStarted(answer)
-                            if (!isFastMode) {
+                            if (!isFastMode && shouldUpdateThinkingUi(question.id, force = true)) {
                                 renderThinkingSectionForQuestion(question.id, answer, false)
                             }
                         }
@@ -1841,7 +1917,7 @@ class AnswerPopupService : Service() {
                         deepAnswers[question.id]?.let { answer ->
                             markThinkingStarted(answer)
                             answer.thinkingText += text
-                            if (!isFastMode) {
+                            if (!isFastMode && shouldUpdateThinkingUi(question.id)) {
                                 renderThinkingSectionForQuestion(question.id, answer, false)
                             }
                         }
@@ -1852,7 +1928,7 @@ class AnswerPopupService : Service() {
                     handler.post {
                         deepAnswers[question.id]?.let { answer ->
                             markThinkingCompleted(answer)
-                            if (!isFastMode) {
+                            if (!isFastMode && shouldUpdateThinkingUi(question.id, force = true)) {
                                 renderThinkingSectionForQuestion(question.id, answer, false)
                             }
                         }
@@ -1886,6 +1962,9 @@ class AnswerPopupService : Service() {
                             answer.isComplete = true
                         }
                         if (!isFastMode) {
+                            deepAnswers[question.id]?.let { answer ->
+                                updateAnswerText(question.id, answer.text, finalRender = true)
+                            }
                             updateAnswerTitleComplete(question.id)
                             renderThinkingSectionForQuestion(question.id, deepAnswers[question.id], false)
                         }
@@ -1901,7 +1980,7 @@ class AnswerPopupService : Service() {
                             answer.error = error.message
                             answer.isComplete = true
                             if (!isFastMode) {
-                                updateAnswerText(question.id, "错误: ${error.message}")
+                                updateAnswerText(question.id, "错误: ${error.message}", finalRender = true)
                                 updateAnswerTitleWithError(question.id)
                                 renderThinkingSectionForQuestion(question.id, answer, false)
                             }
@@ -1913,20 +1992,14 @@ class AnswerPopupService : Service() {
         }
     }
 
-    private fun updateAnswerText(questionId: Int, text: String) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-
-        // Use tag-based lookup for more reliable view finding
-        val itemView = container.findViewWithTag<View>("question_$questionId")
-            ?: run {
-                val index = currentQuestions.indexOfFirst { it.id == questionId }
-                if (index >= 0 && index < container.childCount) {
-                    container.getChildAt(index)
-                } else null
-            } ?: return
+    private fun updateAnswerText(questionId: Int, text: String, finalRender: Boolean = false) {
+        val itemView = getQuestionItemView(questionId) ?: return
         itemView.findViewById<TextView>(R.id.tvAnswerText)?.let { textView ->
-            MarkdownRenderer.renderAIResponse(this@AnswerPopupService, textView, text)
+            if (finalRender) {
+                MarkdownRenderer.flushAIResponse(this@AnswerPopupService, textView, text)
+            } else {
+                MarkdownRenderer.renderAIResponseStreaming(textView, text)
+            }
         }
 
         // Streaming updates can increase content height after debounce render.
@@ -1961,15 +2034,7 @@ class AnswerPopupService : Service() {
     }
 
     private fun renderThinkingSectionForQuestion(questionId: Int, answer: Answer?, isFast: Boolean) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        val itemView = container.findViewWithTag<View>("question_$questionId")
-            ?: run {
-                val index = currentQuestions.indexOfFirst { it.id == questionId }
-                if (index >= 0 && index < container.childCount) {
-                    container.getChildAt(index)
-                } else null
-            } ?: return
+        val itemView = getQuestionItemView(questionId) ?: return
         renderThinkingSection(itemView, questionId, answer, isFast)
         schedulePendingScrollRestoreKick()
     }
@@ -1994,7 +2059,6 @@ class AnswerPopupService : Service() {
         }
 
         thinkingSection.visibility = View.VISIBLE
-        applyThemeToQuestionCard(itemView)
 
         if (answer.isThinking && answer.thinkingStartAtMs <= 0L) {
             answer.thinkingStartAtMs = System.currentTimeMillis()
@@ -2014,7 +2078,11 @@ class AnswerPopupService : Service() {
             tvThinkingText?.visibility = View.VISIBLE
             val thinkingText = answer.thinkingText.trim()
             if (thinkingText.isNotEmpty()) {
-                MarkdownRenderer.renderAIResponse(this@AnswerPopupService, tvThinkingText, thinkingText)
+                if (answer.isThinking) {
+                    MarkdownRenderer.renderAIResponseStreaming(tvThinkingText, thinkingText)
+                } else {
+                    MarkdownRenderer.flushAIResponse(this@AnswerPopupService, tvThinkingText, thinkingText)
+                }
             } else {
                 tvThinkingText?.text = "正在思考..."
             }
@@ -2029,17 +2097,7 @@ class AnswerPopupService : Service() {
     }
 
     private fun updateAnswerTitleComplete(questionId: Int) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-
-        // Use tag-based lookup for more reliable view finding
-        val itemView = container.findViewWithTag<View>("question_$questionId")
-            ?: run {
-                val index = currentQuestions.indexOfFirst { it.id == questionId }
-                if (index >= 0 && index < container.childCount) {
-                    container.getChildAt(index)
-                } else null
-            } ?: return
+        val itemView = getQuestionItemView(questionId) ?: return
         itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "解答$questionId"
         // Show retry button and set click listener
         showRetryButton(itemView, questionId, isFastMode)
@@ -2080,15 +2138,7 @@ class AnswerPopupService : Service() {
 
     // Show only header retry button for a question (for streaming state)
     private fun showHeaderRetryButtonForQuestion(questionId: Int) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-        val itemView = container.findViewWithTag<View>("question_$questionId")
-            ?: run {
-                val index = currentQuestions.indexOfFirst { it.id == questionId }
-                if (index >= 0 && index < container.childCount) {
-                    container.getChildAt(index)
-                } else null
-            } ?: return
+        val itemView = getQuestionItemView(questionId) ?: return
         showHeaderRetryButton(itemView, questionId, isFastMode)
     }
 
@@ -2220,7 +2270,7 @@ class AnswerPopupService : Service() {
                 handler.post {
                     deepAnswers[question.id]?.let { answer ->
                         markThinkingStarted(answer)
-                        if (!isFastMode) {
+                        if (!isFastMode && shouldUpdateThinkingUi(question.id, force = true)) {
                             renderThinkingSectionForQuestion(question.id, answer, false)
                         }
                     }
@@ -2233,7 +2283,7 @@ class AnswerPopupService : Service() {
                     deepAnswers[question.id]?.let { answer ->
                         markThinkingStarted(answer)
                         answer.thinkingText += text
-                        if (!isFastMode) {
+                        if (!isFastMode && shouldUpdateThinkingUi(question.id)) {
                             renderThinkingSectionForQuestion(question.id, answer, false)
                         }
                     }
@@ -2245,7 +2295,7 @@ class AnswerPopupService : Service() {
                 handler.post {
                     deepAnswers[question.id]?.let { answer ->
                         markThinkingCompleted(answer)
-                        if (!isFastMode) {
+                        if (!isFastMode && shouldUpdateThinkingUi(question.id, force = true)) {
                             renderThinkingSectionForQuestion(question.id, answer, false)
                         }
                     }
@@ -2289,8 +2339,11 @@ class AnswerPopupService : Service() {
                     }
                     // Only update UI if still viewing the same mode
                     if (isFastMode == wasInFastMode) {
-                        updateAnswerTitleComplete(question.id)
                         val answers = if (wasInFastMode) fastAnswers else deepAnswers
+                        answers[question.id]?.let { answer ->
+                            updateAnswerText(question.id, answer.text, finalRender = true)
+                        }
+                        updateAnswerTitleComplete(question.id)
                         renderThinkingSectionForQuestion(question.id, answers[question.id], wasInFastMode)
                         updateHeaderForCurrentMode()
                     }
@@ -2317,7 +2370,7 @@ class AnswerPopupService : Service() {
                     }
                     // Only update UI if still viewing the same mode
                     if (isFastMode == wasInFastMode) {
-                        updateAnswerText(question.id, "错误: ${error.message}")
+                        updateAnswerText(question.id, "错误: ${error.message}", finalRender = true)
                         val answers = if (wasInFastMode) fastAnswers else deepAnswers
                         renderThinkingSectionForQuestion(question.id, answers[question.id], wasInFastMode)
                         updateAnswerTitleWithError(question.id)
@@ -2335,17 +2388,7 @@ class AnswerPopupService : Service() {
     }
 
     private fun updateAnswerTitleWithError(questionId: Int) {
-        val view = popupView ?: return
-        val container = view.findViewById<LinearLayout>(R.id.answersContainer) ?: return
-
-        // Use tag-based lookup for more reliable view finding
-        val itemView = container.findViewWithTag<View>("question_$questionId")
-            ?: run {
-                val index = currentQuestions.indexOfFirst { it.id == questionId }
-                if (index >= 0 && index < container.childCount) {
-                    container.getChildAt(index)
-                } else null
-            } ?: return
+        val itemView = getQuestionItemView(questionId) ?: return
         itemView.findViewById<TextView>(R.id.tvAnswerTitle)?.text = "请求错误"
         // Show retry button for error state
         showRetryButton(itemView, questionId)
@@ -2360,6 +2403,8 @@ class AnswerPopupService : Service() {
         modelMenuPopup = null
         copyMenuPopup?.dismiss()
         copyMenuPopup = null
+        questionItemViews.clear()
+        lastThinkingUiUpdateAt.clear()
 
         // Cancel all API requests first
         cancelAllRequests()
@@ -2395,6 +2440,8 @@ class AnswerPopupService : Service() {
         modelMenuPopup = null
         copyMenuPopup?.dismiss()
         copyMenuPopup = null
+        questionItemViews.clear()
+        lastThinkingUiUpdateAt.clear()
 
         // Cancel all API requests
         cancelAllRequests()
