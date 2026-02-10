@@ -12,6 +12,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.nodoubt.app.R
 import com.nodoubt.app.data.AIConfig
@@ -33,8 +34,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var deepModelListContainer: LinearLayout
     private lateinit var btnAddFastModel: TextView
     private lateinit var btnAddDeepModel: TextView
-    private lateinit var tvTestResult: TextView
-    private lateinit var btnTest: Button
+    private lateinit var btnTestOcr: TextView
+    private lateinit var btnTestFast: TextView
+    private lateinit var btnTestDeep: TextView
     private lateinit var btnSave: Button
 
     private val job = Job()
@@ -47,6 +49,10 @@ class SettingsActivity : AppCompatActivity() {
         private const val DEFAULT_FAST_MODEL = "gpt-4o-mini"
         private const val DEFAULT_DEEP_MODEL = "gpt-4o"
         private val WHITESPACE_REGEX = "\\s+".toRegex()
+    }
+
+    private enum class TestTarget {
+        OCR, FAST, DEEP
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,8 +78,9 @@ class SettingsActivity : AppCompatActivity() {
         deepModelListContainer = findViewById(R.id.deepModelListContainer)
         btnAddFastModel = findViewById(R.id.btnAddFastModel)
         btnAddDeepModel = findViewById(R.id.btnAddDeepModel)
-        tvTestResult = findViewById(R.id.tvTestResult)
-        btnTest = findViewById(R.id.btnTest)
+        btnTestOcr = findViewById(R.id.btnTestOcr)
+        btnTestFast = findViewById(R.id.btnTestFast)
+        btnTestDeep = findViewById(R.id.btnTestDeep)
         btnSave = findViewById(R.id.btnSave)
 
         // Check if settings already exist (API key is saved)
@@ -158,16 +165,17 @@ class SettingsActivity : AppCompatActivity() {
             btnAddFastModel.setTextColor(primaryColor)
             btnAddDeepModel.setBackgroundResource(R.drawable.bg_button_outline)
             btnAddDeepModel.setTextColor(primaryColor)
+            btnTestOcr.setBackgroundResource(R.drawable.bg_button_outline)
+            btnTestOcr.setTextColor(primaryColor)
+            btnTestFast.setBackgroundResource(R.drawable.bg_button_outline)
+            btnTestFast.setTextColor(primaryColor)
+            btnTestDeep.setBackgroundResource(R.drawable.bg_button_outline)
+            btnTestDeep.setTextColor(primaryColor)
 
             // Buttons
-            btnTest.backgroundTintList = null
-            btnTest.setBackgroundResource(R.drawable.bg_button_outline)
-            btnTest.setTextColor(primaryColor)
             btnSave.backgroundTintList = null
-            btnSave.setBackgroundResource(R.drawable.bg_button_filled)
-
-            // Test result
-            tvTestResult.setBackgroundResource(R.drawable.bg_card_settings)
+            btnSave.setBackgroundResource(R.drawable.bg_button_outline)
+            btnSave.setTextColor(primaryColor)
 
             applyModelRowsTheme(
                 textPrimary = textPrimary,
@@ -222,16 +230,17 @@ class SettingsActivity : AppCompatActivity() {
             btnAddFastModel.setTextColor(primaryColor)
             btnAddDeepModel.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
             btnAddDeepModel.setTextColor(primaryColor)
+            btnTestOcr.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnTestOcr.setTextColor(primaryColor)
+            btnTestFast.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnTestFast.setTextColor(primaryColor)
+            btnTestDeep.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnTestDeep.setTextColor(primaryColor)
 
             // Buttons
-            btnTest.backgroundTintList = null
-            btnTest.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
-            btnTest.setTextColor(primaryColor)
             btnSave.backgroundTintList = null
-            btnSave.setBackgroundResource(R.drawable.bg_button_filled_light_brown_black)
-
-            // Test result
-            tvTestResult.setBackgroundResource(R.drawable.bg_card_settings_light_brown_black)
+            btnSave.setBackgroundResource(R.drawable.bg_button_outline_light_brown_black)
+            btnSave.setTextColor(primaryColor)
 
             applyModelRowsTheme(
                 textPrimary = textPrimary,
@@ -303,7 +312,9 @@ class SettingsActivity : AppCompatActivity() {
         val etModelId = row.findViewById<EditText>(R.id.etModelId)
         val btnRemoveModel = row.findViewById<ImageView>(R.id.btnRemoveModel)
         etModelId.setText(modelId)
-        addCompactInputWatcher(etModelId)
+        addCompactInputWatcher(etModelId) {
+            markVerificationDirty()
+        }
 
         btnRemoveModel.setOnClickListener {
             if (container.childCount <= 1) {
@@ -311,6 +322,7 @@ class SettingsActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             container.removeView(row)
+            markVerificationDirty()
         }
 
         container.addView(row)
@@ -346,11 +358,13 @@ class SettingsActivity : AppCompatActivity() {
 
         btnAddFastModel.setOnClickListener {
             addModelRow(fastModelListContainer, "", true)
+            markVerificationDirty()
             applyTheme()
         }
 
         btnAddDeepModel.setOnClickListener {
             addModelRow(deepModelListContainer, "", true)
+            markVerificationDirty()
             applyTheme()
         }
 
@@ -358,9 +372,9 @@ class SettingsActivity : AppCompatActivity() {
             saveSettings()
         }
 
-        btnTest.setOnClickListener {
-            testApi()
-        }
+        btnTestOcr.setOnClickListener { testApi(TestTarget.OCR) }
+        btnTestFast.setOnClickListener { testApi(TestTarget.FAST) }
+        btnTestDeep.setOnClickListener { testApi(TestTarget.DEEP) }
 
         setupInputGuardrails()
     }
@@ -372,7 +386,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         if (!isApiVerified) {
-            Toast.makeText(this, "请先点击测试按钮验证API配置", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "请先点击模型右侧“检测”验证连接", Toast.LENGTH_LONG).show()
             return
         }
         saveSettingsWithoutFinish()
@@ -411,88 +425,109 @@ class SettingsActivity : AppCompatActivity() {
         AISettings.setSelectedDeepModel(this, selectedDeep)
     }
 
-    private fun testApi() {
+    private fun testApi(target: TestTarget) {
         val apiKey = sanitizeEditTextInPlace(etApiKey)
         val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
-        val modelId = normalizeModelIds(
-            collectModelIds(fastModelListContainer),
-            AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
-        ).firstOrNull().orEmpty()
+        val modelId = resolveModelIdForTest(target)
 
         if (apiKey.isBlank()) {
-            showTestResult("错误: API Key 不能为空", false)
+            showConnectionResultDialog(success = false, responseBody = "API Key 不能为空")
             return
         }
 
         if (baseUrl.isBlank()) {
-            showTestResult("错误: Base URL 不能为空", false)
+            showConnectionResultDialog(success = false, responseBody = "Base URL 不能为空")
             return
         }
 
         if (modelId.isBlank()) {
-            showTestResult("错误: 至少需要一个模型 ID", false)
+            showConnectionResultDialog(success = false, responseBody = "模型 ID 不能为空")
             return
         }
 
-        btnTest.isEnabled = false
-        btnTest.text = "测试中..."
-        showTestResult("正在测试 API 连接...", null)
+        val testButton = getTestButton(target)
+        testButton.isEnabled = false
+        testButton.text = "检测中..."
 
         coroutineScope.launch {
             try {
                 val config = AIConfig(baseUrl, modelId, apiKey)
                 val client = OpenAIClient(config)
-
                 val messages = listOf(
-                    mapOf("role" to "user", "content" to "Say 'API connection successful!' in exactly those words.")
+                    mapOf("role" to "user", "content" to "ping")
                 )
 
                 val response = withContext(Dispatchers.IO) {
                     client.chatCompletion(messages, stream = false)
                 }
+                val errorBody = if (response.isSuccessful) {
+                    ""
+                } else {
+                    response.body?.string()?.ifBlank { "Empty response body" } ?: "Empty response body"
+                }
 
-                if (response.isSuccessful) {
-                    val content = OpenAIClient.parseNonStreamingResponse(response)
-                    // Mark as verified and auto-save settings on successful test
-                    withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
                         isApiVerified = true
                         updateSaveButtonState()
                         saveSettingsWithoutFinish()
-                        showTestResult("API 测试成功！配置已自动保存\n\n模型: $modelId\n响应: $content", true)
-                    }
-                } else {
-                    val errorBody = response.body?.string() ?: "Unknown error"
-                    withContext(Dispatchers.Main) {
+                        showConnectionResultDialog(success = true)
+                    } else {
                         isApiVerified = false
                         updateSaveButtonState()
+                        showConnectionResultDialog(success = false, responseBody = errorBody)
                     }
-                    showTestResult("API 测试失败！\n\n状态码: ${response.code}\n错误: $errorBody", false)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     isApiVerified = false
                     updateSaveButtonState()
+                    showConnectionResultDialog(
+                        success = false,
+                        responseBody = e.message?.ifBlank { "Unknown error" } ?: "Unknown error"
+                    )
                 }
-                showTestResult("API 测试失败！\n\n错误: ${e.message}", false)
             } finally {
                 withContext(Dispatchers.Main) {
-                    btnTest.isEnabled = true
-                    btnTest.text = "测试连接"
+                    testButton.isEnabled = true
+                    testButton.text = "检测"
                 }
             }
         }
     }
 
-    private fun showTestResult(message: String, success: Boolean?) {
-        tvTestResult.visibility = View.VISIBLE
-        tvTestResult.text = message
-        tvTestResult.setTextColor(
-            when (success) {
-                true -> 0xFF4CAF50.toInt()  // Green
-                false -> 0xFFF44336.toInt() // Red
-                null -> 0xFF757575.toInt()  // Gray
-            }
-        )
+    private fun resolveModelIdForTest(target: TestTarget): String {
+        return when (target) {
+            TestTarget.OCR -> sanitizeEditTextInPlace(etOcrModelId)
+            TestTarget.FAST -> normalizeModelIds(
+                collectModelIds(fastModelListContainer),
+                AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
+            ).firstOrNull().orEmpty()
+            TestTarget.DEEP -> normalizeModelIds(
+                collectModelIds(deepModelListContainer),
+                AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
+            ).firstOrNull().orEmpty()
+        }
+    }
+
+    private fun getTestButton(target: TestTarget): TextView {
+        return when (target) {
+            TestTarget.OCR -> btnTestOcr
+            TestTarget.FAST -> btnTestFast
+            TestTarget.DEEP -> btnTestDeep
+        }
+    }
+
+    private fun showConnectionResultDialog(success: Boolean, responseBody: String = "") {
+        val message = if (success) {
+            "连接成功"
+        } else {
+            "连接失败\n$responseBody"
+        }
+        AlertDialog.Builder(this)
+            .setMessage(message)
+            .setPositiveButton("确定", null)
+            .show()
     }
 
     private fun setupInputGuardrails() {
@@ -500,12 +535,21 @@ class SettingsActivity : AppCompatActivity() {
             // Only reset if the key changed from what was saved.
             val savedKey = AISettings.getApiKey(this@SettingsActivity)
             if (compact != savedKey) {
-                isApiVerified = false
-                updateSaveButtonState()
+                markVerificationDirty()
             }
         }
-        addCompactInputWatcher(etBaseUrl)
-        addCompactInputWatcher(etOcrModelId)
+        addCompactInputWatcher(etBaseUrl) {
+            markVerificationDirty()
+        }
+        addCompactInputWatcher(etOcrModelId) {
+            markVerificationDirty()
+        }
+    }
+
+    private fun markVerificationDirty() {
+        if (!isApiVerified) return
+        isApiVerified = false
+        updateSaveButtonState()
     }
 
     private fun compactInput(raw: String): String {
