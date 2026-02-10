@@ -687,7 +687,8 @@ class SettingsActivity : AppCompatActivity() {
         if (success) {
             tvResultTitle.text = "连接成功"
             tvResultTitle.setTextColor(successAccent)
-            tvResultMessage.visibility = View.GONE
+            tvResultMessage.text = ""
+            tvResultMessage.visibility = View.INVISIBLE
             ambientGlow.setBackgroundResource(R.drawable.bg_connection_ambient_glow_success)
             ringOuter.setBackgroundResource(R.drawable.bg_connection_ring_success)
             ringInner.setBackgroundResource(R.drawable.bg_connection_ring_success)
@@ -709,7 +710,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         dialog.show()
-        applyResultDialogWindowSize(dialog, success)
+        applyResultDialogWindowSize(dialog)
 
         if (success) {
             startSuccessResultAnimation(dialog, root, statusOrb, ivStatusIcon, ringOuter, ringInner)
@@ -821,11 +822,10 @@ class SettingsActivity : AppCompatActivity() {
         return value * resources.displayMetrics.density
     }
 
-    private fun applyResultDialogWindowSize(dialog: Dialog, success: Boolean) {
+    private fun applyResultDialogWindowSize(dialog: Dialog) {
         val screenWidth = resources.displayMetrics.widthPixels
-        val maxWidth = if (success) dp(230f).toInt() else dp(360f).toInt()
-        val ratio = if (success) 0.72f else 0.9f
-        val targetWidth = minOf((screenWidth * ratio).toInt(), maxWidth)
+        val maxWidth = dp(348f).toInt()
+        val targetWidth = minOf((screenWidth * 0.9f).toInt(), maxWidth)
         dialog.window?.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT)
     }
 
