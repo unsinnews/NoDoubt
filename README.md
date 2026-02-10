@@ -1,4 +1,4 @@
-# Perfect Float Window
+# NoDoubt
 
 Android 悬浮窗，绝对是目前相关悬浮窗开源库最完美的适配方案。目前已经适配华为，小米，vivo，oppo，一加，三星，魅族，索尼，LG，IQOO，努比亚，中兴，金立，360，锤子等目前是市面上主流机型包括非主流机型，兼容 4.4 以上包括 Android 11 版本。
 
@@ -59,7 +59,7 @@ Android 悬浮窗，绝对是目前相关悬浮窗开源库最完美的适配方
 #### 1. 添加依赖
 
 ```groovy
-implementation 'com.alonsol:floatserver:1.0.0'
+implementation 'com.nodoubt:floatserver:1.0.0'
 ```
 
 #### 2. 添加权限

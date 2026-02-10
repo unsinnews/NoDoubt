@@ -29,7 +29,7 @@ The Demo application is an **AI-powered problem solver** that uses the floating 
 
 ```
 NoDoubt/
-├── floatserver/          # Library module (com.alonsol:floatserver)
+├── floatserver/          # Library module (com.nodoubt:floatserver)
 └── app/                  # Demo application (AI problem solver)
 ```
 

@@ -45,10 +45,10 @@ task generateSourcesJar(type: Jar) {
 publishing {
     publications {
         Production(MavenPublication) {
-            groupId = "com.alonsol"
+            groupId = "com.nodoubt"
             artifactId = "floatserver"
             version = "1.0.0"
-            description = "perfect float window, tested on all android device"
+            description = "NoDoubt float window library, tested on Android devices"
             afterEvaluate { artifact(tasks.getByName("bundleReleaseAar")) }
             artifact generateSourcesJar
         }
