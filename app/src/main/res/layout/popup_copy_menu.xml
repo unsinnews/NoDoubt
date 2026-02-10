@@ -24,7 +24,7 @@
         android:orientation="vertical">
 
         <TextView
-            android:id="@+id/btnCopyQuestionAndAnswer"
+            android:id="@+id/btnCopyQuestionOnly"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
@@ -35,7 +35,7 @@
             android:paddingTop="10dp"
             android:paddingEnd="12dp"
             android:paddingBottom="10dp"
-            android:text="题与解"
+            android:text="仅题目"
             android:textSize="12sp" />
 
         <TextView
@@ -51,6 +51,21 @@
             android:paddingEnd="12dp"
             android:paddingBottom="10dp"
             android:text="仅解答"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/btnCopyQuestionAndAnswer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:background="@drawable/bg_model_menu_item"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:paddingStart="12dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="10dp"
+            android:text="题与解"
             android:textSize="12sp" />
 
     </LinearLayout>

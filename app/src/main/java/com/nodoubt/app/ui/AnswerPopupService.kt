@@ -934,42 +934,58 @@ class AnswerPopupService : Service() {
         val menuView = LayoutInflater.from(this).inflate(R.layout.popup_copy_menu, null)
         val root = menuView.findViewById<LinearLayout>(R.id.copyMenuRoot)
         val viewHandle = menuView.findViewById<View>(R.id.viewCopyMenuHandle)
-        val btnCopyQuestionAndAnswer = menuView.findViewById<TextView>(R.id.btnCopyQuestionAndAnswer)
+        val btnCopyQuestionOnly = menuView.findViewById<TextView>(R.id.btnCopyQuestionOnly)
         val btnCopyAnswerOnly = menuView.findViewById<TextView>(R.id.btnCopyAnswerOnly)
+        val btnCopyQuestionAndAnswer = menuView.findViewById<TextView>(R.id.btnCopyQuestionAndAnswer)
 
         if (isLightGreenGray) {
             root.setBackgroundResource(R.drawable.bg_model_menu_surface)
             viewHandle.setBackgroundColor(0xFF9BBEB2.toInt())
-            btnCopyQuestionAndAnswer.setBackgroundResource(R.drawable.bg_model_menu_item)
-            btnCopyQuestionAndAnswer.setTextColor(0xFF243036.toInt())
+            btnCopyQuestionOnly.setBackgroundResource(R.drawable.bg_model_menu_item)
+            btnCopyQuestionOnly.setTextColor(0xFF243036.toInt())
             btnCopyAnswerOnly.setBackgroundResource(R.drawable.bg_model_menu_item)
             btnCopyAnswerOnly.setTextColor(0xFF243036.toInt())
+            btnCopyQuestionAndAnswer.setBackgroundResource(R.drawable.bg_model_menu_item)
+            btnCopyQuestionAndAnswer.setTextColor(0xFF243036.toInt())
         } else {
             root.setBackgroundResource(R.drawable.bg_model_menu_surface_light_brown_black)
             viewHandle.setBackgroundColor(0xFFB69684.toInt())
-            btnCopyQuestionAndAnswer.setBackgroundResource(R.drawable.bg_model_menu_item_light_brown_black)
-            btnCopyQuestionAndAnswer.setTextColor(0xFF2E2523.toInt())
+            btnCopyQuestionOnly.setBackgroundResource(R.drawable.bg_model_menu_item_light_brown_black)
+            btnCopyQuestionOnly.setTextColor(0xFF2E2523.toInt())
             btnCopyAnswerOnly.setBackgroundResource(R.drawable.bg_model_menu_item_light_brown_black)
             btnCopyAnswerOnly.setTextColor(0xFF2E2523.toInt())
+            btnCopyQuestionAndAnswer.setBackgroundResource(R.drawable.bg_model_menu_item_light_brown_black)
+            btnCopyQuestionAndAnswer.setTextColor(0xFF2E2523.toInt())
         }
 
-        btnCopyQuestionAndAnswer.setOnClickListener {
-            val content = buildCopyContent(questionId, includeQuestion = true)
+        btnCopyQuestionOnly.setOnClickListener {
+            val content = buildCopyContent(questionId, includeQuestion = true, includeAnswer = false)
             if (content.isBlank()) {
-                Toast.makeText(this, "暂无可复制内容", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "暂无可复制题目", Toast.LENGTH_SHORT).show()
             } else {
-                copyToClipboard("question_answer_$questionId", content)
+                copyToClipboard("question_$questionId", content)
                 showCopyFeedback()
             }
             copyMenuPopup?.dismiss()
         }
 
         btnCopyAnswerOnly.setOnClickListener {
-            val content = buildCopyContent(questionId, includeQuestion = false)
+            val content = buildCopyContent(questionId, includeQuestion = false, includeAnswer = true)
             if (content.isBlank()) {
                 Toast.makeText(this, "暂无可复制解答", Toast.LENGTH_SHORT).show()
             } else {
                 copyToClipboard("answer_$questionId", content)
+                showCopyFeedback()
+            }
+            copyMenuPopup?.dismiss()
+        }
+
+        btnCopyQuestionAndAnswer.setOnClickListener {
+            val content = buildCopyContent(questionId, includeQuestion = true, includeAnswer = true)
+            if (content.isBlank()) {
+                Toast.makeText(this, "暂无可复制内容", Toast.LENGTH_SHORT).show()
+            } else {
+                copyToClipboard("question_answer_$questionId", content)
                 showCopyFeedback()
             }
             copyMenuPopup?.dismiss()
@@ -1000,7 +1016,9 @@ class AnswerPopupService : Service() {
         return (popupWidth * 0.48f).toInt().coerceIn(dpInt(190), dpInt(290))
     }
 
-    private fun buildCopyContent(questionId: Int, includeQuestion: Boolean): String {
+    private fun buildCopyContent(questionId: Int, includeQuestion: Boolean, includeAnswer: Boolean = true): String {
+        val questionText = currentQuestions.find { it.id == questionId }?.text?.trim().orEmpty()
+
         val answer = if (isFastMode) fastAnswers[questionId] else deepAnswers[questionId]
         val answerText = when {
             answer?.error != null -> "错误: ${answer.error}"
@@ -1008,9 +1026,17 @@ class AnswerPopupService : Service() {
             else -> ""
         }.trim()
 
-        if (!includeQuestion) return answerText
+        // Only question
+        if (includeQuestion && !includeAnswer) {
+            return questionText
+        }
 
-        val questionText = currentQuestions.find { it.id == questionId }?.text?.trim().orEmpty()
+        // Only answer
+        if (!includeQuestion && includeAnswer) {
+            return answerText
+        }
+
+        // Both question and answer
         val sections = mutableListOf<String>()
         if (questionText.isNotBlank()) {
             sections.add("题目：\n$questionText")
