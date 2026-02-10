@@ -571,7 +571,7 @@ class SettingsActivity : AppCompatActivity() {
         )
         tvTitle.text = when (target) {
             TestTarget.FAST -> "选择极速模式检测模型"
-            TestTarget.DEEP -> "选择深度模式检测模型"
+            TestTarget.DEEP -> "选择模型"
             TestTarget.OCR -> "选择检测模型"
         }
         tvTitle.setTextColor(textPrimary)
