@@ -369,11 +369,15 @@ object MarkdownRenderer {
             val lastRendered = lastStreamingRenderedContent[viewId].orEmpty()
             if (latest != lastRendered) {
                 try {
-                    // Use basic Markwon for real-time Markdown rendering (no LaTeX)
-                    getBasicMarkwon(context).setMarkdown(textView, latest)
+                    // Full Markdown + LaTeX rendering during streaming
+                    processLatex(context, textView, latest)
                 } catch (e: Throwable) {
-                    Log.e(TAG, "Streaming markdown render error", e)
-                    textView.text = latest
+                    Log.e(TAG, "Streaming render error", e)
+                    try {
+                        getBasicMarkwon(context).setMarkdown(textView, latest)
+                    } catch (_: Throwable) {
+                        textView.text = latest
+                    }
                 }
                 lastStreamingRenderedContent[viewId] = latest
             }
