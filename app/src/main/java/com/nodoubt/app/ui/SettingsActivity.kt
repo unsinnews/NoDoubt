@@ -646,15 +646,21 @@ class SettingsActivity : AppCompatActivity() {
         val tvTitle = dialog.findViewById<TextView>(R.id.tvModelCatalogTitle)
         val tvSubtitle = dialog.findViewById<TextView>(R.id.tvModelCatalogSubtitle)
         val filterContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogFilterContainer)
-        val prefixScroll = dialog.findViewById<android.widget.HorizontalScrollView>(R.id.modelCatalogPrefixScroll)
+        val prefixScroll =
+            dialog.findViewById<android.widget.HorizontalScrollView>(R.id.modelCatalogPrefixScroll)
         val prefixContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogPrefixContainer)
+        val modelCatalogScroll = dialog.findViewById<android.widget.ScrollView>(R.id.modelCatalogScroll)
         val optionsContainer = dialog.findViewById<LinearLayout>(R.id.modelCatalogOptionsContainer)
+        val bulkActionRow = dialog.findViewById<LinearLayout>(R.id.modelCatalogBulkActionRow)
+        val btnTogglePrefixSelection = dialog.findViewById<TextView>(R.id.btnTogglePrefixSelection)
+        val btnToggleAllSelection = dialog.findViewById<TextView>(R.id.btnToggleAllSelection)
         val btnCancel = dialog.findViewById<TextView>(R.id.btnCancelModelCatalog)
         val btnConfirm = dialog.findViewById<TextView>(R.id.btnConfirmModelCatalog)
 
         val primaryColor = if (isLightGreenGray) 0xFF10A37F.toInt() else 0xFFDA7A5A.toInt()
         val textPrimary = if (isLightGreenGray) 0xFF1D2A2F.toInt() else 0xFF2C241F.toInt()
         val textSecondary = if (isLightGreenGray) 0xFF5E6872.toInt() else 0xFF6F625B.toInt()
+        val multiSelect = target != TestTarget.OCR
 
         root.setBackgroundResource(
             if (isLightGreenGray) R.drawable.bg_model_dialog_surface
@@ -672,6 +678,16 @@ class SettingsActivity : AppCompatActivity() {
             else R.drawable.bg_button_filled_light_brown_black
         )
         btnConfirm.setTextColor(0xFFFFFFFF.toInt())
+        btnTogglePrefixSelection.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_button_outline
+            else R.drawable.bg_button_outline_light_brown_black
+        )
+        btnTogglePrefixSelection.setTextColor(primaryColor)
+        btnToggleAllSelection.setBackgroundResource(
+            if (isLightGreenGray) R.drawable.bg_button_outline
+            else R.drawable.bg_button_outline_light_brown_black
+        )
+        btnToggleAllSelection.setTextColor(primaryColor)
 
         tvTitle.text = when (target) {
             TestTarget.OCR -> "选择 OCR 模型"
@@ -680,21 +696,33 @@ class SettingsActivity : AppCompatActivity() {
         }
         tvSubtitle.text = when (target) {
             TestTarget.OCR -> "仅展示识别为视觉能力的模型，点击即使用"
-            TestTarget.FAST -> "展示全部模型，可按类别与前缀筛选，点击即添加"
-            TestTarget.DEEP -> "仅展示识别为推理能力的模型，可按前缀筛选"
+            TestTarget.FAST -> "支持手动多选，可按类别/前缀筛选，底部固定确定"
+            TestTarget.DEEP -> "支持手动多选，可按前缀筛选，底部固定确定"
         }
-        btnConfirm.text = if (target == TestTarget.OCR) "关闭" else "全选可见"
+        btnConfirm.text = if (multiSelect) "确定" else "关闭"
 
         val categories = buildFilterCategories(target, models)
         var activeCategory = categories.first()
         val prefixCountMap = buildPrefixCountMap(models)
         val prefixKeys = prefixCountMap.keys.toList()
         var activePrefix: String? = null
+
         val existingOcrModelId = if (target == TestTarget.OCR) sanitizeEditTextInPlace(etOcrModelId) else ""
         val existingIds = when (target) {
             TestTarget.OCR -> setOf(existingOcrModelId).filter { it.isNotBlank() }.toSet()
             TestTarget.FAST -> collectModelIds(fastModelListContainer).toSet()
             TestTarget.DEEP -> collectModelIds(deepModelListContainer).toSet()
+        }
+        val selectedIds = mutableSetOf<String>()
+        if (multiSelect) {
+            selectedIds.addAll(models.map { it.id }.filter { existingIds.contains(it) })
+        }
+
+        // Keep option list in a fixed-height scroll area so bottom actions stay anchored.
+        val screenHeight = resources.displayMetrics.heightPixels
+        val targetScrollHeight = minOf((screenHeight * 0.42f).toInt(), dp(320f).toInt())
+        modelCatalogScroll.layoutParams = modelCatalogScroll.layoutParams.apply {
+            height = targetScrollHeight
         }
 
         val categoryViews = mutableListOf<Pair<TextView, ModelFilterCategory>>()
@@ -721,8 +749,15 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        fun currentCategoryModels(): List<CatalogModel> = filteredModelsByCategory(activeCategory)
+
+        fun currentPrefixModels(): List<CatalogModel> {
+            val prefix = activePrefix ?: return emptyList()
+            return currentCategoryModels().filter { extractModelPrefixKey(it.id) == prefix }
+        }
+
         fun filteredModelsByCurrentState(): List<CatalogModel> {
-            val byCategory = filteredModelsByCategory(activeCategory)
+            val byCategory = currentCategoryModels()
             return if (activePrefix.isNullOrBlank()) {
                 byCategory
             } else {
@@ -730,40 +765,60 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        fun updateConfirmState() {
-            if (target == TestTarget.OCR) {
+        fun updateConfirmStateAndBulkButtons() {
+            if (!multiSelect) {
                 btnConfirm.isEnabled = true
                 btnConfirm.alpha = 1f
+                bulkActionRow.visibility = View.GONE
                 return
             }
-            val hasVisibleModels = filteredModelsByCurrentState().isNotEmpty()
-            btnConfirm.isEnabled = hasVisibleModels
-            btnConfirm.alpha = if (hasVisibleModels) 1f else 0.45f
+
+            bulkActionRow.visibility = View.VISIBLE
+            val selectedCount = selectedIds.size
+            btnConfirm.isEnabled = selectedCount > 0
+            btnConfirm.alpha = if (selectedCount > 0) 1f else 0.45f
+
+            val categoryIds = currentCategoryModels().map { it.id }
+            val prefixIds = currentPrefixModels().map { it.id }
+
+            val allCategorySelected = categoryIds.isNotEmpty() && categoryIds.all { selectedIds.contains(it) }
+            btnToggleAllSelection.text = if (allCategorySelected) "-" else "+"
+            btnToggleAllSelection.isEnabled = categoryIds.isNotEmpty()
+            btnToggleAllSelection.alpha = if (categoryIds.isNotEmpty()) 1f else 0.45f
+
+            val canPrefixToggle = activePrefix != null && prefixIds.isNotEmpty()
+            val allPrefixSelected = canPrefixToggle && prefixIds.all { selectedIds.contains(it) }
+            btnTogglePrefixSelection.text = if (allPrefixSelected) "-" else "+"
+            btnTogglePrefixSelection.isEnabled = canPrefixToggle
+            btnTogglePrefixSelection.alpha = if (canPrefixToggle) 1f else 0.45f
+        }
+
+        var optionRows = mutableListOf<Triple<LinearLayout, ImageView, CatalogModel>>()
+
+        fun applyOptionSelectionUi() {
+            optionRows.forEach { (optionRoot, ivCheck, model) ->
+                val isSelected = if (multiSelect) {
+                    selectedIds.contains(model.id)
+                } else {
+                    model.id == existingOcrModelId
+                }
+                ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
+                optionRoot.setBackgroundResource(
+                    when {
+                        isSelected && isLightGreenGray -> R.drawable.bg_model_option_selected
+                        isSelected && !isLightGreenGray -> R.drawable.bg_model_option_selected_light_brown_black
+                        !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
+                        else -> R.drawable.bg_model_option_unselected_light_brown_black
+                    }
+                )
+            }
+            updateConfirmStateAndBulkButtons()
         }
 
         fun renderOptions() {
             optionsContainer.removeAllViews()
             val visibleModels = filteredModelsByCurrentState()
-            val optionRows = mutableListOf<Triple<LinearLayout, ImageView, CatalogModel>>()
-
-            fun applyOptionSelectionUi() {
-                optionRows.forEach { (optionRoot, ivCheck, model) ->
-                    val isSelected = when (target) {
-                        TestTarget.OCR -> model.id == existingOcrModelId
-                        TestTarget.FAST, TestTarget.DEEP -> existingIds.contains(model.id)
-                    }
-                    ivCheck.visibility = if (isSelected) View.VISIBLE else View.GONE
-                    optionRoot.setBackgroundResource(
-                        when {
-                            isSelected && isLightGreenGray -> R.drawable.bg_model_option_selected
-                            isSelected && !isLightGreenGray -> R.drawable.bg_model_option_selected_light_brown_black
-                            !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
-                            else -> R.drawable.bg_model_option_unselected_light_brown_black
-                        }
-                    )
-                }
-                updateConfirmState()
-            }
+            optionRows = mutableListOf()
 
             visibleModels.forEachIndexed { index, model ->
                 val row = layoutInflater.inflate(R.layout.item_model_catalog_option, optionsContainer, false)
@@ -797,31 +852,18 @@ class SettingsActivity : AppCompatActivity() {
                         .withEndAction {
                             optionRoot.scaleX = 1f
                             optionRoot.scaleY = 1f
-                            when (target) {
-                                TestTarget.OCR -> {
-                                    etOcrModelId.setText(model.id)
-                                    etOcrModelId.setSelection(model.id.length)
-                                    markVerificationDirty()
-                                    dialog.dismiss()
+                            if (multiSelect) {
+                                if (selectedIds.contains(model.id)) {
+                                    selectedIds.remove(model.id)
+                                } else {
+                                    selectedIds.add(model.id)
                                 }
-                                TestTarget.FAST -> {
-                                    addSingleModelIntoContainerIfMissing(
-                                        container = fastModelListContainer,
-                                        modelId = model.id,
-                                        fallback = AISettings.getSelectedFastModel(this@SettingsActivity)
-                                            .ifBlank { DEFAULT_FAST_MODEL }
-                                    )
-                                    dialog.dismiss()
-                                }
-                                TestTarget.DEEP -> {
-                                    addSingleModelIntoContainerIfMissing(
-                                        container = deepModelListContainer,
-                                        modelId = model.id,
-                                        fallback = AISettings.getSelectedDeepModel(this@SettingsActivity)
-                                            .ifBlank { DEFAULT_DEEP_MODEL }
-                                    )
-                                    dialog.dismiss()
-                                }
+                                applyOptionSelectionUi()
+                            } else {
+                                etOcrModelId.setText(model.id)
+                                etOcrModelId.setSelection(model.id.length)
+                                markVerificationDirty()
+                                dialog.dismiss()
                             }
                         }
                         .start()
@@ -842,6 +884,22 @@ class SettingsActivity : AppCompatActivity() {
             applyOptionSelectionUi()
         }
 
+        var prefixViews = mutableListOf<Pair<TextView, String?>>()
+        fun applyPrefixUi() {
+            prefixViews.forEach { (view, key) ->
+                val isSelected = key == activePrefix
+                view.setTextColor(if (isSelected) primaryColor else textSecondary)
+                view.setBackgroundResource(
+                    when {
+                        isSelected && isLightGreenGray -> R.drawable.bg_dialog_item_selected_light_green_gray
+                        isSelected && !isLightGreenGray -> R.drawable.bg_dialog_item_selected_light_brown_black
+                        !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
+                        else -> R.drawable.bg_model_option_unselected_light_brown_black
+                    }
+                )
+            }
+        }
+
         filterContainer.removeAllViews()
         categories.forEach { category ->
             val chip = TextView(this).apply {
@@ -857,7 +915,11 @@ class SettingsActivity : AppCompatActivity() {
                 setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
                 setOnClickListener {
                     activeCategory = category
+                    if (!activePrefix.isNullOrBlank() && currentPrefixModels().isEmpty()) {
+                        activePrefix = null
+                    }
                     applyCategoryUi()
+                    applyPrefixUi()
                     renderOptions()
                 }
             }
@@ -875,23 +937,6 @@ class SettingsActivity : AppCompatActivity() {
             prefixScroll.visibility = View.GONE
         } else {
             prefixScroll.visibility = View.VISIBLE
-            val prefixViews = mutableListOf<Pair<TextView, String?>>()
-
-            fun applyPrefixUi() {
-                prefixViews.forEach { (view, key) ->
-                    val isSelected = key == activePrefix
-                    view.setTextColor(if (isSelected) primaryColor else textSecondary)
-                    view.setBackgroundResource(
-                        when {
-                            isSelected && isLightGreenGray -> R.drawable.bg_dialog_item_selected_light_green_gray
-                            isSelected && !isLightGreenGray -> R.drawable.bg_dialog_item_selected_light_brown_black
-                            !isSelected && isLightGreenGray -> R.drawable.bg_model_option_unselected
-                            else -> R.drawable.bg_model_option_unselected_light_brown_black
-                        }
-                    )
-                }
-            }
-
             fun addPrefixChip(key: String?) {
                 val chip = TextView(this).apply {
                     text = if (key == null) {
@@ -921,6 +966,7 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             prefixContainer.removeAllViews()
+            prefixViews = mutableListOf()
             addPrefixChip(null)
             prefixKeys.forEach { prefix ->
                 addPrefixChip(prefix)
@@ -928,25 +974,49 @@ class SettingsActivity : AppCompatActivity() {
             applyPrefixUi()
         }
 
+        btnToggleAllSelection.setOnClickListener {
+            if (!multiSelect) return@setOnClickListener
+            val categoryIds = currentCategoryModels().map { it.id }
+            if (categoryIds.isEmpty()) return@setOnClickListener
+            val allSelected = categoryIds.all { selectedIds.contains(it) }
+            if (allSelected) {
+                categoryIds.forEach { selectedIds.remove(it) }
+            } else {
+                selectedIds.addAll(categoryIds)
+            }
+            applyOptionSelectionUi()
+        }
+
+        btnTogglePrefixSelection.setOnClickListener {
+            if (!multiSelect) return@setOnClickListener
+            val prefixIds = currentPrefixModels().map { it.id }
+            if (prefixIds.isEmpty()) return@setOnClickListener
+            val allPrefixSelected = prefixIds.all { selectedIds.contains(it) }
+            if (allPrefixSelected) {
+                prefixIds.forEach { selectedIds.remove(it) }
+            } else {
+                selectedIds.addAll(prefixIds)
+            }
+            applyOptionSelectionUi()
+        }
+
         btnCancel.setOnClickListener { dialog.dismiss() }
         btnConfirm.setOnClickListener {
             when (target) {
                 TestTarget.OCR -> Unit
                 TestTarget.FAST -> {
-                    val visibleIds = filteredModelsByCurrentState().map { it.id }
-                    if (visibleIds.isEmpty()) return@setOnClickListener
+                    if (selectedIds.isEmpty()) return@setOnClickListener
                     mergeModelsIntoContainer(
                         container = fastModelListContainer,
-                        additions = visibleIds,
+                        additions = selectedIds.toList(),
                         fallback = AISettings.getSelectedFastModel(this).ifBlank { DEFAULT_FAST_MODEL }
                     )
                 }
                 TestTarget.DEEP -> {
-                    val visibleIds = filteredModelsByCurrentState().map { it.id }
-                    if (visibleIds.isEmpty()) return@setOnClickListener
+                    if (selectedIds.isEmpty()) return@setOnClickListener
                     mergeModelsIntoContainer(
                         container = deepModelListContainer,
-                        additions = visibleIds,
+                        additions = selectedIds.toList(),
                         fallback = AISettings.getSelectedDeepModel(this).ifBlank { DEFAULT_DEEP_MODEL }
                     )
                 }
@@ -956,7 +1026,7 @@ class SettingsActivity : AppCompatActivity() {
 
         applyCategoryUi()
         renderOptions()
-        updateConfirmState()
+        updateConfirmStateAndBulkButtons()
         dialog.show()
         applyModelPickerDialogWindowSize(dialog)
         root.alpha = 0f
@@ -994,7 +1064,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         val sorted = counts.entries
-            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+            .sortedBy { it.key.lowercase() }
 
         val result = linkedMapOf<String, Int>()
         sorted.forEach { (key, value) ->
@@ -1023,24 +1093,6 @@ class SettingsActivity : AppCompatActivity() {
         setModelRows(container, merged, fallback)
         markVerificationDirty()
         applyTheme()
-    }
-
-    private fun addSingleModelIntoContainerIfMissing(
-        container: LinearLayout,
-        modelId: String,
-        fallback: String
-    ): Boolean {
-        val normalized = compactInput(modelId)
-        if (normalized.isBlank()) return false
-
-        val current = collectModelIds(container)
-        if (current.contains(normalized)) return false
-
-        val merged = normalizeModelIds(current + normalized, fallback)
-        setModelRows(container, merged, fallback)
-        markVerificationDirty()
-        applyTheme()
-        return true
     }
 
     private fun testApi(target: TestTarget) {

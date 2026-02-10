@@ -83,6 +83,40 @@
     </ScrollView>
 
     <LinearLayout
+        android:id="@+id/modelCatalogBulkActionRow"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btnTogglePrefixSelection"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/bg_button_outline"
+            android:gravity="center"
+            android:text="+"
+            android:textColor="#10A37F"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btnToggleAllSelection"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/bg_button_outline"
+            android:gravity="center"
+            android:text="+"
+            android:textColor="#10A37F"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:layout_marginTop="10dp"
