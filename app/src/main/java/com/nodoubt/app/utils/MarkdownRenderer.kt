@@ -333,7 +333,7 @@ object MarkdownRenderer {
         mainHandler.postDelayed(renderTask, DEBOUNCE_DELAY)
     }
 
-    fun renderAIResponseStreaming(textView: TextView, text: String) {
+    fun renderAIResponseStreaming(context: Context, textView: TextView, text: String) {
         val viewId = System.identityHashCode(textView)
 
         if (text.isEmpty()) {
@@ -346,8 +346,8 @@ object MarkdownRenderer {
             return
         }
 
-        // Streaming phase: prioritize low-latency plain text updates.
-        // Full markdown/latex formatting is applied in flushAIResponse().
+        // Streaming phase: render basic Markdown for real-time formatting.
+        // Full LaTeX formatting is applied in flushAIResponse().
         pendingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
         pendingRenders.remove(viewId)
         val normalized = normalizeDelimiters(text)
@@ -356,10 +356,10 @@ object MarkdownRenderer {
         if (previous == normalized && hasPendingRender) {
             return
         }
-        scheduleStreamingRender(viewId, textView)
+        scheduleStreamingRender(context, viewId, textView)
     }
 
-    private fun scheduleStreamingRender(viewId: Int, textView: TextView) {
+    private fun scheduleStreamingRender(context: Context, viewId: Int, textView: TextView) {
         if (pendingStreamingRenders.containsKey(viewId)) {
             return
         }
@@ -368,12 +368,11 @@ object MarkdownRenderer {
             val latest = streamingContent[viewId] ?: return@Runnable
             val lastRendered = lastStreamingRenderedContent[viewId].orEmpty()
             if (latest != lastRendered) {
-                val canAppend = lastRendered.isNotEmpty() &&
-                    latest.startsWith(lastRendered) &&
-                    textView.text?.toString() == lastRendered
-                if (canAppend) {
-                    textView.append(latest.substring(lastRendered.length))
-                } else {
+                try {
+                    // Use basic Markwon for real-time Markdown rendering (no LaTeX)
+                    getBasicMarkwon(context).setMarkdown(textView, latest)
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Streaming markdown render error", e)
                     textView.text = latest
                 }
                 lastStreamingRenderedContent[viewId] = latest
@@ -382,7 +381,7 @@ object MarkdownRenderer {
             lastStreamingRenderAt[viewId] = now
             // If text changed while this frame was rendering, queue another frame.
             if (streamingContent[viewId] != latest) {
-                scheduleStreamingRender(viewId, textView)
+                scheduleStreamingRender(context, viewId, textView)
             }
         }
 

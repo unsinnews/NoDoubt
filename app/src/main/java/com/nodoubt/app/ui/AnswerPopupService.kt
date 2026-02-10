@@ -1814,7 +1814,7 @@ class AnswerPopupService : Service() {
                         if (finalRender) {
                             MarkdownRenderer.flushAIResponse(this@AnswerPopupService, textView, displayText)
                         } else {
-                            MarkdownRenderer.renderAIResponseStreaming(textView, displayText)
+                            MarkdownRenderer.renderAIResponseStreaming(this@AnswerPopupService, textView, displayText)
                         }
                     } else {
                         // Clear the cached content so that when switching back to a mode with content,
@@ -2049,7 +2049,7 @@ class AnswerPopupService : Service() {
             if (finalRender) {
                 MarkdownRenderer.flushAIResponse(this@AnswerPopupService, textView, text)
             } else {
-                MarkdownRenderer.renderAIResponseStreaming(textView, text)
+                MarkdownRenderer.renderAIResponseStreaming(this@AnswerPopupService, textView, text)
             }
         }
 
@@ -2130,7 +2130,7 @@ class AnswerPopupService : Service() {
             val thinkingText = answer.thinkingText.trim()
             if (thinkingText.isNotEmpty()) {
                 if (answer.isThinking) {
-                    MarkdownRenderer.renderAIResponseStreaming(tvThinkingText, thinkingText)
+                    MarkdownRenderer.renderAIResponseStreaming(this@AnswerPopupService, tvThinkingText, thinkingText)
                 } else {
                     MarkdownRenderer.flushAIResponse(this@AnswerPopupService, tvThinkingText, thinkingText)
                 }
