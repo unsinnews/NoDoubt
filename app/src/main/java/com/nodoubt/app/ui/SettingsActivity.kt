@@ -197,12 +197,32 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun requestModelListRelayout(recyclerView: RecyclerView) {
         recyclerView.post {
-            recyclerView.layoutParams = recyclerView.layoutParams?.apply {
-                height = ViewGroup.LayoutParams.WRAP_CONTENT
+            val params = recyclerView.layoutParams
+            if (params != null) {
+                val parentWidth = (recyclerView.parent as? View)?.width ?: recyclerView.width
+                if (parentWidth > 0) {
+                    val widthSpec = View.MeasureSpec.makeMeasureSpec(parentWidth, View.MeasureSpec.EXACTLY)
+                    val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                    recyclerView.measure(widthSpec, heightSpec)
+                    val measuredHeight = recyclerView.measuredHeight
+                    val targetHeight = if (measuredHeight > 0) measuredHeight else ViewGroup.LayoutParams.WRAP_CONTENT
+                    if (params.height != targetHeight) {
+                        params.height = targetHeight
+                        recyclerView.layoutParams = params
+                    }
+                } else if (params.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                    params.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    recyclerView.layoutParams = params
+                }
             }
             recyclerView.requestLayout()
-            (recyclerView.parent as? View)?.requestLayout()
-            ((recyclerView.parent as? View)?.parent as? View)?.requestLayout()
+            recyclerView.invalidate()
+            var parent = recyclerView.parent
+            while (parent is View) {
+                parent.requestLayout()
+                parent.invalidate()
+                parent = parent.parent
+            }
         }
     }
 
@@ -307,6 +327,7 @@ class SettingsActivity : AppCompatActivity() {
             override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(recyclerView, viewHolder)
                 recyclerView.parent?.requestDisallowInterceptTouchEvent(false)
+                resetRecyclerItemTransforms(recyclerView)
                 viewHolder.itemView.animate().cancel()
                 viewHolder.itemView.animate()
                     .scaleX(1f)
@@ -316,13 +337,28 @@ class SettingsActivity : AppCompatActivity() {
                     .setInterpolator(DecelerateInterpolator())
                     .start()
                 if (hasMoved) {
+                    adapter.finalizeAfterDrag()
                     markVerificationDirty()
                 }
+                requestModelListRelayout(recyclerView)
             }
 
             private fun recyclerViewParent(itemView: View): android.view.ViewParent? {
                 return (itemView.parent as? RecyclerView)?.parent
             }
+        }
+    }
+
+    private fun resetRecyclerItemTransforms(recyclerView: RecyclerView) {
+        for (index in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(index) ?: continue
+            child.animate().cancel()
+            child.alpha = 1f
+            child.translationX = 0f
+            child.translationY = 0f
+            child.scaleX = 1f
+            child.scaleY = 1f
+            child.translationZ = 0f
         }
     }
 
@@ -585,8 +621,8 @@ class SettingsActivity : AppCompatActivity() {
 
         markVerificationDirty()
         val recycler = getModelRecycler(target)
+        requestModelListRelayout(recycler)
         recycler.post {
-            requestModelListRelayout(recycler)
             recycler.smoothScrollToPosition(adapter.itemCount - 1)
         }
         return true
@@ -1953,6 +1989,12 @@ class SettingsActivity : AppCompatActivity() {
             items.add(to, moved)
             notifyItemMoved(from, to)
             return true
+        }
+
+        fun finalizeAfterDrag() {
+            // Force a full rebind after drag release to clear any stale row offsets.
+            notifyDataSetChanged()
+            onDataChanged()
         }
 
         fun applyPalette(newPalette: ModelRowPalette) {

@@ -24,7 +24,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:fontFamily="monospace"
-            android:maxLines="1"
+            android:maxLines="2"
             android:text="gpt-4o-mini"
             android:textColor="#1D2A2F"
             android:textSize="14sp"

@@ -91,6 +91,8 @@ object MarkdownRenderer {
     private const val TAG = "MarkdownRenderer"
     private const val DEBOUNCE_DELAY = 150L
     private const val STREAM_FRAME_DELAY = 48L
+    private const val STREAM_MARKDOWN_INTERVAL = 220L
+    private const val STREAM_MARKDOWN_LENGTH_THRESHOLD = 1200
 
     @Volatile
     private var basicMarkwon: Markwon? = null
@@ -111,6 +113,7 @@ object MarkdownRenderer {
     private val streamingContent = ConcurrentHashMap<Int, String>()
     private val pendingStreamingRenders = ConcurrentHashMap<Int, Runnable>()
     private val lastStreamingRenderAt = ConcurrentHashMap<Int, Long>()
+    private val lastStreamingMarkdownAt = ConcurrentHashMap<Int, Long>()
 
     private fun getBasicMarkwon(context: Context): Markwon {
         return basicMarkwon ?: synchronized(this) {
@@ -301,6 +304,7 @@ object MarkdownRenderer {
         streamingContent.remove(viewId)
         lastStreamingRenderedContent.remove(viewId)
         lastStreamingRenderAt.remove(viewId)
+        lastStreamingMarkdownAt.remove(viewId)
 
         if (text.isEmpty()) {
             textView.text = ""
@@ -343,6 +347,7 @@ object MarkdownRenderer {
             streamingContent.remove(viewId)
             lastStreamingRenderedContent.remove(viewId)
             lastStreamingRenderAt.remove(viewId)
+            lastStreamingMarkdownAt.remove(viewId)
             return
         }
 
@@ -366,16 +371,27 @@ object MarkdownRenderer {
             val latest = streamingContent[viewId] ?: return@Runnable
             val normalizedLatest = normalizeDelimiters(latest)
             val hasRenderedSame = lastStreamingRenderedContent[viewId] == normalizedLatest
+            val now = SystemClock.uptimeMillis()
+            val lastMarkdownAt = lastStreamingMarkdownAt[viewId] ?: 0L
+            val shouldRenderMarkdown = normalizedLatest.length <= STREAM_MARKDOWN_LENGTH_THRESHOLD ||
+                (now - lastMarkdownAt) >= STREAM_MARKDOWN_INTERVAL
+
             if (!hasRenderedSame) {
-                try {
-                    getBasicMarkwon(textView.context).setMarkdown(textView, normalizedLatest)
-                } catch (e: Throwable) {
-                    Log.e(TAG, "Streaming render error", e)
-                    textView.text = latest
+                if (shouldRenderMarkdown) {
+                    try {
+                        getBasicMarkwon(textView.context).setMarkdown(textView, normalizedLatest)
+                        lastStreamingRenderedContent[viewId] = normalizedLatest
+                        lastStreamingMarkdownAt[viewId] = now
+                    } catch (e: Throwable) {
+                        Log.e(TAG, "Streaming render error", e)
+                        textView.text = normalizedLatest
+                    }
+                } else if (textView.text?.toString() != normalizedLatest) {
+                    // Keep real-time feedback smooth for long streams; final flush applies full formatting.
+                    textView.text = normalizedLatest
                 }
-                lastStreamingRenderedContent[viewId] = normalizedLatest
             }
-            lastStreamingRenderAt[viewId] = SystemClock.uptimeMillis()
+            lastStreamingRenderAt[viewId] = now
             // If text changed while this frame was rendering, queue another frame.
             if (streamingContent[viewId] != latest) {
                 scheduleStreamingRender(viewId, textView)
@@ -400,6 +416,7 @@ object MarkdownRenderer {
         streamingContent.remove(viewId)
         lastStreamingRenderedContent.remove(viewId)
         lastStreamingRenderAt.remove(viewId)
+        lastStreamingMarkdownAt.remove(viewId)
         renderAIResponse(context, textView, text)
     }
 
@@ -447,6 +464,7 @@ object MarkdownRenderer {
         pendingStreamingRenders[viewId]?.let { mainHandler.removeCallbacks(it) }
         pendingStreamingRenders.remove(viewId)
         lastStreamingRenderAt.remove(viewId)
+        lastStreamingMarkdownAt.remove(viewId)
     }
 
     fun clearCache() {
@@ -459,5 +477,6 @@ object MarkdownRenderer {
         streamingContent.clear()
         lastStreamingRenderedContent.clear()
         lastStreamingRenderAt.clear()
+        lastStreamingMarkdownAt.clear()
     }
 }

@@ -131,6 +131,8 @@ class AnswerPopupService : Service() {
     private val questionItemViews: MutableMap<Int, View> = mutableMapOf()
     private val thinkingUiFrameIntervalMs = 66L
     private val lastThinkingUiUpdateAt: MutableMap<Int, Long> = mutableMapOf()
+    private val answerUiFrameIntervalMs = 48L
+    private val lastAnswerUiUpdateAt: MutableMap<Int, Long> = mutableMapOf()
 
     companion object {
         private const val CHANNEL_ID = "answer_popup_channel"
@@ -661,6 +663,22 @@ class AnswerPopupService : Service() {
             return false
         }
         lastThinkingUiUpdateAt[questionId] = now
+        return true
+    }
+
+    private fun shouldUpdateAnswerUi(questionId: Int, isFast: Boolean, force: Boolean = false): Boolean {
+        if (questionId <= 0) return true
+        val key = if (isFast) questionId else -questionId
+        if (force) {
+            lastAnswerUiUpdateAt[key] = System.currentTimeMillis()
+            return true
+        }
+        val now = System.currentTimeMillis()
+        val last = lastAnswerUiUpdateAt[key] ?: 0L
+        if (now - last < answerUiFrameIntervalMs) {
+            return false
+        }
+        lastAnswerUiUpdateAt[key] = now
         return true
     }
 
@@ -1418,6 +1436,7 @@ class AnswerPopupService : Service() {
         deepAnswerViews.clear()
         questionItemViews.clear()
         lastThinkingUiUpdateAt.clear()
+        lastAnswerUiUpdateAt.clear()
         questionTexts.clear()
         fastQuestionModelIds.clear()
         deepQuestionModelIds.clear()
@@ -1878,7 +1897,9 @@ class AnswerPopupService : Service() {
                             val isFirstChunk = answer.text.isEmpty()
                             answer.text += text
                             if (isFastMode) {
-                                updateAnswerText(question.id, answer.text)
+                                if (isFirstChunk || shouldUpdateAnswerUi(question.id, isFast = true)) {
+                                    updateAnswerText(question.id, answer.text)
+                                }
                                 if (isFirstChunk) {
                                     showHeaderRetryButtonForQuestion(question.id)
                                 }
@@ -1972,7 +1993,9 @@ class AnswerPopupService : Service() {
                             val isFirstChunk = answer.text.isEmpty()
                             answer.text += text
                             if (!isFastMode) {
-                                updateAnswerText(question.id, answer.text)
+                                if (isFirstChunk || shouldUpdateAnswerUi(question.id, isFast = false)) {
+                                    updateAnswerText(question.id, answer.text)
+                                }
                                 renderThinkingSectionForQuestion(question.id, answer, false)
                                 if (isFirstChunk) {
                                     showHeaderRetryButtonForQuestion(question.id)
@@ -2340,7 +2363,9 @@ class AnswerPopupService : Service() {
                         answer.text += text
                         // Only update UI if still viewing the same mode
                         if (isFastMode == wasInFastMode) {
-                            updateAnswerText(question.id, answer.text)
+                            if (isFirstChunk || shouldUpdateAnswerUi(question.id, isFast = wasInFastMode)) {
+                                updateAnswerText(question.id, answer.text)
+                            }
                             renderThinkingSectionForQuestion(question.id, answer, wasInFastMode)
                             if (isFirstChunk) {
                                 showHeaderRetryButtonForQuestion(question.id)
