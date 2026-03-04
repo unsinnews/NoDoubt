@@ -35,7 +35,7 @@ NoDoubt 适合以下场景：
 
 ## API 支持说明
 
-- 当前仅支持 OpenAI-Compatible API
+- 当前仅支持 OpenAI-Compatible API（https://api.openai.com/v1）
 - 需要可用的 API Key、Base URL 和模型 ID
 
 ## 使用流程
