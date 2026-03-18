@@ -2,7 +2,7 @@
 
 NoDoubt 是一个面向 Android 的 AI 悬浮答题助手，核心目标是让你在任意界面快速截屏识题并得到实时答案。
 
-项目重点不在“演示页面”，而在完整的使用闭环：
+项目重点不在"演示页面"，而在完整的使用闭环：
 
 - 一键悬浮截图
 - OCR 识题
@@ -60,6 +60,10 @@ NoDoubt 适合以下场景：
 - https://github.com/Alonsol/PerfectFloatWindow
 
 感谢原作者和社区贡献者提供的基础能力与适配经验。
+
+## 友链
+
+- [Linux.do](https://linux.do)
 
 ## 许可协议（禁止商用）
 
