@@ -41,10 +41,8 @@ class ChannelSelectionActivity : AppCompatActivity() {
     private fun bindDefaultChannel() {
         val channel = AISettings.getDefaultChannel(this)
         findViewById<TextView>(R.id.tvChannelCardTitle).text = channel.name
-        findViewById<TextView>(R.id.tvChannelCardType).text = channel.type.displayName
-        findViewById<TextView>(R.id.tvChannelCardEndpoint).text = channel.baseUrl
-        findViewById<TextView>(R.id.tvChannelCardStatus).text =
-            if (channel.apiKey.isBlank()) "未配置" else "已配置"
+        val status = if (channel.apiKey.isBlank()) "未配置" else "已配置"
+        findViewById<TextView>(R.id.tvChannelCardMeta).text = "${channel.type.displayName} · $status"
     }
 
     private fun applyTheme() {
@@ -55,19 +53,14 @@ class ChannelSelectionActivity : AppCompatActivity() {
         val tvHeaderTitle = findViewById<TextView>(R.id.tvHeaderTitle)
         val btnBack = findViewById<ImageButton>(R.id.btnBack)
         val card = findViewById<LinearLayout>(R.id.channelDefaultCard)
-        val tvEyebrow = findViewById<TextView>(R.id.tvChannelEyebrow)
         val tvTitle = findViewById<TextView>(R.id.tvChannelCardTitle)
-        val tvType = findViewById<TextView>(R.id.tvChannelCardType)
-        val tvEndpoint = findViewById<TextView>(R.id.tvChannelCardEndpoint)
-        val tvStatus = findViewById<TextView>(R.id.tvChannelCardStatus)
-        val tvHint = findViewById<TextView>(R.id.tvChannelHint)
+        val tvMeta = findViewById<TextView>(R.id.tvChannelCardMeta)
         val ivChevron = findViewById<ImageButton>(R.id.ivChannelChevron)
 
         if (isLightGreenGray) {
             val surfaceColor = 0xFFF7F7F8.toInt()
             val textPrimary = 0xFF202123.toInt()
             val textSecondary = 0xFF6E6E80.toInt()
-            val accent = 0xFF10A37F.toInt()
 
             window.statusBarColor = surfaceColor
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
@@ -76,20 +69,13 @@ class ChannelSelectionActivity : AppCompatActivity() {
             card.setBackgroundResource(R.drawable.bg_card_settings)
             tvHeaderTitle.setTextColor(textPrimary)
             btnBack.setColorFilter(textPrimary)
-            tvEyebrow.setTextColor(accent)
             tvTitle.setTextColor(textPrimary)
-            tvType.setTextColor(textSecondary)
-            tvEndpoint.setTextColor(textPrimary)
-            tvHint.setTextColor(textSecondary)
+            tvMeta.setTextColor(textSecondary)
             ivChevron.setColorFilter(textSecondary)
-
-            val isConfigured = AISettings.getApiKey(this).isNotBlank()
-            tvStatus.setTextColor(if (isConfigured) accent else 0xFFE25656.toInt())
         } else {
             val backgroundColor = 0xFFFAF9F5.toInt()
             val textPrimary = 0xFF141413.toInt()
             val textSecondary = 0xFF666666.toInt()
-            val accent = 0xFFDA7A5A.toInt()
 
             window.statusBarColor = backgroundColor
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
@@ -98,15 +84,9 @@ class ChannelSelectionActivity : AppCompatActivity() {
             card.setBackgroundResource(R.drawable.bg_card_settings_light_brown_black)
             tvHeaderTitle.setTextColor(textPrimary)
             btnBack.setColorFilter(textPrimary)
-            tvEyebrow.setTextColor(accent)
             tvTitle.setTextColor(textPrimary)
-            tvType.setTextColor(textSecondary)
-            tvEndpoint.setTextColor(textPrimary)
-            tvHint.setTextColor(textSecondary)
+            tvMeta.setTextColor(textSecondary)
             ivChevron.setColorFilter(textSecondary)
-
-            val isConfigured = AISettings.getApiKey(this).isNotBlank()
-            tvStatus.setTextColor(if (isConfigured) accent else 0xFFE25656.toInt())
         }
     }
 }

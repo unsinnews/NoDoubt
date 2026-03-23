@@ -46,8 +46,6 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var etApiKey: EditText
     private lateinit var etBaseUrl: EditText
-    private lateinit var tvChannelNameValue: TextView
-    private lateinit var tvChannelTypeValue: TextView
     private lateinit var ocrModelListContainer: RecyclerView
     private lateinit var fastModelListContainer: RecyclerView
     private lateinit var deepModelListContainer: RecyclerView
@@ -136,8 +134,6 @@ class SettingsActivity : AppCompatActivity() {
     private fun initViews() {
         etApiKey = findViewById(R.id.etApiKey)
         etBaseUrl = findViewById(R.id.etBaseUrl)
-        tvChannelNameValue = findViewById(R.id.tvChannelNameValue)
-        tvChannelTypeValue = findViewById(R.id.tvChannelTypeValue)
         ocrModelListContainer = findViewById(R.id.ocrModelListContainer)
         fastModelListContainer = findViewById(R.id.fastModelListContainer)
         deepModelListContainer = findViewById(R.id.deepModelListContainer)
@@ -384,8 +380,6 @@ class SettingsActivity : AppCompatActivity() {
         // Labels
         val tvChannelLabel = findViewById<TextView>(R.id.tvChannelLabel)
         val tvChannelHint = findViewById<TextView>(R.id.tvChannelHint)
-        val tvChannelNameLabel = findViewById<TextView>(R.id.tvChannelNameLabel)
-        val tvChannelTypeLabel = findViewById<TextView>(R.id.tvChannelTypeLabel)
         val tvApiKeyLabel = findViewById<TextView>(R.id.tvApiKeyLabel)
         val tvBaseUrlLabel = findViewById<TextView>(R.id.tvBaseUrlLabel)
         val tvOcrLabel = findViewById<TextView>(R.id.tvOcrLabel)
@@ -421,20 +415,14 @@ class SettingsActivity : AppCompatActivity() {
             // EditTexts
             etApiKey.setBackgroundResource(R.drawable.bg_edittext_settings)
             etBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
-            tvChannelNameValue.setBackgroundResource(R.drawable.bg_edittext_settings)
-            tvChannelTypeValue.setBackgroundResource(R.drawable.bg_edittext_settings)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
             etBaseUrl.setTextColor(textPrimary)
-            tvChannelNameValue.setTextColor(textPrimary)
-            tvChannelTypeValue.setTextColor(textPrimary)
 
             // Labels
             tvChannelLabel.setTextColor(textPrimary)
             tvChannelHint.setTextColor(textSecondary)
-            tvChannelNameLabel.setTextColor(textPrimary)
-            tvChannelTypeLabel.setTextColor(textPrimary)
             tvApiKeyLabel.setTextColor(textPrimary)
             tvBaseUrlLabel.setTextColor(textPrimary)
             tvOcrLabel.setTextColor(textPrimary)
@@ -499,20 +487,14 @@ class SettingsActivity : AppCompatActivity() {
             // EditTexts
             etApiKey.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
             etBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-            tvChannelNameValue.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
-            tvChannelTypeValue.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
             etBaseUrl.setTextColor(textPrimary)
-            tvChannelNameValue.setTextColor(textPrimary)
-            tvChannelTypeValue.setTextColor(textPrimary)
 
             // Labels
             tvChannelLabel.setTextColor(textPrimary)
             tvChannelHint.setTextColor(textSecondary)
-            tvChannelNameLabel.setTextColor(textPrimary)
-            tvChannelTypeLabel.setTextColor(textPrimary)
             tvApiKeyLabel.setTextColor(textPrimary)
             tvBaseUrlLabel.setTextColor(textPrimary)
             tvOcrLabel.setTextColor(textPrimary)
@@ -579,8 +561,6 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun loadSettings() {
         val defaultChannel = AISettings.getDefaultChannel(this)
-        tvChannelNameValue.text = defaultChannel.name
-        tvChannelTypeValue.text = defaultChannel.type.displayName
         etApiKey.setText(defaultChannel.apiKey)
         etBaseUrl.setText(defaultChannel.baseUrl)
 
