@@ -31,7 +31,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="渠道"
+            android:text="OpenAI Chat Completions"
             android:textSize="16sp"
             android:textStyle="bold" />
     </FrameLayout>
@@ -68,7 +68,7 @@
                     android:id="@+id/tvChannelCardTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="默认渠道"
+                    android:text="OpenAI Chat Completions"
                     android:textColor="#202123"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -78,7 +78,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="OpenAI Chat Completions · 未配置"
+                    android:text="未配置"
                     android:textColor="#6E6E80"
                     android:textSize="13sp" />
             </LinearLayout>

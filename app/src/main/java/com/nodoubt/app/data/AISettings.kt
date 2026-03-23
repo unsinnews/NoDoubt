@@ -34,7 +34,7 @@ object AISettings {
     private const val KEY_AUTO_DELETE_SCREENSHOT = "auto_delete_screenshot"
 
     private const val DEFAULT_CHANNEL_ID = "default_openai_channel"
-    private const val DEFAULT_CHANNEL_NAME = "默认渠道"
+    private const val DEFAULT_CHANNEL_NAME = "OpenAI Chat Completions"
     private val DEFAULT_CHANNEL_TYPE = AIChannelType.OPENAI_CHAT_COMPLETIONS
     private const val DEFAULT_OCR_MODEL = "gpt-4o"
     private const val DEFAULT_FAST_MODEL = "gpt-4o-mini"

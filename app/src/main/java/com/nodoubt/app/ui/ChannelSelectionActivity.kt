@@ -41,8 +41,8 @@ class ChannelSelectionActivity : AppCompatActivity() {
     private fun bindDefaultChannel() {
         val channel = AISettings.getDefaultChannel(this)
         findViewById<TextView>(R.id.tvChannelCardTitle).text = channel.name
-        val status = if (channel.apiKey.isBlank()) "未配置" else "已配置"
-        findViewById<TextView>(R.id.tvChannelCardMeta).text = "${channel.type.displayName} · $status"
+        findViewById<TextView>(R.id.tvChannelCardMeta).text =
+            if (channel.apiKey.isBlank()) "未配置" else "已配置"
     }
 
     private fun applyTheme() {

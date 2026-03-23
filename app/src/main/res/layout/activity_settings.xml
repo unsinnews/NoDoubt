@@ -32,7 +32,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="默认渠道"
+            android:text="OpenAI Chat Completions"
             android:textSize="16sp"
             android:textStyle="bold"/>
 
@@ -80,7 +80,7 @@
                     android:id="@+id/tvChannelLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="默认渠道"
+                    android:text="OpenAI Chat Completions"
                     android:textSize="16sp"
                     android:textColor="#202123"
                     android:textStyle="bold"/>
@@ -90,7 +90,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="默认渠道类型为 OpenAI Chat Completions，可配置渠道连接与模型。"
+                    android:text="OpenAI Chat Completions 接口配置与模型绑定。"
                     android:textSize="12sp"
                     android:textColor="#6E6E80"/>
 
@@ -109,7 +109,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:hint="输入默认渠道的 API Key"
+                    android:hint="输入 OpenAI Chat Completions 的 API Key"
                     android:inputType="textPassword"
                     android:background="@drawable/bg_edittext_settings"
                     android:padding="12dp"
@@ -120,7 +120,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="渠道 Base URL"
+                    android:text="Base URL"
                     android:textSize="14sp"
                     android:textColor="#202123"/>
 
@@ -162,7 +162,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="绑定到默认渠道，用于截图题目识别，需要支持视觉能力"
+                    android:text="用于截图题目识别，需要支持视觉能力"
                     android:textSize="12sp"
                     android:textColor="#6E6E80"/>
 
@@ -178,7 +178,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="渠道模型列表（长按排序）"
+                        android:text="模型列表（长按排序）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
 
@@ -258,7 +258,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="绑定到默认渠道，优先快速响应，适合简单题目"
+                    android:text="优先快速响应，适合简单题目"
                     android:textSize="12sp"
                     android:textColor="#6E6E80"/>
 
@@ -274,7 +274,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="渠道模型列表（长按排序）"
+                        android:text="模型列表（长按排序）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
 
@@ -354,7 +354,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="绑定到默认渠道，优先深度推理，适合复杂题目"
+                    android:text="优先深度推理，适合复杂题目"
                     android:textSize="12sp"
                     android:textColor="#6E6E80"/>
 
@@ -370,7 +370,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="渠道模型列表（长按排序）"
+                        android:text="模型列表（长按排序）"
                         android:textSize="14sp"
                         android:textColor="#202123"/>
 

@@ -712,11 +712,11 @@ class SettingsActivity : AppCompatActivity() {
         btnSaveModel.setTextColor(0xFFFFFFFF.toInt())
 
         tvTitle.text = when (target) {
-            TestTarget.OCR -> "添加 OCR 渠道模型"
-            TestTarget.FAST -> "添加极速渠道模型"
-            TestTarget.DEEP -> "添加深度渠道模型"
+            TestTarget.OCR -> "添加 OCR 模型"
+            TestTarget.FAST -> "添加极速模型"
+            TestTarget.DEEP -> "添加深度模型"
         }
-        tvSubtitle.text = "添加到默认渠道的模型池后，可长按排序"
+        tvSubtitle.text = "保存后会追加到列表末尾，可长按排序"
 
         btnSaveModel.isEnabled = false
         btnSaveModel.alpha = 0.45f
@@ -760,7 +760,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         if (!isApiVerified) {
-            Toast.makeText(this, "请先点击右侧“检测”验证默认渠道连接", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "请先点击右侧“检测”验证连接", Toast.LENGTH_LONG).show()
             return
         }
         saveSettingsWithoutFinish()
@@ -810,12 +810,12 @@ class SettingsActivity : AppCompatActivity() {
         val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
 
         if (apiKey.isBlank()) {
-            showConnectionResultDialog(success = false, responseBody = "默认渠道的 API Key 不能为空")
+            showConnectionResultDialog(success = false, responseBody = "API Key 不能为空")
             return
         }
 
         if (baseUrl.isBlank()) {
-            showConnectionResultDialog(success = false, responseBody = "默认渠道的 Base URL 不能为空")
+            showConnectionResultDialog(success = false, responseBody = "Base URL 不能为空")
             return
         }
 
@@ -1018,14 +1018,14 @@ class SettingsActivity : AppCompatActivity() {
         btnTogglePrefixSelection.contentDescription = "前缀模型选择切换"
 
         tvTitle.text = when (target) {
-            TestTarget.OCR -> "选择 OCR 渠道模型"
-            TestTarget.FAST -> "选择极速渠道模型"
-            TestTarget.DEEP -> "选择深度渠道模型"
+            TestTarget.OCR -> "选择 OCR 模型"
+            TestTarget.FAST -> "选择极速模型"
+            TestTarget.DEEP -> "选择深度模型"
         }
         tvSubtitle.text = when (target) {
-            TestTarget.OCR -> "从默认渠道可用模型中多选，按顺序作为 OCR 备用模型"
-            TestTarget.FAST -> "从默认渠道可用模型中多选，可按类别或前缀筛选"
-            TestTarget.DEEP -> "从默认渠道可用模型中多选，可按前缀筛选"
+            TestTarget.OCR -> "支持手动多选，按顺序作为 OCR 备用模型"
+            TestTarget.FAST -> "支持手动多选，可按类别或前缀筛选"
+            TestTarget.DEEP -> "支持手动多选，可按前缀筛选"
         }
         btnConfirm.text = "确定"
 
@@ -1155,7 +1155,7 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 if (tags.isEmpty()) {
                     val owner = model.ownedBy?.trim().orEmpty()
-                    tags.add(if (owner.isNotBlank()) owner else "默认渠道")
+                    tags.add(if (owner.isNotBlank()) owner else "OpenAI Chat Completions")
                 }
                 tvModelMeta.text = tags.joinToString(" · ")
 
@@ -1408,12 +1408,12 @@ class SettingsActivity : AppCompatActivity() {
         val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
 
         if (apiKey.isBlank()) {
-            showConnectionResultDialog(success = false, responseBody = "默认渠道的 API Key 不能为空")
+            showConnectionResultDialog(success = false, responseBody = "API Key 不能为空")
             return
         }
 
         if (baseUrl.isBlank()) {
-            showConnectionResultDialog(success = false, responseBody = "默认渠道的 Base URL 不能为空")
+            showConnectionResultDialog(success = false, responseBody = "Base URL 不能为空")
             return
         }
 
