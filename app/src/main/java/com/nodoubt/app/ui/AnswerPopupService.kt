@@ -1489,7 +1489,7 @@ class AnswerPopupService : Service() {
 
         val config = AISettings.getOCRConfig(this@AnswerPopupService)
         if (!config.isValid() || config.apiKey.isBlank()) {
-            showReminder("请先到设置中配置API Key")
+            showReminder("请先到设置中配置默认渠道")
             return
         }
 

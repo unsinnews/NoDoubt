@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity() {
     private fun takeScreenshot() {
         val apiKey = AISettings.getApiKey(this)
         if (apiKey.isBlank()) {
-            Toast.makeText(this, "请先到「我的」页面配置 API", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "请先到「我的」页面配置默认渠道", Toast.LENGTH_LONG).show()
             return
         }
 

@@ -276,7 +276,7 @@
                         android:id="@+id/tvApiTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="API 配置"
+                        android:text="渠道配置"
                         android:textSize="16sp"
                         android:textColor="#202123"/>
 
@@ -285,7 +285,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="配置 AI 模型"
+                        android:text="配置默认渠道与模型"
                         android:textSize="13sp"
                         android:textColor="#6E6E80"/>
 

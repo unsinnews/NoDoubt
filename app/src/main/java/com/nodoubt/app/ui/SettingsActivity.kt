@@ -46,6 +46,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var etApiKey: EditText
     private lateinit var etBaseUrl: EditText
+    private lateinit var tvChannelNameValue: TextView
+    private lateinit var tvChannelTypeValue: TextView
     private lateinit var ocrModelListContainer: RecyclerView
     private lateinit var fastModelListContainer: RecyclerView
     private lateinit var deepModelListContainer: RecyclerView
@@ -66,8 +68,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var fastModelAdapter: ModelListAdapter
     private lateinit var deepModelAdapter: ModelListAdapter
 
-    // Track if API has been verified
-    private var isApiVerified = false
+        // Track if the default channel has been verified
+        private var isApiVerified = false
 
     companion object {
         private const val DEFAULT_OCR_MODEL = "gpt-4o"
@@ -134,6 +136,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun initViews() {
         etApiKey = findViewById(R.id.etApiKey)
         etBaseUrl = findViewById(R.id.etBaseUrl)
+        tvChannelNameValue = findViewById(R.id.tvChannelNameValue)
+        tvChannelTypeValue = findViewById(R.id.tvChannelTypeValue)
         ocrModelListContainer = findViewById(R.id.ocrModelListContainer)
         fastModelListContainer = findViewById(R.id.fastModelListContainer)
         deepModelListContainer = findViewById(R.id.deepModelListContainer)
@@ -150,7 +154,7 @@ class SettingsActivity : AppCompatActivity() {
         setupModelRecyclerViews()
 
         // Check if settings already exist (API key is saved)
-        val existingApiKey = AISettings.getApiKey(this)
+        val existingApiKey = AISettings.getDefaultChannel(this).apiKey
         isApiVerified = existingApiKey.isNotBlank()
         updateSaveButtonState()
     }
@@ -378,8 +382,11 @@ class SettingsActivity : AppCompatActivity() {
         val cardDeep = findViewById<LinearLayout>(R.id.cardDeep)
 
         // Labels
+        val tvChannelLabel = findViewById<TextView>(R.id.tvChannelLabel)
+        val tvChannelHint = findViewById<TextView>(R.id.tvChannelHint)
+        val tvChannelNameLabel = findViewById<TextView>(R.id.tvChannelNameLabel)
+        val tvChannelTypeLabel = findViewById<TextView>(R.id.tvChannelTypeLabel)
         val tvApiKeyLabel = findViewById<TextView>(R.id.tvApiKeyLabel)
-        val tvApiKeyHint = findViewById<TextView>(R.id.tvApiKeyHint)
         val tvBaseUrlLabel = findViewById<TextView>(R.id.tvBaseUrlLabel)
         val tvOcrLabel = findViewById<TextView>(R.id.tvOcrLabel)
         val tvOcrHint = findViewById<TextView>(R.id.tvOcrHint)
@@ -414,14 +421,21 @@ class SettingsActivity : AppCompatActivity() {
             // EditTexts
             etApiKey.setBackgroundResource(R.drawable.bg_edittext_settings)
             etBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings)
+            tvChannelNameValue.setBackgroundResource(R.drawable.bg_edittext_settings)
+            tvChannelTypeValue.setBackgroundResource(R.drawable.bg_edittext_settings)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
             etBaseUrl.setTextColor(textPrimary)
+            tvChannelNameValue.setTextColor(textPrimary)
+            tvChannelTypeValue.setTextColor(textPrimary)
 
             // Labels
+            tvChannelLabel.setTextColor(textPrimary)
+            tvChannelHint.setTextColor(textSecondary)
+            tvChannelNameLabel.setTextColor(textPrimary)
+            tvChannelTypeLabel.setTextColor(textPrimary)
             tvApiKeyLabel.setTextColor(textPrimary)
-            tvApiKeyHint.setTextColor(textSecondary)
             tvBaseUrlLabel.setTextColor(textPrimary)
             tvOcrLabel.setTextColor(textPrimary)
             tvOcrHint.setTextColor(textSecondary)
@@ -485,14 +499,21 @@ class SettingsActivity : AppCompatActivity() {
             // EditTexts
             etApiKey.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
             etBaseUrl.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
+            tvChannelNameValue.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
+            tvChannelTypeValue.setBackgroundResource(R.drawable.bg_edittext_settings_light_brown_black)
 
             // Text colors
             etApiKey.setTextColor(textPrimary)
             etBaseUrl.setTextColor(textPrimary)
+            tvChannelNameValue.setTextColor(textPrimary)
+            tvChannelTypeValue.setTextColor(textPrimary)
 
             // Labels
+            tvChannelLabel.setTextColor(textPrimary)
+            tvChannelHint.setTextColor(textSecondary)
+            tvChannelNameLabel.setTextColor(textPrimary)
+            tvChannelTypeLabel.setTextColor(textPrimary)
             tvApiKeyLabel.setTextColor(textPrimary)
-            tvApiKeyHint.setTextColor(textSecondary)
             tvBaseUrlLabel.setTextColor(textPrimary)
             tvOcrLabel.setTextColor(textPrimary)
             tvOcrHint.setTextColor(textSecondary)
@@ -557,9 +578,11 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun loadSettings() {
-        // API Key
-        etApiKey.setText(AISettings.getApiKey(this))
-        etBaseUrl.setText(AISettings.getBaseUrl(this))
+        val defaultChannel = AISettings.getDefaultChannel(this)
+        tvChannelNameValue.text = defaultChannel.name
+        tvChannelTypeValue.text = defaultChannel.type.displayName
+        etApiKey.setText(defaultChannel.apiKey)
+        etBaseUrl.setText(defaultChannel.baseUrl)
 
         // OCR Config
         val ocrModels = AISettings.getOCRModelList(this)
@@ -709,11 +732,11 @@ class SettingsActivity : AppCompatActivity() {
         btnSaveModel.setTextColor(0xFFFFFFFF.toInt())
 
         tvTitle.text = when (target) {
-            TestTarget.OCR -> "添加 OCR 模型"
-            TestTarget.FAST -> "添加极速模型"
-            TestTarget.DEEP -> "添加深度模型"
+            TestTarget.OCR -> "添加 OCR 渠道模型"
+            TestTarget.FAST -> "添加极速渠道模型"
+            TestTarget.DEEP -> "添加深度渠道模型"
         }
-        tvSubtitle.text = "保存后会追加到列表末尾，可长按排序"
+        tvSubtitle.text = "添加到默认渠道的模型池后，可长按排序"
 
         btnSaveModel.isEnabled = false
         btnSaveModel.alpha = 0.45f
@@ -757,7 +780,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         if (!isApiVerified) {
-            Toast.makeText(this, "请先点击模型右侧“检测”验证连接", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "请先点击右侧“检测”验证默认渠道连接", Toast.LENGTH_LONG).show()
             return
         }
         saveSettingsWithoutFinish()
@@ -768,10 +791,14 @@ class SettingsActivity : AppCompatActivity() {
     private fun saveSettingsWithoutFinish() {
         val apiKey = sanitizeEditTextInPlace(etApiKey)
         val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
-
-        // Save API Key
-        AISettings.saveApiKey(this, apiKey)
-        AISettings.saveBaseUrl(this, baseUrl)
+        val existingChannel = AISettings.getDefaultChannel(this)
+        AISettings.saveDefaultChannel(
+            this,
+            existingChannel.copy(
+                apiKey = apiKey,
+                baseUrl = baseUrl
+            )
+        )
 
         val ocrModels = normalizeModelIds(
             collectModelIds(ocrModelListContainer),
@@ -803,12 +830,12 @@ class SettingsActivity : AppCompatActivity() {
         val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
 
         if (apiKey.isBlank()) {
-            showConnectionResultDialog(success = false, responseBody = "API Key 不能为空")
+            showConnectionResultDialog(success = false, responseBody = "默认渠道的 API Key 不能为空")
             return
         }
 
         if (baseUrl.isBlank()) {
-            showConnectionResultDialog(success = false, responseBody = "Base URL 不能为空")
+            showConnectionResultDialog(success = false, responseBody = "默认渠道的 Base URL 不能为空")
             return
         }
 
@@ -1011,14 +1038,14 @@ class SettingsActivity : AppCompatActivity() {
         btnTogglePrefixSelection.contentDescription = "前缀模型选择切换"
 
         tvTitle.text = when (target) {
-            TestTarget.OCR -> "选择 OCR 模型"
-            TestTarget.FAST -> "添加极速模型"
-            TestTarget.DEEP -> "添加深度模型"
+            TestTarget.OCR -> "选择 OCR 渠道模型"
+            TestTarget.FAST -> "选择极速渠道模型"
+            TestTarget.DEEP -> "选择深度渠道模型"
         }
         tvSubtitle.text = when (target) {
-            TestTarget.OCR -> "支持手动多选，按顺序作为 OCR 备用模型"
-            TestTarget.FAST -> "支持手动多选，可按类别/前缀筛选，底部固定确定"
-            TestTarget.DEEP -> "支持手动多选，可按前缀筛选，底部固定确定"
+            TestTarget.OCR -> "从默认渠道可用模型中多选，按顺序作为 OCR 备用模型"
+            TestTarget.FAST -> "从默认渠道可用模型中多选，可按类别或前缀筛选"
+            TestTarget.DEEP -> "从默认渠道可用模型中多选，可按前缀筛选"
         }
         btnConfirm.text = "确定"
 
@@ -1148,7 +1175,7 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 if (tags.isEmpty()) {
                     val owner = model.ownedBy?.trim().orEmpty()
-                    tags.add(if (owner.isNotBlank()) owner else "OpenAI-Compatible")
+                    tags.add(if (owner.isNotBlank()) owner else "默认渠道")
                 }
                 tvModelMeta.text = tags.joinToString(" · ")
 
@@ -1401,12 +1428,12 @@ class SettingsActivity : AppCompatActivity() {
         val baseUrl = sanitizeEditTextInPlace(etBaseUrl)
 
         if (apiKey.isBlank()) {
-            showConnectionResultDialog(success = false, responseBody = "API Key 不能为空")
+            showConnectionResultDialog(success = false, responseBody = "默认渠道的 API Key 不能为空")
             return
         }
 
         if (baseUrl.isBlank()) {
-            showConnectionResultDialog(success = false, responseBody = "Base URL 不能为空")
+            showConnectionResultDialog(success = false, responseBody = "默认渠道的 Base URL 不能为空")
             return
         }
 
@@ -1536,8 +1563,8 @@ class SettingsActivity : AppCompatActivity() {
         )
         tvTitle.text = when (target) {
             TestTarget.FAST -> "选择极速模式检测模型"
-            TestTarget.DEEP -> "选择模型"
-            TestTarget.OCR -> "选择检测模型"
+            TestTarget.DEEP -> "选择深度模式检测模型"
+            TestTarget.OCR -> "选择 OCR 检测模型"
         }
         tvTitle.setTextColor(textPrimary)
         btnCancel.setBackgroundResource(
