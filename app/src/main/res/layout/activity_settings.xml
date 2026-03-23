@@ -32,7 +32,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="渠道配置"
+            android:text="默认渠道"
             android:textSize="16sp"
             android:textStyle="bold"/>
 

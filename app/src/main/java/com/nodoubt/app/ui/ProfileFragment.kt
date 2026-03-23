@@ -239,7 +239,7 @@ class ProfileFragment : Fragment() {
 
         // API Settings
         view.findViewById<View>(R.id.menuApiSettings).setOnClickListener {
-            startActivity(Intent(requireContext(), SettingsActivity::class.java))
+            startActivity(Intent(requireContext(), ChannelSelectionActivity::class.java))
         }
 
         // About

@@ -21,6 +21,10 @@
             android:exported="true" />
 
         <activity
+            android:name=".ui.ChannelSelectionActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.SettingsActivity"
             android:exported="false" />
 
