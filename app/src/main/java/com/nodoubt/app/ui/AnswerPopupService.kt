@@ -38,9 +38,12 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.nodoubt.app.R
 import com.nodoubt.app.data.AIConfig
+import com.nodoubt.app.data.AIUsage
+import com.nodoubt.app.data.AIUsageModelEntry
 import com.nodoubt.app.data.AISettings
 import com.nodoubt.app.data.Answer
 import com.nodoubt.app.data.Question
+import com.nodoubt.app.data.ResolvedUsageModelEntry
 import com.nodoubt.app.data.ThemeManager
 import com.nodoubt.app.network.ChatAPI
 import com.nodoubt.app.network.OCRStreamingCallback
@@ -114,10 +117,10 @@ class AnswerPopupService : Service() {
     private var deepCalls: MutableMap<Int, Call> = mutableMapOf()
     private var isFastModeStopped = false
     private var isDeepModeStopped = false
-    private var selectedFastModelId: String = ""
-    private var selectedDeepModelId: String = ""
-    private var fastQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
-    private var deepQuestionModelIds: MutableMap<Int, String> = mutableMapOf()
+    private var selectedFastModelEntry: AIUsageModelEntry? = null
+    private var selectedDeepModelEntry: AIUsageModelEntry? = null
+    private var fastQuestionModelEntries: MutableMap<Int, AIUsageModelEntry> = mutableMapOf()
+    private var deepQuestionModelEntries: MutableMap<Int, AIUsageModelEntry> = mutableMapOf()
     private var modelMenuPopup: PopupWindow? = null
     private var copyMenuPopup: PopupWindow? = null
     private var copyFeedbackHideRunnable: Runnable? = null
@@ -803,15 +806,15 @@ class AnswerPopupService : Service() {
 
     private fun showModelSwitchMenu(anchorView: View, questionId: Int, forFastMode: Boolean) {
         if (questionId <= 0) return
-        val modelIds = getModelListForMode(forFastMode)
-        if (modelIds.isEmpty()) {
+        val models = getResolvedModelListForMode(forFastMode)
+        if (models.isEmpty()) {
             Toast.makeText(this, "请先在设置中添加模型", Toast.LENGTH_SHORT).show()
             return
         }
 
         modelMenuPopup?.dismiss()
         copyMenuPopup?.dismiss()
-        val currentModel = getSelectedModelForQuestion(questionId, forFastMode)
+        val currentModel = getSelectedResolvedModelForQuestion(questionId, forFastMode)
         val isLightGreenGray = ThemeManager.isLightGreenGrayTheme(this)
 
         val menuView = LayoutInflater.from(this).inflate(R.layout.popup_model_switch_menu, null)
@@ -825,32 +828,40 @@ class AnswerPopupService : Service() {
         styleModelMenuPopup(root, tvTitle, tvSubtitle, isLightGreenGray)
 
         optionsContainer.removeAllViews()
-        modelIds.forEachIndexed { index, modelId ->
+        models.forEachIndexed { index, model ->
             val optionView = LayoutInflater.from(this)
                 .inflate(R.layout.item_model_menu_option, optionsContainer, false)
             val tvModelName = optionView.findViewById<TextView>(R.id.tvModelMenuName)
             val tvModelDesc = optionView.findViewById<TextView>(R.id.tvModelMenuDesc)
             val ivCheck = optionView.findViewById<ImageView>(R.id.ivModelMenuCheck)
-            val selected = modelId == currentModel
+            val selected = model.entry == currentModel?.entry
 
-            tvModelName.text = modelId
-            tvModelDesc.text = describeModelForDisplay(modelId, index, modelIds.size, forFastMode)
+            tvModelName.text = model.displayTitle()
+            tvModelDesc.text = describeModelForDisplay(model, index, models.size, forFastMode)
             styleModelMenuOption(optionView, tvModelName, tvModelDesc, ivCheck, selected, isLightGreenGray)
 
             optionView.setOnClickListener {
-                if (modelId == getSelectedModelForQuestion(questionId, forFastMode)) {
+                if (model.entry == getSelectedResolvedModelForQuestion(questionId, forFastMode)?.entry) {
                     modelMenuPopup?.dismiss()
                     return@setOnClickListener
                 }
-                setSelectedModelForQuestion(questionId, forFastMode, modelId)
+                setSelectedModelForQuestion(questionId, forFastMode, model.entry)
                 if (isFastMode == forFastMode) {
                     modelMenuPopup?.dismiss()
-                    Toast.makeText(this, "题目$questionId 已切换模型：$modelId，正在自动重试", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "题目$questionId 已切换模型：${model.displayTitle()}，正在自动重试",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     retryQuestion(questionId)
                 } else {
                     updateVisibleModelButtons()
                     modelMenuPopup?.dismiss()
-                    Toast.makeText(this, "题目$questionId 已切换模型：$modelId", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "题目$questionId 已切换模型：${model.displayTitle()}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
             optionsContainer.addView(optionView)
@@ -1095,9 +1106,16 @@ class AnswerPopupService : Service() {
         handler.postDelayed(hideTask, 1200)
     }
 
-    private fun describeModelForDisplay(modelId: String, index: Int, total: Int, isFastMode: Boolean): String {
+    private fun describeModelForDisplay(
+        model: ResolvedUsageModelEntry,
+        index: Int,
+        total: Int,
+        isFastMode: Boolean
+    ): String {
+        val modelId = model.modelId
         return when {
             index == 0 && total > 1 -> "列表首选模型，常用于默认解题。"
+            model.channel.name.isNotBlank() -> "来自 ${model.channel.name} 渠道。"
             modelId.contains("mini", ignoreCase = true) -> "响应更快，适合常规题目与快速重试。"
             modelId.contains("o3", ignoreCase = true) ||
                     modelId.contains("reason", ignoreCase = true) -> "推理更深入，适合多步分析题。"
@@ -1391,62 +1409,102 @@ class AnswerPopupService : Service() {
         }
     }
 
-    private fun getDefaultModelForMode(isFast: Boolean): String {
-        return if (isFast) {
-            if (selectedFastModelId.isBlank()) {
-                selectedFastModelId = AISettings.getSelectedFastModel(this)
-            }
-            selectedFastModelId.ifBlank { AISettings.getFastConfig(this).modelId }
-        } else {
-            if (selectedDeepModelId.isBlank()) {
-                selectedDeepModelId = AISettings.getSelectedDeepModel(this)
-            }
-            selectedDeepModelId.ifBlank { AISettings.getDeepConfig(this).modelId }
-        }
+    private fun usageForMode(isFast: Boolean): AIUsage {
+        return if (isFast) AIUsage.FAST else AIUsage.DEEP
     }
 
-    private fun getModelListForMode(isFast: Boolean): List<String> {
-        return if (isFast) AISettings.getFastModelList(this) else AISettings.getDeepModelList(this)
+    private fun getResolvedModelListForMode(isFast: Boolean): List<ResolvedUsageModelEntry> {
+        return AISettings.getResolvedUsageModels(this, usageForMode(isFast))
+            .filter { it.channel.isConfigured() && it.modelId.isNotBlank() }
+    }
+
+    private fun getDefaultModelEntryForMode(isFast: Boolean): AIUsageModelEntry? {
+        val usage = usageForMode(isFast)
+        val availableEntries = getResolvedModelListForMode(isFast).map { it.entry }
+        if (isFast) {
+            if (selectedFastModelEntry == null) {
+                selectedFastModelEntry = AISettings.getSelectedResolvedUsageModel(this, usage)?.entry
+            }
+            return selectedFastModelEntry?.takeIf { availableEntries.contains(it) }
+                ?: AISettings.getSelectedResolvedUsageModel(this, usage)?.entry?.takeIf { availableEntries.contains(it) }
+                ?: availableEntries.firstOrNull()
+        }
+
+        if (selectedDeepModelEntry == null) {
+            selectedDeepModelEntry = AISettings.getSelectedResolvedUsageModel(this, usage)?.entry
+        }
+        return selectedDeepModelEntry?.takeIf { availableEntries.contains(it) }
+            ?: AISettings.getSelectedResolvedUsageModel(this, usage)?.entry?.takeIf { availableEntries.contains(it) }
+            ?: availableEntries.firstOrNull()
     }
 
     private fun ensureQuestionModelInitialized(questionId: Int, isFast: Boolean) {
         if (questionId <= 0) return
-        val modelMap = if (isFast) fastQuestionModelIds else deepQuestionModelIds
+        val modelMap = if (isFast) fastQuestionModelEntries else deepQuestionModelEntries
         if (modelMap.containsKey(questionId)) return
-        val defaultModel = getDefaultModelForMode(isFast)
-        modelMap[questionId] = defaultModel
+        getDefaultModelEntryForMode(isFast)?.let {
+            modelMap[questionId] = it
+        }
     }
 
-    private fun getSelectedModelForQuestion(questionId: Int, isFast: Boolean): String {
-        if (questionId <= 0) return getDefaultModelForMode(isFast)
-
-        val availableModels = getModelListForMode(isFast)
-        val fallbackModel = availableModels.firstOrNull() ?: getDefaultModelForMode(isFast)
-        val modelMap = if (isFast) fastQuestionModelIds else deepQuestionModelIds
+    private fun getSelectedModelEntryForQuestion(questionId: Int, isFast: Boolean): AIUsageModelEntry? {
+        val modelMap = if (isFast) fastQuestionModelEntries else deepQuestionModelEntries
+        val availableEntries = getResolvedModelListForMode(isFast).map { it.entry }
+        if (questionId <= 0) {
+            return getDefaultModelEntryForMode(isFast)
+                ?: availableEntries.firstOrNull()
+        }
 
         ensureQuestionModelInitialized(questionId, isFast)
-        val current = modelMap[questionId].orEmpty()
-        val resolved = if (current.isNotBlank() && (availableModels.isEmpty() || availableModels.contains(current))) {
-            current
-        } else {
-            fallbackModel
+        val current = modelMap[questionId]
+        val fallback = availableEntries.firstOrNull() ?: getDefaultModelEntryForMode(isFast)
+        val resolved = when {
+            current == null -> fallback
+            availableEntries.isEmpty() || availableEntries.contains(current) -> current
+            else -> fallback
         }
-        modelMap[questionId] = resolved
+        if (resolved != null) {
+            modelMap[questionId] = resolved
+        }
         return resolved
     }
 
-    private fun setSelectedModelForQuestion(questionId: Int, isFast: Boolean, modelId: String) {
+    private fun getSelectedResolvedModelForQuestion(questionId: Int, isFast: Boolean): ResolvedUsageModelEntry? {
+        val entry = getSelectedModelEntryForQuestion(questionId, isFast)
+        val availableModels = getResolvedModelListForMode(isFast)
+        return availableModels.firstOrNull { it.entry == entry } ?: availableModels.firstOrNull()
+    }
+
+    private fun setSelectedModelForQuestion(
+        questionId: Int,
+        isFast: Boolean,
+        entry: AIUsageModelEntry
+    ) {
         if (questionId <= 0) return
-        val normalized = modelId.trim()
-        if (normalized.isBlank()) return
-        val modelMap = if (isFast) fastQuestionModelIds else deepQuestionModelIds
+        val normalized = sanitizeModelEntry(entry) ?: return
+        val modelMap = if (isFast) fastQuestionModelEntries else deepQuestionModelEntries
         modelMap[questionId] = normalized
     }
 
+    private fun sanitizeModelEntry(entry: AIUsageModelEntry): AIUsageModelEntry? {
+        val channelId = entry.channelId.trim()
+        val modelId = entry.modelId.trim()
+        if (channelId.isBlank() || modelId.isBlank()) return null
+        return AIUsageModelEntry(channelId = channelId, modelId = modelId)
+    }
+
     private fun getModeConfig(questionId: Int, isFast: Boolean): AIConfig {
-        val baseConfig = if (isFast) AISettings.getFastConfig(this) else AISettings.getDeepConfig(this)
-        val selectedModel = getSelectedModelForQuestion(questionId, isFast)
-        return baseConfig.copy(modelId = selectedModel)
+        return getSelectedResolvedModelForQuestion(questionId, isFast)?.toConfig()
+            ?: emptyModelConfigForMode(isFast)
+    }
+
+    private fun emptyModelConfigForMode(isFast: Boolean): AIConfig {
+        val usage = usageForMode(isFast)
+        val fallback = AISettings.getUsageConfig(this, usage)
+        if (fallback.isValid()) {
+            return fallback
+        }
+        return AIConfig(baseUrl = "", modelId = "", apiKey = "")
     }
 
     fun processBitmap(bitmap: Bitmap) {
@@ -1464,8 +1522,8 @@ class AnswerPopupService : Service() {
         lastThinkingUiUpdateAt.clear()
         lastAnswerUiUpdateAt.clear()
         questionTexts.clear()
-        fastQuestionModelIds.clear()
-        deepQuestionModelIds.clear()
+        fastQuestionModelEntries.clear()
+        deepQuestionModelEntries.clear()
         isFastSolving = false
         isDeepSolving = false
         hasStartedAnswering = false
@@ -1482,29 +1540,27 @@ class AnswerPopupService : Service() {
         cancelAllRequests()
 
         // Load selected models at the start of each solve session
-        selectedFastModelId = AISettings.getSelectedFastModel(this).trim()
-        selectedDeepModelId = AISettings.getSelectedDeepModel(this).trim()
+        selectedFastModelEntry = AISettings.getSelectedResolvedUsageModel(this, AIUsage.FAST)?.entry
+        selectedDeepModelEntry = AISettings.getSelectedResolvedUsageModel(this, AIUsage.DEEP)?.entry
 
         showOCRStreaming()
 
         val config = AISettings.getOCRConfig(this@AnswerPopupService)
         if (!config.isValid() || config.apiKey.isBlank()) {
-            showReminder("请先到设置中配置 OpenAI Chat Completions")
+            showReminder("请先配置可用的 OCR 渠道和模型")
             return
         }
 
-        val ocrModels = AISettings.getOCRModelList(this@AnswerPopupService)
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .ifEmpty { listOf(config.modelId) }
+        val ocrModels = AISettings.getUsageFallbackConfigs(this@AnswerPopupService, AIUsage.OCR)
+            .ifEmpty { listOf(config) }
         var currentStreamingIndex = 1
 
         fun startOcrAttempt(attemptIndex: Int) {
-            val modelId = ocrModels.getOrNull(attemptIndex) ?: run {
+            val attemptConfig = ocrModels.getOrNull(attemptIndex) ?: run {
                 showError("OCR失败: 所有备选模型都请求失败")
                 return
             }
-            val visionAPI = VisionAPI(config.copy(modelId = modelId))
+            val visionAPI = VisionAPI(attemptConfig)
             var hasReceivedOutput = false
 
             ocrCall = visionAPI.extractQuestionsStreaming(bitmap, object : OCRStreamingCallback {
@@ -2262,7 +2318,8 @@ class AnswerPopupService : Service() {
     }
 
     private fun updateModelSwitchButton(itemView: View, questionId: Int, isFast: Boolean) {
-        val modelName = getSelectedModelForQuestion(questionId, isFast)
+        val modelName = getSelectedResolvedModelForQuestion(questionId, isFast)?.displayTitle()
+            ?: "未配置模型"
         val button = itemView.findViewById<TextView>(R.id.btnModelSwitchBottom) ?: return
         button.text = "$modelName ▾"
         button.contentDescription = "当前模型：$modelName，点击切换"

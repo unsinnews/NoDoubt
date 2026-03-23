@@ -25,7 +25,19 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.ProviderChannelsActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.SettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.ChannelEditActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.UsageModelPoolsActivity"
             android:exported="false" />
 
         <activity

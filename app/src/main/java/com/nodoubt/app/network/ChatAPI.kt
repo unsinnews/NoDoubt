@@ -23,7 +23,7 @@ class ChatAPI(private val config: AIConfig) {
     }
 
     fun solveQuestion(question: Question, callback: StreamingCallback): Call {
-        val client = OpenAIClient(config)
+        val client = AIProviderRegistry.getProvider(config).createClient(config)
 
         val userPrompt = "请解答以下题目：\n\n${question.text}"
 
@@ -36,7 +36,7 @@ class ChatAPI(private val config: AIConfig) {
     }
 
     fun solveQuestionSync(question: Question): String {
-        val client = OpenAIClient(config)
+        val client = AIProviderRegistry.getProvider(config).createClient(config)
 
         val userPrompt = "请解答以下题目：\n\n${question.text}"
 

@@ -31,7 +31,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="渠道"
+            android:text="OpenAI Chat Completions"
             android:textSize="16sp"
             android:textStyle="bold" />
     </FrameLayout>
@@ -43,7 +43,7 @@
         android:padding="16dp">
 
         <LinearLayout
-            android:id="@+id/channelDefaultCard"
+            android:id="@+id/providerMenuCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_card_settings"
@@ -51,7 +51,6 @@
             android:elevation="2dp"
             android:focusable="true"
             android:gravity="center_vertical"
-            android:minHeight="72dp"
             android:orientation="horizontal"
             android:paddingStart="16dp"
             android:paddingTop="14dp"
@@ -65,30 +64,81 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/tvChannelCardTitle"
+                    android:id="@+id/tvProviderMenuTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="OpenAI Chat Completions"
+                    android:text="OpenAI Chat Completions 渠道"
                     android:textColor="#202123"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/tvChannelCardMeta"
+                    android:id="@+id/tvProviderMenuMeta"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="管理 OpenAI Chat Completions 渠道。"
+                    android:text="管理 OpenAI Chat Completions 的渠道列表。"
                     android:textColor="#6E6E80"
                     android:textSize="13sp" />
             </LinearLayout>
 
             <ImageButton
-                android:id="@+id/ivChannelChevron"
+                android:id="@+id/ivProviderChevron"
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:background="@android:color/transparent"
-                android:contentDescription="Open provider"
+                android:contentDescription="Open provider channels"
+                android:scaleType="center"
+                android:src="@drawable/ic_chevron_right" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/sharedModelsCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card_settings"
+            android:clickable="true"
+            android:elevation="2dp"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="14dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvSharedModelsTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="共享模型池"
+                    android:textColor="#202123"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvSharedModelsMeta"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="OCR、极速、深度共同展示和切换模型。"
+                    android:textColor="#6E6E80"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/ivSharedModelsChevron"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="Open shared model pools"
                 android:scaleType="center"
                 android:src="@drawable/ic_chevron_right" />
         </LinearLayout>

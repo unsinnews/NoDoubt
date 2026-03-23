@@ -107,7 +107,7 @@ class VisionAPI(private val config: AIConfig) {
 
     fun extractQuestionsStreaming(bitmap: Bitmap, callback: OCRStreamingCallback): Call {
         val base64Image = BitmapUtils.toDataUrl(bitmap)
-        val client = OpenAIClient(config)
+        val client = AIProviderRegistry.getProvider(config).createClient(config)
 
         val messages = listOf(
             mapOf("role" to "system", "content" to OCR_SYSTEM_PROMPT),
@@ -221,7 +221,7 @@ class VisionAPI(private val config: AIConfig) {
 
     suspend fun extractQuestions(bitmap: Bitmap): List<Question> = withContext(Dispatchers.IO) {
         val base64Image = BitmapUtils.toDataUrl(bitmap)
-        val client = OpenAIClient(config)
+        val client = AIProviderRegistry.getProvider(config).createClient(config)
 
         val messages = listOf(
             mapOf("role" to "system", "content" to OCR_SYSTEM_PROMPT),

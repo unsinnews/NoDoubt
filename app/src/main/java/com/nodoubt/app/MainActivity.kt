@@ -22,12 +22,12 @@ import com.nodoubt.floatserver.IFloatClickListener
 import com.nodoubt.floatserver.IFloatPermissionCallback
 import com.nodoubt.floatserver.utils.SettingsCompat
 import com.nodoubt.app.data.AISettings
+import com.nodoubt.app.data.AIUsage
 import com.nodoubt.app.data.ThemeManager
 import com.nodoubt.app.screenshot.ScreenshotService
 import com.nodoubt.app.ui.AnswerPopupService
 import com.nodoubt.app.ui.HomeFragment
 import com.nodoubt.app.ui.ProfileFragment
-import com.nodoubt.app.ui.SettingsActivity
 
 class MainActivity : AppCompatActivity() {
 
@@ -153,9 +153,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun takeScreenshot() {
-        val apiKey = AISettings.getApiKey(this)
-        if (apiKey.isBlank()) {
-            Toast.makeText(this, "请先到「我的」页面配置 OpenAI Chat Completions", Toast.LENGTH_LONG).show()
+        if (!AISettings.hasReadyUsage(this, AIUsage.OCR)) {
+            Toast.makeText(this, "请先到「我的」页面配置可用的 OCR 渠道和模型", Toast.LENGTH_LONG).show()
             return
         }
 

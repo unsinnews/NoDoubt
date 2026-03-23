@@ -9,8 +9,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.nodoubt.app.R
+import com.nodoubt.app.data.AIChannelType
 import com.nodoubt.app.data.AISettings
 import com.nodoubt.app.data.ThemeManager
+import com.nodoubt.app.network.AIProviderRegistry
 
 class ChannelSelectionActivity : AppCompatActivity() {
 
@@ -24,25 +26,34 @@ class ChannelSelectionActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        bindDefaultChannel()
+        bindProviderCard()
         applyTheme()
     }
 
     private fun initViews() {
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
-            finish()
-        }
-
+        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<View>(R.id.channelDefaultCard).setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+            startActivity(
+                Intent(this, ProviderChannelsActivity::class.java).putExtra(
+                    ProviderChannelsActivity.EXTRA_PROVIDER_TYPE,
+                    AIChannelType.OPENAI_CHAT_COMPLETIONS.storageValue
+                )
+            )
         }
     }
 
-    private fun bindDefaultChannel() {
-        val channel = AISettings.getDefaultChannel(this)
-        findViewById<TextView>(R.id.tvChannelCardTitle).text = channel.name
+    private fun bindProviderCard() {
+        val provider = AIProviderRegistry.getVisibleProviders().first()
+        val channels = AISettings.getChannels(provider.type, this)
+        val configuredCount = channels.count { it.isConfigured() }
+        findViewById<TextView>(R.id.tvHeaderTitle).text = "渠道"
+        findViewById<TextView>(R.id.tvChannelCardTitle).text = provider.displayName
         findViewById<TextView>(R.id.tvChannelCardMeta).text =
-            if (channel.apiKey.isBlank()) "未配置" else "已配置"
+            if (channels.isEmpty()) {
+                provider.shortDescription
+            } else {
+                "${channels.size} 个渠道，已配置 $configuredCount 个"
+            }
     }
 
     private fun applyTheme() {
