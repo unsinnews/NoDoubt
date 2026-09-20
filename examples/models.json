@@ -1,0 +1,15 @@
+{
+  "providers": {
+    "openai-example": {
+      "api": "openai-responses",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKey": "$OPENAI_API_KEY",
+      "models": [
+        {
+          "id": "your-model-id",
+          "name": "填写服务端模型 ID"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+plugins { id 'com.android.library'; id 'org.jetbrains.kotlin.android' }
+apply from: rootProject.file('gradle/android-library.gradle')
+android { namespace 'com.nodoubt.core.config' }
+dependencies { implementation 'com.squareup.okhttp3:okhttp:4.12.0' }

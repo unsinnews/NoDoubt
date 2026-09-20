@@ -1,0 +1,4 @@
+data: {"candidates":[{"index":0,"content":{"parts":[{"thought":true,"text":"分析"}]}}]}
+
+data: {"candidates":[{"index":0,"content":{"parts":[{"text":"答案"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":12,"candidatesTokenCount":3,"thoughtsTokenCount":2}}
+

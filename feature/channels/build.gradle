@@ -1,0 +1,8 @@
+plugins { id 'com.android.library'; id 'org.jetbrains.kotlin.android'; id 'org.jetbrains.kotlin.plugin.compose' }
+apply from: rootProject.file('gradle/compose-library.gradle')
+android { namespace 'com.nodoubt.feature.channels' }
+dependencies {
+    implementation project(':core:config')
+    implementation project(':core:ai')
+    implementation project(':core:designsystem')
+}

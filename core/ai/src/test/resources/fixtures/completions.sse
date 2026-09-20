@@ -1,0 +1,13 @@
+: keepalive
+
+data: {"choices":
+data: [{"index":0,"delta":{"reasoning_content":"分析"}}]}
+
+data: {"choices":[{"index":0,"delta":{"content":"答案"},"finish_reason":null}]}
+
+data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":5}}
+
+data: [DONE]
+

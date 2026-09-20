@@ -1,37 +1,15 @@
 <resources>
-
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:windowBackground">@color/background</item>
-        <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorAccent">#D45D2D</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:windowActionModeOverlay">true</item>
     </style>
-
-    <!-- Transparent Activity for permission requests -->
-    <style name="TransparentActivity" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="TransparentActivity" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowIsFloating">true</item>
         <item name="android:backgroundDimEnabled">false</item>
     </style>
-
-    <!-- Modern Dialog Animation -->
-    <style name="DialogAnimation">
-        <item name="android:windowEnterAnimation">@anim/dialog_enter</item>
-        <item name="android:windowExitAnimation">@anim/dialog_exit</item>
-    </style>
-
-    <!-- Modern Rounded Dialog Theme -->
-    <style name="RoundedDialog" parent="Theme.MaterialComponents.Light.Dialog">
-        <item name="android:windowBackground">@drawable/bg_dialog_rounded</item>
-        <item name="android:windowAnimationStyle">@style/DialogAnimation</item>
-        <item name="android:windowMinWidthMajor">90%</item>
-        <item name="android:windowMinWidthMinor">90%</item>
-    </style>
-
 </resources>

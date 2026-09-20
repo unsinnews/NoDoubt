@@ -1,0 +1,15 @@
+event: message_start
+data: {"type":"message_start","message":{"usage":{"input_tokens":12,"output_tokens":0}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"分析"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"答案"}}
+
+event: message_delta
+data: {"type":"message_delta","usage":{"output_tokens":5},"delta":{"stop_reason":"end_turn"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
