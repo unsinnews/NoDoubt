@@ -1,41 +1,45 @@
 # 不惑（NoDoubt）
 
-Android 悬浮截图解题助手：点悬浮球截图，答案抽屉里同时给出「极速解题」和「深度思考」两种解答。
+Android AI 悬浮答题助手：在任意界面点一下悬浮球截图，即可得到题目解答。
 
-## 功能
+## 支持
 
-- 一次截图识别多道题，流式显示 Markdown 与公式，可停止、重试、复制
-- 极速 / 深度并行作答，显示模型返回的思考过程
-- 每题可临时切换模型和思考强度
-- 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 四种协议
-- 每种用途可配多个模型，失败时按顺序换用
-- 配置可从文件、剪贴板导入或订阅地址同步，也可导出；密钥加密保存
-- 海蓝、暖橙、石墨三种主题，支持浅色 / 深色
+- 悬浮球一键截图识题，一次识别多道题
+- 极速解题与深度思考两种模式，同时作答
+- 流式输出，支持 Markdown 与数学公式
+- 显示模型的思考过程，可临时调整思考强度
+- 停止、重试、复制、切换模型
+- OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Google Gemini 四种接口
+- 多个服务与模型，失败时自动换用下一个
+- 配置导入导出、剪贴板导入、订阅同步，API Key 加密保存
+- 海蓝、暖橙、石墨三种主题，浅色、深色、跟随系统
+- Android 6.0 及以上
 
 ## 使用
 
-1. **我的 → 模型服务 → 添加服务**：填写地址和 API Key，添加模型，测试连接后保存。
-2. **解题模型**：为截图识题、极速回答、深度回答添加模型，长按拖动排序，第一个为默认。
-3. **首页**：打开悬浮球并授权，到题目页面点悬浮球即可。
+1. 在「我的 → 模型服务」添加服务，填写地址、API Key 和模型
+2. 在「解题模型」选择用于识题、极速和深度回答的模型
+3. 在首页开启悬浮球并授权，到题目界面点击悬浮球
 
-截图会发送到你配置的 API 服务，费用由服务方收取。
+API 费用由你使用的模型服务商收取。
 
 ## 下载
 
-在 [Releases](https://github.com/unsinnews/NoDoubt/releases) 下载 APK，支持 Android 6.0 及以上。
+前往 [Releases](https://github.com/unsinnews/NoDoubt/releases) 下载安装包。
 
-## 构建
+## 致谢
 
-需要 JDK 17 和 Android SDK 35。
+本项目基于并修改自 [PerfectFloatWindow](https://github.com/Alonsol/PerfectFloatWindow)，感谢原作者和社区贡献者。
 
-```shell
-./gradlew :app:assembleRelease
-```
+## 友链
 
-发布签名通过环境变量 `NODOUBT_KEYSTORE`、`NODOUBT_KEYSTORE_PASSWORD`、`NODOUBT_KEY_ALIAS`、`NODOUBT_KEY_PASSWORD` 指定；未设置时使用仓库内的 `app/debug.keystore`。
+- [Linux.do](https://linux.do)
 
-配置格式见 [docs/configuration.md](docs/configuration.md)，开发约定见 [CLAUDE.md](CLAUDE.md)。
+## 许可协议（禁止商用）
 
-## 致谢与许可
+本项目版权由本团队所有，仅允许个人学习、研究和非商业用途。
 
-悬浮截图方案源自 [PerfectFloatWindow](https://github.com/Alonsol/PerfectFloatWindow)，请求默认值参考 [pi](https://github.com/earendil-works/pi)。仅限个人学习、研究和非商业用途，详见 [LICENSE](LICENSE)。
+- 允许：学习、研究、个人项目、非商业二次修改
+- 禁止：任何直接或间接商业用途（含售卖、商用集成、付费服务、企业内部商业场景）
+
+完整条款见 [LICENSE](LICENSE)。
