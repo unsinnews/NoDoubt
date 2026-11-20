@@ -21,6 +21,18 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Release APKs must be signed to install. Use a private key from the environment when provided,
+        // otherwise the repository key so release and debug builds can update each other.
+        release {
+            def keystore = System.getenv('NODOUBT_KEYSTORE')
+            storeFile keystore ? file(keystore) : file('debug.keystore')
+            storePassword System.getenv('NODOUBT_KEYSTORE_PASSWORD') ?: 'android'
+            keyAlias System.getenv('NODOUBT_KEY_ALIAS') ?: 'androiddebugkey'
+            keyPassword System.getenv('NODOUBT_KEY_PASSWORD') ?: 'android'
+        }
+    }
+    buildTypes {
+        release { signingConfig signingConfigs.release }
     }
     buildFeatures { compose true }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
