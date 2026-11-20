@@ -42,7 +42,7 @@ internal fun QuestionAnswerCard(
                     fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 RichText(question.text, fontSize = config.preferences.answerFontSize, compact = true)
                 if (!question.ready) {
-                    InlineStatus(if (recognition == RunStatus.RUNNING) "正在识别题目…" else "题目识别未完成，已有内容已保留。",
+                    InlineStatus(if (recognition == RunStatus.RUNNING) "正在识别题目…" else "识别未完成",
                         loading = recognition == RunStatus.RUNNING)
                 }
             }

@@ -10,7 +10,7 @@ internal fun readConfiguration(input: InputStream): String {
     while (true) {
         val count = input.read(buffer)
         if (count < 0) break
-        require(output.size() + count <= maxBytes) { "配置文件超过 2 MB，请精简后导入" }
+        require(output.size() + count <= maxBytes) { "文件超过 2 MB" }
         output.write(buffer, 0, count)
     }
     return output.toString(Charsets.UTF_8.name()).removePrefix("\uFEFF")

@@ -20,12 +20,15 @@ internal class ChannelEditorState {
     var confirmExit by mutableStateOf(false)
     val renamedModels = mutableMapOf<String, String>()
     private val modelOrigins = mutableListOf<String?>()
+    /** What the page started from: the saved channel, or the untouched template of a new one. */
+    private var baseline by mutableStateOf<ChannelConfig?>(null)
 
-    val dirty get() = channel != original || keyChanged
+    val dirty get() = channel != baseline || keyChanged
 
     fun open(value: ChannelConfig?) {
         original = value
-        channel = value ?: ChannelConfig(UUID.randomUUID().toString(), "新渠道")
+        channel = value ?: ChannelConfig(UUID.randomUUID().toString(), "新服务")
+        baseline = channel
         keyDraft = ""
         keyChanged = false
         modelIndex = -1
@@ -39,6 +42,7 @@ internal class ChannelEditorState {
 
     fun discard() {
         channel = original
+        baseline = original
         keyDraft = ""
         keyChanged = false
         renamedModels.clear()
@@ -62,6 +66,13 @@ internal class ChannelEditorState {
         val added = models.distinctBy { it.id }.filterNot { candidate -> current.models.any { it.id == candidate.id } }
         modelOrigins.addAll(List(added.size) { null })
         channel = current.copy(models = current.models + added)
+    }
+
+    fun moveModel(from: Int, to: Int) {
+        val current = channel ?: return
+        if (from !in current.models.indices || to !in current.models.indices || from == to) return
+        modelOrigins.add(to, modelOrigins.removeAt(from))
+        channel = current.copy(models = current.models.toMutableList().apply { add(to, removeAt(from)) })
     }
 
     fun removeModel(id: String) {
@@ -98,9 +109,9 @@ internal class ChannelEditorState {
 
     fun save(repository: ConfigRepository): Boolean = runCatching {
         val next = requireNotNull(channel)
-        require(next.name.isNotBlank()) { "请输入渠道名称" }
+        require(next.name.isNotBlank()) { "请输入服务名称" }
         require(next.models.none { it.id.isBlank() }) { "模型 ID 不能为空" }
-        require(next.models.map { it.id }.distinct().size == next.models.size) { "渠道内的模型 ID 不能重复" }
+        require(next.models.map { it.id }.distinct().size == next.models.size) { "模型 ID 重复" }
         val current = repository.state.value
         val providers = if (current.providers.any { it.id == next.id }) current.providers.map { if (it.id == next.id) next else it }
             else current.providers + next
@@ -117,6 +128,7 @@ internal class ChannelEditorState {
         val persisted = repository.state.value.providers.first { it.id == next.id }
         original = persisted
         channel = persisted
+        baseline = persisted
         keyDraft = ""
         keyChanged = false
         renamedModels.clear()

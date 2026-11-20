@@ -2,83 +2,80 @@ package com.nodoubt.core.ai
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import com.nodoubt.core.model.ModelEndpoint
 import com.nodoubt.core.model.Protocol
-import okhttp3.Request
 
+/** Wire defaults and compatibility transforms, mirroring pi's four request adapters. */
 internal object ProtocolCompatibility {
+    private const val ANTHROPIC_DEFAULT_MAX_TOKENS = 16384
+    private const val RESPONSES_MIN_OUTPUT_TOKENS = 16
+
     fun apply(body: JsonObject, endpoint: ModelEndpoint) {
-        val compat = endpoint.compat
         when (endpoint.protocol) {
-            Protocol.OPENAI_COMPLETIONS -> completions(body, compat)
-            Protocol.OPENAI_RESPONSES -> {
-                if (compat.flag("supportsMaxOutputTokens") == false) body.remove("max_output_tokens")
-                if (compat.flag("supportsExplicitPromptCacheMode") == false) body.remove("prompt_cache_options")
-                roles(body.array("input"), compat)
-                strictTools(body, compat.flag("supportsStrictMode"), false)
-            }
-            Protocol.ANTHROPIC_MESSAGES -> anthropic(body, compat)
-            Protocol.GOOGLE_GENERATIVE_AI -> Unit
+            Protocol.OPENAI_COMPLETIONS -> completions(body, endpoint)
+            Protocol.OPENAI_RESPONSES -> responses(body, endpoint)
+            Protocol.ANTHROPIC_MESSAGES -> anthropic(body, endpoint)
+            Protocol.GOOGLE_GENERATIVE_AI -> google(body, endpoint)
         }
+        body.remove("thinkingBudgets")
         CacheParameters.apply(body, endpoint)
     }
 
-    private fun completions(body: JsonObject, compat: JsonObject) {
-        if (compat.flag("supportsStore") == false) body.remove("store")
-        when (compat.flag("supportsUsageInStreaming")) {
-            true -> body.putPath("stream_options.include_usage", com.google.gson.JsonPrimitive(true))
-            false -> body.remove("stream_options")
-            null -> Unit
-        }
-        compat.text("maxTokensField")?.takeIf { it in setOf("max_tokens", "max_completion_tokens") }?.let {
-            body.rename(if (it == "max_tokens") "max_completion_tokens" else "max_tokens", it)
-        }
-        roles(body.array("messages"), compat)
-        body.array("messages").forEach { element ->
-            val message = element.objectOrNull() ?: return@forEach
-            if (message.text("role") == "assistant" && compat.flag("requiresReasoningContentOnAssistantMessages") == true) {
-                if (!message.has("reasoning_content")) message.addProperty("reasoning_content", "")
+    private fun completions(body: JsonObject, endpoint: ModelEndpoint) {
+        val compat = CompletionsCompat.of(endpoint)
+        body.rename(if (compat.maxTokensField == "max_tokens") "max_completion_tokens" else "max_tokens", compat.maxTokensField)
+        if (!body.has(compat.maxTokensField)) endpoint.maxOutputTokens?.let { body.addProperty(compat.maxTokensField, it) }
+        if (compat.supportsStore && !body.has("store")) body.addProperty("store", false)
+        if (compat.supportsUsageInStreaming) body.putPath("stream_options.include_usage", JsonPrimitive(true))
+        else body.remove("stream_options")
+        compat.supportsDeveloperRole?.let { developer ->
+            body.array("messages").forEach { element ->
+                val message = element.objectOrNull() ?: return@forEach
+                if (message.text("role") in setOf("system", "developer")) message.addProperty("role", if (developer) "developer" else "system")
             }
         }
-        ThinkingParameters.apply(body, compat)
-        if (compat.flag("supportsReasoningEffort") == false) body.remove("reasoning_effort")
-        compat.obj("openRouterRouting")?.let { body.add("provider", it.deepCopy()) }
-        compat.obj("vercelGatewayRouting")?.let { body.putPath("providerOptions.gateway", it) }
-        compat.get("vllmPriority")?.let { body.add("priority", it.deepCopy()) }
-        if (compat.flag("zaiToolStream") == true && body.array("tools").size() > 0) body.addProperty("tool_stream", true)
-        strictTools(body, compat.flag("supportsStrictMode"), true)
+        ThinkingParameters.apply(body, endpoint, compat)
+        strictTools(body, endpoint.compat.flag("supportsStrictMode"), nested = true)
     }
 
-    private fun roles(messages: JsonArray, compat: JsonObject) {
-        messages.forEach { element ->
-            val message = element.objectOrNull() ?: return@forEach
-            if (message.text("role") in setOf("system", "developer") && compat.has("supportsDeveloperRole")) {
-                message.addProperty("role", if (compat.flag("supportsDeveloperRole") == true) "developer" else "system")
-            }
+    private fun responses(body: JsonObject, endpoint: ModelEndpoint) {
+        val compat = endpoint.compat
+        if (compat.flag("supportsDeveloperRole") == false) body.array("input").forEach { element ->
+            element.objectOrNull()?.takeIf { it.text("role") == "developer" }?.addProperty("role", "system")
         }
+        if (!body.has("max_output_tokens")) endpoint.maxOutputTokens?.let { body.addProperty("max_output_tokens", it) }
+        body.number("max_output_tokens")?.let { body.addProperty("max_output_tokens", maxOf(it, RESPONSES_MIN_OUTPUT_TOKENS)) }
+        if (compat.flag("supportsMaxOutputTokens") == false) body.remove("max_output_tokens")
+        if (!body.has("store")) body.addProperty("store", false)
+        val reasoning = body.obj("reasoning")
+        val effort = reasoning?.text("effort")
+        if (reasoning != null && effort != null && effort != "none" && !reasoning.has("summary")) reasoning.addProperty("summary", "auto")
+        strictTools(body, compat.flag("supportsStrictMode"), nested = false)
     }
 
-    private fun anthropic(body: JsonObject, compat: JsonObject) {
-        if (compat.flag("supportsTemperature") == false) body.remove("temperature")
-        val thinking = body.obj("thinking")
-        if (compat.flag("forceAdaptiveThinking") == true && thinking != null && thinking.text("type") != "disabled") {
-            thinking.addProperty("type", "adaptive")
-            thinking.remove("budget_tokens")
-        }
-        body.array("tools").forEach { element ->
-            val tool = element.objectOrNull() ?: return@forEach
-            compat.flag("supportsEagerToolInputStreaming")?.let {
-                if (it) tool.addProperty("eager_input_streaming", true) else tool.remove("eager_input_streaming")
+    private fun anthropic(body: JsonObject, endpoint: ModelEndpoint) {
+        if (!body.has("max_tokens")) body.addProperty("max_tokens", endpoint.maxOutputTokens ?: ANTHROPIC_DEFAULT_MAX_TOKENS)
+        body.obj("thinking")?.let { thinking ->
+            val type = thinking.text("type")
+            if (endpoint.compat.flag("forceAdaptiveThinking") == true && type != null && type != "disabled") {
+                thinking.addProperty("type", "adaptive")
+                thinking.remove("budget_tokens")
+            } else if (type == "enabled" && !thinking.has("budget_tokens")) thinking.addProperty("budget_tokens", 1024)
+            if (thinking.text("type") in setOf("enabled", "adaptive") && !thinking.has("display")) {
+                thinking.addProperty("display", "summarized")
             }
-            if (compat.flag("supportsCacheControlOnTools") == false) tool.remove("cache_control")
         }
-        strictTools(body, compat.flag("supportsStrictTools"), false)
-        compat.get("allowedFallbackModels")?.takeIf { it.isJsonArray }?.asJsonArray?.let { models ->
-            if (models.isEmpty) body.remove("fallbacks")
-            else body.add("fallbacks", jsonArray(models.take(3).map { model -> jsonObject {
-                addProperty("model", model.asJsonObject.text("model"))
-            } }))
+        strictTools(body, endpoint.compat.flag("supportsStrictTools"), nested = false)
+    }
+
+    private fun google(body: JsonObject, endpoint: ModelEndpoint) {
+        if (body.obj("generationConfig")?.has("maxOutputTokens") != true) endpoint.maxOutputTokens?.let {
+            body.putPath("generationConfig.maxOutputTokens", JsonPrimitive(it))
         }
+        val thinking = body.obj("generationConfig")?.obj("thinkingConfig") ?: return
+        val enabled = thinking.has("thinkingLevel") || (thinking.has("thinkingBudget") && thinking.number("thinkingBudget") != 0)
+        if (enabled && !thinking.has("includeThoughts")) thinking.addProperty("includeThoughts", true)
     }
 
     private fun strictTools(body: JsonObject, enabled: Boolean?, nested: Boolean) {
@@ -89,32 +86,7 @@ internal object ProtocolCompatibility {
             if (enabled) definition.addProperty("strict", true) else definition.remove("strict")
         }
     }
-
-    fun headers(builder: Request.Builder, endpoint: ModelEndpoint, body: JsonObject) {
-        val compat = endpoint.compat
-        if (endpoint.protocol == Protocol.ANTHROPIC_MESSAGES) {
-            val betas = mutableListOf<String>()
-            if (endpoint.parameters.flag("interleavedThinking") == true && body.obj("thinking")?.text("type") != "adaptive") {
-                betas.add("interleaved-thinking-2025-05-14")
-            }
-            if (body.array("fallbacks").size() > 0) betas.add("server-side-fallback-2026-07-01")
-            if (compat.flag("supportsEagerToolInputStreaming") == false && body.array("tools").size() > 0) {
-                betas.add("fine-grained-tool-streaming-2025-05-14")
-            }
-            if (betas.isNotEmpty() && endpoint.headers.keys.none { it.equals("anthropic-beta", true) }) {
-                builder.header("anthropic-beta", betas.joinToString(","))
-            }
-        }
-        val session = endpoint.parameters.text("sessionId") ?: return
-        if (compat.flag("sendSessionAffinityHeaders") != true && !compat.has("sessionAffinityFormat")) return
-        when (compat.text("sessionAffinityFormat")) {
-            "openrouter" -> builder.header("x-session-id", session)
-            "openai", "openai-nosession" -> {
-                if (compat.text("sessionAffinityFormat") == "openai") builder.header("session_id", session)
-                builder.header("x-client-request-id", session)
-                if (endpoint.protocol == Protocol.OPENAI_COMPLETIONS) builder.header("x-session-affinity", session)
-            }
-            else -> builder.header("x-session-affinity", session)
-        }
-    }
 }
+
+internal fun JsonArray.lastObject(predicate: (JsonObject) -> Boolean): JsonObject? =
+    toList().asReversed().mapNotNull { it.objectOrNull() }.firstOrNull(predicate)

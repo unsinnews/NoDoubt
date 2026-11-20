@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nodoubt.core.config.ConfigRepository
@@ -23,7 +24,7 @@ internal fun SettingsScreen(repository: ConfigRepository, onOpen: (String) -> Un
                 horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Box(Modifier.size(54.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center) {
-                    Text(when (config.preferences.avatar) { "brain" -> "思"; "rocket" -> "探"; "star" -> "星"; else -> "N" }, style = MaterialTheme.typography.headlineSmall,
+                    Text(avatarGlyph(config.preferences.avatar), style = MaterialTheme.typography.headlineSmall,
                         color = LocalNoDoubtTokens.current.foregroundAccent)
                 }
                 Column(Modifier.weight(1f)) {
@@ -34,15 +35,17 @@ internal fun SettingsScreen(repository: ConfigRepository, onOpen: (String) -> Un
             }
         }
         Section("模型") {
-            ItemRow("模型服务", if (config.providers.isEmpty()) "添加渠道和模型" else "${config.providers.size} 个渠道",
+            ItemRow("模型服务", if (config.providers.isEmpty()) "尚未添加" else "${config.providers.size} 个服务",
                 onClick = { onOpen("channels") })
         }
         Section("偏好设置") {
-            ItemRow("外观与阅读", "主题、深浅色与回答字号", onClick = { onOpen("appearance") })
-            ItemRow("悬浮球与截图", "大小、截图保存与授权", onClick = { onOpen("capture") })
+            ItemRow("外观与阅读", "主题与字号", onClick = { onOpen("appearance") })
+            ItemRow("悬浮球与截图", "大小与授权", onClick = { onOpen("capture") })
         }
         repository.initializationError?.let { InlineStatus(it, error = true) }
-        Caption("${stringResource(R.string.app_name)} 0.2.0")
+        val context = LocalContext.current
+        val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() }
+        Caption("${stringResource(R.string.app_name)} ${version.orEmpty()}")
     }
     if (editing) ProfileEditor(repository, onClose = { editing = false })
 }
@@ -52,14 +55,19 @@ private fun ProfileEditor(repository: ConfigRepository, onClose: () -> Unit) {
     var nickname by remember { mutableStateOf(repository.state.value.preferences.nickname) }
     var avatar by remember { mutableStateOf(repository.state.value.preferences.avatar) }
     var error by remember { mutableStateOf<String?>(null) }
-    AlertDialog(onDismissRequest = onClose, title = { Text("个人资料") },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Field("昵称", nickname, { nickname = it }); InlineStatus(error, error = true)
-            ChoiceField("头像", avatar, listOf("spark" to "灵感", "brain" to "思考", "rocket" to "探索", "star" to "星标")) { avatar = it }
-        } }, confirmButton = { QuietButton("保存", {
-            runCatching {
-                val config = repository.state.value
-                repository.save(config.copy(preferences = config.preferences.copy(nickname = nickname.trim().ifBlank { AppPreferences().nickname }, avatar = avatar)))
-            }.onSuccess { onClose() }.onFailure { error = it.message }
-        }) }, dismissButton = { QuietButton("取消", onClose) })
+    fun save() = runCatching {
+        val config = repository.state.value
+        repository.save(config.copy(preferences = config.preferences.copy(nickname = nickname.trim().ifBlank { AppPreferences().nickname }, avatar = avatar)))
+    }.onSuccess { onClose() }.onFailure { error = it.message ?: "保存失败" }
+    Sheet("个人资料", onClose, confirm = "完成", onConfirm = { save() }) {
+        Section("") {
+            Field("昵称", nickname, { nickname = it; error = null }, hint = AppPreferences().nickname)
+            ChoiceField("头像", avatar, AVATARS) { avatar = it }
+        }
+        InlineStatus(error, error = true)
+    }
 }
+
+private val AVATARS = listOf("spark" to "灵感", "brain" to "思考", "rocket" to "探索", "star" to "星标")
+
+private fun avatarGlyph(id: String) = when (id) { "brain" -> "思"; "rocket" -> "探"; "star" -> "星"; else -> "灵" }

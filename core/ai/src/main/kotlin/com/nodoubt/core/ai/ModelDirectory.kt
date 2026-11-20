@@ -51,7 +51,7 @@ internal class ModelDirectory(private val client: OkHttpClient) {
             if (page.isNullOrEmpty()) return result.values.toList()
             if (!visited.add(page!!)) throw AiException("模型目录返回了重复的分页标记")
         }
-        throw AiException("模型目录超过 100 页，请手动添加模型或使用较小目录")
+        throw AiException("模型列表过大，请手动添加")
     }
 
     private suspend fun get(request: Request): JsonObject = suspendCancellableCoroutine { continuation ->

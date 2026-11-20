@@ -29,7 +29,7 @@ internal class StreamDecoder(private val endpoint: ModelEndpoint, private val em
 
     suspend fun finish() {
         if (!terminal && !(sawContent && endpoint.compat.flag("supportsFinishReason") == false)) {
-            throw AiException("响应流提前结束，未收到完成标记；可重试本次请求")
+            throw AiException("响应意外中断，请重试")
         }
         emit(AiEvent.Complete)
     }

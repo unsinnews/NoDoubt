@@ -12,15 +12,71 @@ import org.junit.Test
 class ProtocolRequestsTest {
     private val messages = listOf(AiMessage("user", listOf(ContentPart.Text("看图"), ContentPart.Image("aGVsbG8=", "image/png"))))
 
-    @Test fun `new configurations do not invent optional request parameters`() {
+    @Test fun `new configurations send only pi defaults and never invent sampling or thinking`() {
         Protocol.entries.forEach { protocol ->
             val body = ProtocolRequests.encode(AiRequest(endpoint(protocol), messages, "系统指令"))
-            listOf("temperature", "top_p", "reasoning_effort", "thinking", "cache_control", "store").forEach { key ->
+            listOf("temperature", "top_p", "top_k", "reasoning_effort", "reasoning", "thinking", "prompt_cache_key").forEach { key ->
                 assertFalse("$protocol added $key", body.has(key))
             }
-            if (protocol == Protocol.ANTHROPIC_MESSAGES) assertEquals(1024, body.number("max_tokens"))
-            else assertFalse(body.has("max_tokens"))
         }
+        val completions = encode(Protocol.OPENAI_COMPLETIONS)
+        assertEquals(false, completions.flag("store"))
+        assertEquals(true, completions.obj("stream_options")!!.flag("include_usage"))
+        assertEquals("system", completions.array("messages")[0].asJsonObject.text("role"))
+        assertFalse(completions.has("max_completion_tokens"))
+        assertEquals(false, encode(Protocol.OPENAI_RESPONSES).flag("store"))
+        val anthropic = encode(Protocol.ANTHROPIC_MESSAGES)
+        assertEquals(16384, anthropic.number("max_tokens"))
+        val marker = json("""{"type":"ephemeral"}""")
+        assertEquals(marker, anthropic.array("system")[0].asJsonObject.obj("cache_control"))
+        assertEquals(marker, anthropic.array("messages")[0].asJsonObject.array("content")[1].asJsonObject.obj("cache_control"))
+        assertNull(encode(Protocol.GOOGLE_GENERATIVE_AI).obj("generationConfig"))
+    }
+
+    @Test fun `chat completions detects defaults from the service URL like pi`() {
+        val deepseek = encode(Protocol.OPENAI_COMPLETIONS, "https://api.deepseek.com/v1", """{"reasoning_effort":"high"}""",
+            maxTokens = 8192)
+        assertFalse(deepseek.has("store"))
+        assertEquals(8192, deepseek.number("max_tokens"))
+        assertEquals("enabled", deepseek.obj("thinking")!!.text("type"))
+        assertEquals("high", deepseek.text("reasoning_effort"))
+        val zai = encode(Protocol.OPENAI_COMPLETIONS, "https://open.bigmodel.cn/api/paas/v4", """{"reasoning_effort":"low"}""")
+        assertEquals(false, zai.obj("thinking")!!.flag("clear_thinking"))
+        assertFalse(zai.has("reasoning_effort"))
+        val openRouter = encode(Protocol.OPENAI_COMPLETIONS, "https://openrouter.ai/api/v1", """{"reasoning_effort":"medium"}""")
+        assertEquals("medium", openRouter.obj("reasoning")!!.text("effort"))
+        assertFalse(openRouter.has("reasoning_effort"))
+        assertEquals(4096, encode(Protocol.OPENAI_COMPLETIONS, maxTokens = 4096).number("max_completion_tokens"))
+    }
+
+    @Test fun `cache retention and session affinity follow pi per protocol`() {
+        val openai = encode(Protocol.OPENAI_COMPLETIONS, parameters = """{"cacheRetention":"long","sessionId":"session-1"}""")
+        assertEquals("session-1", openai.text("prompt_cache_key"))
+        assertEquals("24h", openai.text("prompt_cache_retention"))
+        assertFalse(encode(Protocol.OPENAI_COMPLETIONS, "https://proxy.example/v1", """{"sessionId":"s"}""").has("prompt_cache_key"))
+        val responses = encode(Protocol.OPENAI_RESPONSES, parameters = """{"sessionId":"s"}""")
+        assertEquals("s", responses.text("prompt_cache_key"))
+        assertFalse(responses.has("prompt_cache_retention"))
+        val anthropic = encode(Protocol.ANTHROPIC_MESSAGES, parameters = """{"cacheRetention":"long"}""")
+        assertEquals("1h", anthropic.array("system")[0].asJsonObject.obj("cache_control")!!.text("ttl"))
+        assertEquals("系统指令", encode(Protocol.ANTHROPIC_MESSAGES, parameters = """{"cacheRetention":"none"}""").text("system"))
+        val markers = encode(Protocol.OPENAI_COMPLETIONS, compat = """{"cacheControlFormat":"anthropic"}""")
+        assertTrue(markers.array("messages")[0].asJsonObject.array("content")[0].asJsonObject.has("cache_control"))
+        assertTrue(markers.array("messages")[1].asJsonObject.array("content")[0].asJsonObject.has("cache_control"))
+    }
+
+    @Test fun `thinking defaults follow pi when thinking is configured`() {
+        val responses = encode(Protocol.OPENAI_RESPONSES, parameters = """{"reasoning.effort":"high"}""")
+        assertEquals("auto", responses.obj("reasoning")!!.text("summary"))
+        val anthropic = encode(Protocol.ANTHROPIC_MESSAGES, parameters = """{"thinking.type":"enabled"}""")
+        assertEquals("summarized", anthropic.obj("thinking")!!.text("display"))
+        val google = encode(Protocol.GOOGLE_GENERATIVE_AI, parameters = """{"generationConfig.thinkingConfig.thinkingLevel":"HIGH"}""")
+        assertEquals(true, google.obj("generationConfig")!!.obj("thinkingConfig")!!.flag("includeThoughts"))
+        val off = encode(Protocol.GOOGLE_GENERATIVE_AI, parameters = """{"generationConfig.thinkingConfig.thinkingBudget":0}""")
+        assertFalse(off.obj("generationConfig")!!.obj("thinkingConfig")!!.has("includeThoughts"))
+        val vllm = encode(Protocol.OPENAI_COMPLETIONS, parameters = """{"reasoning_effort":"medium"}""",
+            compat = """{"thinkingTokenBudgetField":"thinking_token_budget"}""")
+        assertEquals(8192, vllm.number("thinking_token_budget"))
     }
 
     @Test fun `chat completions uses image URL parts and preserves zero and false`() {
@@ -95,5 +151,9 @@ class ProtocolRequestsTest {
     }
 
     private fun endpoint(protocol: Protocol) = ModelEndpoint(protocol, protocol.defaultBaseUrl, "arbitrary-model")
+    private fun encode(protocol: Protocol, baseUrl: String = protocol.defaultBaseUrl, parameters: String = "{}",
+                       compat: String = "{}", maxTokens: Int? = null) = ProtocolRequests.encode(AiRequest(
+        ModelEndpoint(protocol, baseUrl, "arbitrary-model", parameters = json(parameters), compat = json(compat),
+            maxOutputTokens = maxTokens), messages, "系统指令"))
     private fun json(value: String) = JsonParser.parseString(value).asJsonObject
 }

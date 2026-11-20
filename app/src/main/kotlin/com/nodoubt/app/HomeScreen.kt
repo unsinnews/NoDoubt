@@ -34,25 +34,25 @@ internal fun HomeScreen(running: Boolean, captureReady: Boolean, error: String?,
                     tint = LocalNoDoubtTokens.current.foregroundAccent)
             }
             Text("AI 解题助手", style = MaterialTheme.typography.headlineSmall)
-            Caption("截图识别，智能解答")
+            Caption("截图识题，即时解答")
         }
         Surface(shape = RoundedCornerShape(18.dp), color = LocalNoDoubtTokens.current.raised) {
             Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text("悬浮球", style = MaterialTheme.typography.titleMedium)
-                    Caption(if (running) "已开启，切换到题目页面即可使用" else "开启后，点击悬浮球截图解题")
+                    Caption(if (running) "已开启" else "点击悬浮球截图解题")
                 }
                 Switch(running, onAssistant, modifier = Modifier.semantics { contentDescription = "悬浮球" })
             }
         }
-        if (running && !captureReady) Caption("按系统提示允许截图，即可开始使用。")
+        if (running && !captureReady) Caption("请按系统提示允许截图")
         InlineStatus(error, error = true)
         if (!configured) {
             Surface(shape = RoundedCornerShape(16.dp), color = LocalNoDoubtTokens.current.raised, onClick = onConfigure) {
                 Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("设置模型服务", style = MaterialTheme.typography.bodyLarge)
-                        Caption("首次使用，连接你的 API 服务")
+                        Caption("连接 API 后即可使用")
                     }
                     Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 24.sp)
                 }
@@ -60,7 +60,7 @@ internal fun HomeScreen(running: Boolean, captureReady: Boolean, error: String?,
         }
         Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Text("使用方法", style = MaterialTheme.typography.titleMedium)
-            listOf("开启悬浮球，切换到题目页面", "点击悬浮球，截取当前画面", "直接在悬浮窗中查看解答").forEachIndexed { index, text ->
+            listOf("开启悬浮球，打开题目", "点击悬浮球截图", "在弹出的窗口查看解答").forEachIndexed { index, text ->
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("0${index + 1}", color = LocalNoDoubtTokens.current.foregroundAccent, style = MaterialTheme.typography.labelLarge)
                     Caption(text)

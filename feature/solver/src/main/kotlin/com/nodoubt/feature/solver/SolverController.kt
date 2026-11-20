@@ -61,7 +61,7 @@ class SolverController(
         fun active() = state.value.session == session && recognitionRevision == revision
         val candidates = candidates(Usage.OCR)
         if (candidates.isEmpty()) {
-            recognitionFailed(session, revision, "请先在渠道页为截图识题选择模型。")
+            recognitionFailed(session, revision, "未设置截图识题模型")
             return
         }
         for ((position, ref) in candidates.withIndex()) {
@@ -96,7 +96,7 @@ class SolverController(
                 mutableState.update { if (!active()) it else it.copy(
                     recognition = RunStatus.COMPLETE,
                     questions = if (parser.noQuestion) emptyList() else it.questions,
-                    error = if (parser.noQuestion || !parser.hasContent) "未识别到有效题目，请重新截图。" else null
+                    error = if (parser.noQuestion || !parser.hasContent) "未识别到题目，请重截" else null
                 ) }
                 return
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -145,7 +145,7 @@ class SolverController(
         val job = scope.launch {
             if (state.value.session != session || revisions[key] != revision) return@launch
             if (refs.isEmpty()) {
-                update { it.copy(status = RunStatus.ERROR, error = "请为${usage.label}选择模型。") }
+                update { it.copy(status = RunStatus.ERROR, error = "未设置${usage.label}模型") }
                 return@launch
             }
             for ((position, ref) in refs.withIndex()) {

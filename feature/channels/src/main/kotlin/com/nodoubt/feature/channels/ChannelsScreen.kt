@@ -3,9 +3,6 @@ package com.nodoubt.feature.channels
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -14,8 +11,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import com.nodoubt.core.ai.AiClient
 import com.nodoubt.core.config.ConfigRepository
-import com.nodoubt.core.designsystem.QuietButton
-import com.nodoubt.core.designsystem.ActionRow
+import com.nodoubt.core.designsystem.DialogAction
+import com.nodoubt.core.designsystem.MessageDialog
 import com.nodoubt.core.designsystem.LocalScreenActive
 import com.nodoubt.core.model.*
 
@@ -32,7 +29,10 @@ fun ChannelsScreen(repository: ConfigRepository, aiClient: AiClient, modifier: M
     when (editor.page) {
         ChannelPage.LIST -> ChannelListScreen(config, repository.initializationError, modifier,
             onOpen = editor::open, onBindings = { editor.page = ChannelPage.BINDINGS },
-            onFiles = { editor.page = ChannelPage.FILES }, onClose = onClose)
+            onFiles = { editor.page = ChannelPage.FILES }, onClose = onClose, onMove = { from, to ->
+                val current = repository.state.value
+                runCatching { repository.save(current.copy(providers = current.providers.toMutableList().apply { add(to, removeAt(from)) })) }
+            })
         ChannelPage.CHANNEL -> editor.channel?.let { channel ->
             ChannelEditorScreen(channel, editor, repository, aiClient, modifier, active,
                 onModel = { editor.modelIndex = it; editor.page = ChannelPage.MODEL },
@@ -70,22 +70,14 @@ fun ChannelsScreen(repository: ConfigRepository, aiClient: AiClient, modifier: M
         ChannelPage.BINDINGS -> UsageBindingsScreen(repository, config, editor::back, modifier, active)
         ChannelPage.FILES -> ConfigurationScreen(repository, config, editor::back, modifier, active)
     }
-    if (active && editor.confirmExit) AlertDialog(
-        onDismissRequest = { editor.confirmExit = false },
-        shape = MaterialTheme.shapes.large,
-        title = { Text("保存更改？") },
-        text = { Text("离开前是否保存这次修改？") },
-        confirmButton = { QuietButton("保存并返回", {
+    if (active && editor.confirmExit) MessageDialog("保存修改？", "如不保存，本次修改将丢失。", listOf(
+        DialogAction("保存", {
             if (editor.save(repository)) { editor.confirmExit = false; editor.page = ChannelPage.LIST }
             else editor.confirmExit = false
-        }) },
-        dismissButton = {
-            ActionRow {
-                QuietButton("继续编辑", { editor.confirmExit = false })
-                QuietButton("放弃更改", editor::discard, danger = true)
-            }
-        }
-    )
+        }, primary = true),
+        DialogAction("不保存", editor::discard, danger = true),
+        DialogAction("取消", { editor.confirmExit = false })
+    ), onDismiss = { editor.confirmExit = false })
     }
 }
 

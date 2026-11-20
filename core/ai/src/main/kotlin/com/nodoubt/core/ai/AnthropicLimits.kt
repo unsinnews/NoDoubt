@@ -7,18 +7,13 @@ import java.math.BigInteger
 internal object AnthropicLimits {
     private val minimumBudget = BigInteger.valueOf(1024)
 
-    fun apply(body: JsonObject, modelOutputLimit: Int?) {
+    fun apply(body: JsonObject) {
         val thinking = body.obj("thinking")
         val budget = if (thinking?.text("type") == "enabled") {
             thinking.integer("budget_tokens").also {
                 require(it != null && it >= minimumBudget) { "请填写思考预算（至少1024），预算必须是整数。" }
             }
         } else null
-        if (!body.has("max_tokens")) {
-            // Anthropic requires max_tokens. Leave the user's explicit/model cap untouched.
-            val fallback: Number = modelOutputLimit ?: budget?.add(minimumBudget) ?: 1024
-            body.addProperty("max_tokens", fallback)
-        }
         val maximum = body.integer("max_tokens")
         require(maximum != null && maximum > BigInteger.ZERO) { "Anthropic max_tokens 必须是大于 0 的整数。" }
         if (budget != null) require(maximum > budget) {

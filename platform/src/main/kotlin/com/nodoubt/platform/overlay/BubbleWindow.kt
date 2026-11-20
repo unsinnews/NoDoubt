@@ -50,7 +50,7 @@ class BubbleWindow(private val context: Context, private val onClick: () -> Unit
     private val view = ImageView(context).apply {
         setImageResource(R.drawable.ic_bubble)
         scaleType = ImageView.ScaleType.CENTER_INSIDE
-        contentDescription = "截图识题；拖动调整位置"
+        contentDescription = "截图识题，可拖动"
         elevation = 4 * density
         setOnClickListener { onClick() }
         setOnTouchListener { _, event -> touch(event) }

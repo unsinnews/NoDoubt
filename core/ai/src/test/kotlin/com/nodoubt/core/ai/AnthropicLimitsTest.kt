@@ -10,8 +10,8 @@ import org.junit.Test
 
 class AnthropicLimitsTest {
     @Test fun `enabled thinking requires an integer budget of at least 1024`() {
+        assertEquals(1024, encode("""{"thinking.type":"enabled"}""").obj("thinking")!!.number("budget_tokens"))
         listOf(
-            """{"thinking.type":"enabled"}""",
             """{"thinking":{"type":"enabled","budget_tokens":1023}}""",
             """{"thinking":{"type":"enabled","budget_tokens":1024.5}}"""
         ).forEach { parameters ->
@@ -20,13 +20,13 @@ class AnthropicLimitsTest {
         }
     }
 
-    @Test fun `mandatory fallback reserves output beyond thinking while preserving configured caps`() {
+    @Test fun `mandatory max tokens uses the model limit then the pi default while preserving configured caps`() {
         val parameters = """{"thinking.type":"enabled","thinking.budget_tokens":2048}"""
-        assertEquals(3072, encode(parameters).number("max_tokens"))
+        assertEquals(16384, encode(parameters).number("max_tokens"))
         assertEquals(8192, encode(parameters, modelLimit = 8192).number("max_tokens"))
         assertEquals(4096, encode("""{"thinking":{"type":"enabled","budget_tokens":2048},"max_tokens":4096}""",
             modelLimit = 8192).number("max_tokens"))
-        assertEquals(1024, encode("""{"thinking.type":"adaptive"}""").number("max_tokens"))
+        assertEquals(16384, encode("""{"thinking.type":"adaptive"}""").number("max_tokens"))
     }
 
     @Test fun `final extra body and model caps cannot undercut the enabled thinking budget`() {

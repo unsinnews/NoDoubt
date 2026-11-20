@@ -36,11 +36,11 @@ class CaptureService : Service() {
     private val frames = CaptureFrameGate()
     private var saveImage = false
     private val timeout = Runnable {
-        frames.pendingRequestId?.let { fail("没有收到新的屏幕画面，请重新授权截图。", it, ready = false) }
+        frames.pendingRequestId?.let { fail("未获取到画面，请重新授权", it, ready = false) }
     }
     private val callback = object : MediaProjection.Callback() {
         override fun onStop() {
-            CaptureBus.status(CaptureStatus(error = "截图授权已失效，点击截图可重新授权。"))
+            CaptureBus.status(CaptureStatus(error = "授权已失效，点击截图重新授权"))
             stopSelf()
         }
         override fun onCapturedContentResize(width: Int, height: Int) {
@@ -83,7 +83,7 @@ class CaptureService : Service() {
             CaptureBus.status(CaptureStatus(ready = true, requestId = requestId))
             if (intent.getBooleanExtra(AUTO_CAPTURE, false)) handler.postDelayed({ requestFrame(requestId) }, 700)
         } catch (error: Exception) {
-            fail(error.message ?: "无法启动截图，请重新授权。", requestId)
+            fail(error.message ?: "无法截图，请重新授权", requestId)
             stopSelf()
         }
         return START_NOT_STICKY
@@ -123,7 +123,7 @@ class CaptureService : Service() {
         try {
             createReader(reader?.width ?: resources.displayMetrics.widthPixels,
                 reader?.height ?: resources.displayMetrics.heightPixels, ticket)
-        } catch (error: Exception) { fail(error.message ?: "无法获取新的屏幕画面，请重新授权截图。", requestId, ready = false) }
+        } catch (error: Exception) { fail(error.message ?: "未获取到画面，请重新授权", requestId, ready = false) }
     }
 
     private fun processImage(image: Image, requestId: Long) {
@@ -165,7 +165,7 @@ class CaptureService : Service() {
             NotificationChannel(CHANNEL, "屏幕识题", NotificationManager.IMPORTANCE_LOW))
         val notification = NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_camera).setContentTitle("${applicationInfo.loadLabel(packageManager)} 截图已就绪")
-            .setContentText("可通过悬浮球截取题目；在应用中可关闭。")
+            .setContentText("点击悬浮球截图")
             .setOngoing(true).build()
         ServiceCompat.startForeground(this, 1001, notification,
             if (Build.VERSION.SDK_INT >= 29) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION else 0)

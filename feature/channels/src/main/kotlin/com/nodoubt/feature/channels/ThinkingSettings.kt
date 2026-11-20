@@ -18,7 +18,7 @@ internal fun ThinkingSettings(
     val definitions = remember(protocol) { ParameterCatalog.parameters(protocol).filter { it.isThinkingParameter() } }
     var modifying by remember(protocol) { mutableStateOf(hasThinkingParameters(values)) }
     var editing by remember { mutableStateOf<ParameterDefinition?>(null) }
-    Section("思考", if (modifying && protocol == Protocol.ANTHROPIC_MESSAGES) "手动开启思考时需填写预算，至少 1024。" else null) {
+    Section("思考", if (modifying && protocol == Protocol.ANTHROPIC_MESSAGES) "开启时需填预算，至少 1024" else null) {
         ChoiceField("思考设置", if (modifying) "modify" else "default", listOf("default" to "默认", "modify" to "修改")) { selection ->
             modifying = selection == "modify"
             if (!modifying) { onChange(clearThinkingParameters(values)); editing = null }
@@ -64,15 +64,15 @@ private fun ThinkingValueSheet(
 ) {
     var raw by remember { mutableStateOf(value?.takeIf { it.mode == ParameterMode.VALUE }?.value?.let(::displayValue).orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
-    Sheet(definition.label, onDismiss, actions = { QuietButton("完成", {
+    Sheet(definition.label, onDismiss, confirm = "完成", onConfirm = {
         runCatching {
             onApply(raw.takeIf { it.isNotBlank() }?.let { ParameterValue(ParameterMode.VALUE, parseTyped(it, definition.type)) })
         }.onFailure { error = it.message ?: "值的格式不正确" }
-    }) }) {
-        Section("") {
+    }) {
+        Section("", "留空不发送") {
             TypedValueField(definition.type, raw, { raw = it; error = null }, hint = definition.suggestedValue.orEmpty())
-            InlineStatus(error, error = true)
         }
+        InlineStatus(error, error = true)
     }
 }
 

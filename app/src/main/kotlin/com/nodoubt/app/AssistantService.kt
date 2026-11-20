@@ -92,7 +92,7 @@ class AssistantService : Service() {
         if (capturing) return
         val candidates = appGraph.repository.state.value.bindings[Usage.OCR]?.entries.orEmpty()
         if (candidates.isEmpty()) {
-            Toast.makeText(this, "请先到「我的 → 模型服务」设置截图识题模型", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "请先设置截图识题模型", Toast.LENGTH_LONG).show()
             return
         }
         appGraph.solver.prepareCapture()
@@ -132,7 +132,7 @@ class AssistantService : Service() {
         } catch (_: RuntimeException) {
             finishCapture()
             if (!answerVisible) bubble.reveal()
-            Toast.makeText(this, "无法打开截图授权，请重试。", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "无法打开截图授权", Toast.LENGTH_SHORT).show()
         }
     }
 

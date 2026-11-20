@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,7 +60,14 @@ fun Section(title: String, description: String? = null, content: @Composable Col
         if (title.isNotBlank()) Text(title, Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.fillMaxWidth().background(LocalNoDoubtTokens.current.raised, RoundedCornerShape(14.dp))
-            .padding(horizontal = 16.dp, vertical = 3.dp), content = content)
+            .padding(horizontal = 16.dp, vertical = 3.dp)) {
+            // Rows draw a trailing hairline; hide the last one so a group never ends with a divider.
+            Column(Modifier.fillMaxWidth().clipToBounds().layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val height = (placeable.height - .5.dp.roundToPx().coerceAtLeast(1)).coerceAtLeast(0)
+                layout(placeable.width, height) { placeable.place(0, 0) }
+            }, content = content)
+        }
         if (!description.isNullOrBlank()) {
             Text(description, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -97,8 +106,8 @@ fun SettingsRow(title: String, value: String? = null, symbol: UiSymbol? = null, 
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(onClick = onClick).padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
             if (symbol != null) LeadingSymbol(symbol)
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            if (!value.isNullOrBlank()) Text(value, Modifier.widthIn(max = 150.dp), style = MaterialTheme.typography.bodyLarge,
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (!value.isNullOrBlank()) Text(value, Modifier.widthIn(max = 220.dp), style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End)
             Symbol(UiSymbol.CHEVRON, Modifier.size(15.dp))
         }
@@ -110,10 +119,13 @@ fun SettingsRow(title: String, value: String? = null, symbol: UiSymbol? = null, 
 fun ActionListRow(title: String, onClick: () -> Unit, symbol: UiSymbol = UiSymbol.ADD, enabled: Boolean = true, danger: Boolean = false) {
     val color = if (!enabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f)
         else if (danger) MaterialTheme.colorScheme.error else LocalNoDoubtTokens.current.foregroundAccent
-    Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).clickable(enabled = enabled, onClick = onClick).padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Symbol(symbol, color = color)
-        Text(title, style = MaterialTheme.typography.bodyLarge, color = color)
+    Column {
+        Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).clickable(enabled = enabled, onClick = onClick).padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Symbol(symbol, color = color)
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = color)
+        }
+        GroupDivider()
     }
 }
 
@@ -129,16 +141,4 @@ fun InlineStatus(text: String?, error: Boolean = false, loading: Boolean = false
         Text(text ?: "处理中…", style = MaterialTheme.typography.bodyMedium,
             color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun ActionRow(content: @Composable () -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { content() }
-}
-
-@Composable
-fun DialogBody(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
 }

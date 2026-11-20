@@ -1,78 +1,63 @@
 package com.nodoubt.feature.channels
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import com.nodoubt.core.config.ConfigRepository
 import com.nodoubt.core.designsystem.*
 import com.nodoubt.core.model.*
 
+/**
+ * Each usage lists its candidates in priority order: the first is the default, the rest are fallbacks.
+ * Long-press and drag to reorder; the trash icon removes. Every change saves immediately.
+ */
 @Composable
 internal fun UsageBindingsScreen(
     repository: ConfigRepository, config: AppConfig, onBack: () -> Unit, modifier: Modifier, active: Boolean = true
 ) {
-    var selectedUsage by remember { mutableStateOf<Usage?>(null) }
     var adding by remember { mutableStateOf<Usage?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    fun update(usage: Usage, next: UsageBinding): Boolean = runCatching {
-        repository.save(repository.state.value.copy(bindings = repository.state.value.bindings + (usage to next)))
-    }.onSuccess { error = null }.onFailure { error = it.message ?: "保存失败，请重试" }.isSuccess
-    BackHandler(active && selectedUsage != null) { selectedUsage = null }
-    val usage = selectedUsage
-    if (usage == null) Page("用途", modifier, onBack = onBack) {
+    var removed by remember { mutableStateOf<Pair<Usage, ModelRef>?>(null) }
+    fun update(usage: Usage, entries: List<ModelRef>): Boolean = runCatching {
+        val current = repository.state.value
+        repository.save(current.copy(bindings = current.bindings + (usage to orderedBinding(entries))))
+    }.onSuccess { error = null }.onFailure { error = it.message ?: "保存失败" }.isSuccess
+    Page("解题模型", modifier, onBack = onBack) {
+        Caption("排在第一的为默认，失败时依次尝试。长按拖动排序。", Modifier.padding(horizontal = 16.dp))
         InlineStatus(error, error = true)
-        Section("模型用途") {
-            Usage.entries.forEach { entry ->
-                val binding = config.bindings[entry] ?: UsageBinding()
-                val default = binding.selected?.let { config.modelName(it) }
-                ItemRow(entry.label, default?.let { "$it · ${binding.entries.size} 个候选" } ?: "尚未选择模型",
-                    onClick = { selectedUsage = entry })
+        removed?.let { (usage, ref) ->
+            UndoBar("已移除 ${config.modelName(ref)}") {
+                val entries = (config.bindings[usage] ?: UsageBinding()).priority()
+                if (update(usage, (entries + ref).distinct())) removed = null
             }
         }
-    } else {
-        val binding = config.bindings[usage] ?: UsageBinding()
-        Page(usage.label, modifier, onBack = { selectedUsage = null }, actions = {
-            ToolbarIcon(UiSymbol.ADD, "添加候选模型", { adding = usage })
-        }) {
-            InlineStatus(error, error = true)
-            Section("候选模型") {
-                binding.entries.forEachIndexed { index, ref ->
+        Usage.entries.forEach { usage ->
+            val entries = (config.bindings[usage] ?: UsageBinding()).priority()
+            Section(usage.label) {
+                ReorderableColumn(entries, keyOf = { "${it.channelId}/${it.modelId}" }, onMove = { from, to ->
+                    update(usage, entries.toMutableList().apply { add(to, removeAt(from)) })
+                }) { ref, index ->
                     val channel = config.providers.firstOrNull { it.id == ref.channelId }
-                    ItemRow(config.modelName(ref), "${channel?.name ?: "渠道已移除"} · ${ref.modelId}",
-                        onClick = { update(usage, binding.copy(selected = ref)) }) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (binding.selected == ref) Symbol(UiSymbol.CHECK,
-                                Modifier.semantics { contentDescription = "默认模型" }, LocalNoDoubtTokens.current.foregroundAccent)
-                            ManagementMoreMenu("${config.modelName(ref)}的更多操作", active, actions = listOf(
-                                ManagementAction("上移", { update(usage, binding.copy(entries = binding.entries.moved(index, index - 1))) }, enabled = index > 0),
-                                ManagementAction("下移", { update(usage, binding.copy(entries = binding.entries.moved(index, index + 1))) }, enabled = index < binding.entries.lastIndex),
-                                ManagementAction("移除", {
-                                    val entries = binding.entries - ref
-                                    update(usage, UsageBinding(entries, binding.selected?.takeIf { it in entries } ?: entries.firstOrNull()))
-                                }, danger = true)
-                            ))
-                        }
-                    }
+                    EditableRow(config.modelName(ref), channel?.name ?: "服务已删除", handle = true,
+                        badge = if (index == 0) "默认" else null, subtitleError = channel == null,
+                        onDelete = { removed = usage to ref; update(usage, entries - ref) })
                 }
-                ActionListRow("添加候选模型", { adding = usage })
+                ActionListRow("添加模型", { adding = usage })
             }
-            Caption("轻点模型设为默认。")
         }
     }
     adding?.takeIf { active }?.let { target ->
-        val binding = config.bindings[target] ?: UsageBinding()
-        BindingPicker(config, binding.entries.toSet(), error, onApply = { selected ->
-            val entries = (binding.entries + selected).distinct()
-            if (update(target, UsageBinding(entries, binding.selected ?: entries.firstOrNull()))) adding = null
+        val entries = (config.bindings[target] ?: UsageBinding()).priority()
+        BindingPicker(config, entries.toSet(), error, title = "添加到${target.label}", onApply = { selected ->
+            if (update(target, (entries + selected).distinct())) adding = null
         }, onDismiss = { adding = null })
     }
 }
 
-private fun AppConfig.modelName(ref: ModelRef): String = providers.firstOrNull { it.id == ref.channelId }
-    ?.models?.firstOrNull { it.id == ref.modelId }?.name ?: ref.modelId
+internal fun UsageBinding.priority(): List<ModelRef> = (listOfNotNull(selected) + entries).distinct()
 
-private fun <T> List<T>.moved(from: Int, to: Int): List<T> = toMutableList().apply { add(to, removeAt(from)) }
+internal fun orderedBinding(entries: List<ModelRef>): UsageBinding = entries.distinct().let { UsageBinding(it, it.firstOrNull()) }
+
+private fun AppConfig.modelName(ref: ModelRef): String = providers.firstOrNull { it.id == ref.channelId }
+    ?.models?.firstOrNull { it.id == ref.modelId }?.name?.takeIf { it.isNotBlank() } ?: ref.modelId

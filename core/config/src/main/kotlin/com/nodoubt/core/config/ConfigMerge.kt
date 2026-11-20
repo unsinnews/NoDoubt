@@ -32,10 +32,10 @@ object ConfigMerge {
             val old = oldChannels[id]
             val new = newChannels[id]
             when {
-                old == null -> result += "新增渠道：${new!!.name}（${new.models.size} 个模型）"
-                new == null -> result += "移除渠道：${old.name}"
+                old == null -> result += "新增服务：${new!!.name}（${new.models.size} 个模型）"
+                new == null -> result += "删除服务：${old.name}"
                 old != new -> {
-                    result += "更新渠道：${new.name}"
+                    result += "修改服务：${new.name}"
                     val added = new.models.map { it.id }.toSet() - old.models.map { it.id }.toSet()
                     val removed = old.models.map { it.id }.toSet() - new.models.map { it.id }.toSet()
                     added.forEach { result += "新增模型：${new.name}/$it" }
@@ -43,10 +43,10 @@ object ConfigMerge {
                 }
             }
         }
-        if (before.bindings != after.bindings) result += "更新截图/极速/深度用途模型"
-        if (before.preferences != after.preferences) result += "更新应用偏好"
-        if (before.variables != after.variables) result += "更新本地变量映射"
-        return result.ifEmpty { listOf("配置内容没有变化") }
+        if (before.bindings != after.bindings) result += "修改解题模型"
+        if (before.preferences != after.preferences) result += "修改应用设置"
+        if (before.variables != after.variables) result += "修改变量映射"
+        return result.ifEmpty { listOf("与当前配置相同") }
     }
 
     // Co-locate extensions with their entity while merging. Otherwise deleting a remote model

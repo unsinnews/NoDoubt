@@ -28,7 +28,7 @@ object ConfigCodec {
             source = decodeSource(extension.obj("source"))
         )
         val clean = ConfigValidator.cleanBindings(ConfigValidator.validate(raw))
-        if (raw.bindings != clean.bindings) warnings += "无效的用途模型引用已移除，请检查截图/极速/深度模型。"
+        if (raw.bindings != clean.bindings) warnings += "已移除无效的解题模型，请检查"
         return ImportPreview(clean, warnings.distinct(), credentials = credentials)
     }
 
@@ -49,7 +49,7 @@ object ConfigCodec {
             else -> "openai-completions"
         }
         val api = source.text("api", defaultApi)
-        if (!source.has("api")) warnings += "$id：未指定渠道协议，当前使用 ${Protocol.fromId(api).label}，请在渠道页面核对。"
+        if (!source.has("api")) warnings += "$id：未指定渠道协议，当前使用 ${Protocol.fromId(api).label}，请在模型服务中核对。"
         val protocol = Protocol.fromId(api)
         val ref = credential(extension.text("credentialRef").ifBlank { source.text("apiKey") }, id, warnings, credentials)
         if (source.has("oauth")) warnings += "$id：订阅登录不受支持，请配置 API 密钥。"

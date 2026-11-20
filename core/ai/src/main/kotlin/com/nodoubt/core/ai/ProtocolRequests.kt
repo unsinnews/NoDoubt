@@ -22,7 +22,7 @@ internal object ProtocolRequests {
             body.addProperty("stream", true)
         }
         if (request.endpoint.protocol == Protocol.ANTHROPIC_MESSAGES) {
-            AnthropicLimits.apply(body, request.endpoint.maxOutputTokens)
+            AnthropicLimits.apply(body)
         }
         return body
     }

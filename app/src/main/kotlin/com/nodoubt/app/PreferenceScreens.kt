@@ -28,13 +28,11 @@ internal fun AppearanceScreen(repository: ConfigRepository, onBack: () -> Unit) 
                 Appearance.LIGHT.name to "浅色", Appearance.DARK.name to "深色")) { value -> save { it.copy(appearance = Appearance.valueOf(value)) } }
         }
         Section("阅读") {
-            ChoiceField("回答字号", prefs.answerFontSize.toString(), (13..24).map { it.toString() to "$it" }) {
-                value -> save { it.copy(answerFontSize = value.toInt()) }
-            }
+            StepperRow("回答字号", prefs.answerFontSize, 13..24, { value -> save { it.copy(answerFontSize = value) } })
         }
         Section("预览") {
             RichText("清晰的正文、**重点结论**与公式：\$x^2+y^2=z^2\$",
-                modifier = Modifier.testTag("settings-rich-text"), fontSize = prefs.answerFontSize)
+                modifier = Modifier.padding(vertical = 14.dp).testTag("settings-rich-text"), fontSize = prefs.answerFontSize)
         }
     }
 }
@@ -54,11 +52,10 @@ internal fun CaptureSettingsScreen(repository: ConfigRepository, ready: Boolean,
                 value -> save { it.copy(bubbleSizeDp = value.toInt()) }
             }
         }
-        Section("截图") {
+        Section("截图", "不保留时，识题后即删除截图") {
             ToggleRow("保留截图", !config.preferences.autoDeleteScreenshot,
                 { value -> save { it.copy(autoDeleteScreenshot = !value) } })
-            Caption("默认只用于识题，处理后不保存。")
-            ItemRow("截图授权", if (ready) "已就绪" else "开启悬浮球时授权") {
+            ItemRow("截图授权", if (ready) "已就绪" else "未授权") {
                 if (ready) QuietButton("关闭", onStop)
             }
         }

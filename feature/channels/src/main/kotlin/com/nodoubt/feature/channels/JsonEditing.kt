@@ -49,15 +49,23 @@ internal fun typeLabel(type: ParameterType): String = when (type) {
 }
 
 @Composable
-internal fun TypedValueField(type: ParameterType, raw: String, onChange: (String) -> Unit, choices: List<String> = emptyList(), hint: String = "") {
+internal fun TypedValueField(
+    type: ParameterType, raw: String, onChange: (String) -> Unit, choices: List<String> = emptyList(), hint: String = "",
+    labelOf: (String) -> String = { it }
+) {
     when {
-        type == ParameterType.BOOLEAN -> ChoiceField("值", raw.ifBlank { "false" }, listOf("true" to "true", "false" to "false"), onChange)
+        type == ParameterType.BOOLEAN -> ChoiceField("值", raw.ifBlank { "false" },
+            listOf("true" to labelOf("true").takeIf { it != "true" }.orEmpty().ifBlank { "开启" },
+                "false" to labelOf("false").takeIf { it != "false" }.orEmpty().ifBlank { "关闭" }), onChange)
         choices.isNotEmpty() -> {
-            ChoiceField("预设选项", raw, choices.map { it to it }, onChange)
-            Field("自定义值", raw, onChange, hint = hint)
+            ChoiceField("选项", raw, choices.map { it to labelOf(it) }, onChange)
+            Field("自定义值", raw, onChange, hint = hint.ifBlank { "输入文本" })
         }
         else -> Field("值", raw, onChange, multiline = type == ParameterType.OBJECT || type == ParameterType.ARRAY,
-            hint = hint, keyboardType = if (type == ParameterType.INTEGER || type == ParameterType.NUMBER) KeyboardType.Decimal else KeyboardType.Text)
+            hint = hint.ifBlank { when (type) {
+                ParameterType.OBJECT -> "{ }"; ParameterType.ARRAY -> "[ ]"; ParameterType.STRING -> "输入文本"
+                else -> "输入${typeLabel(type)}"
+            } }, keyboardType = if (type == ParameterType.INTEGER || type == ParameterType.NUMBER) KeyboardType.Decimal else KeyboardType.Text)
     }
 }
 
@@ -71,36 +79,33 @@ internal fun JsonObjectEditor(title: String, value: JsonObject, onChange: (JsonO
     var error by remember { mutableStateOf<String?>(null) }
     Section(title, description) {
         value.entrySet().forEach { entry ->
-            ItemRow(entry.key, "${typeLabel(typeOf(entry.value))} · ${displayValue(entry.value).take(140)}", onClick = {
+            EditableRow(entry.key, "${typeLabel(typeOf(entry.value))} · ${displayValue(entry.value).take(140)}", onClick = {
                 previousKey = entry.key; key = entry.key; raw = displayValue(entry.value)
                 type = typeOf(entry.value); error = null; editing = true
-            }) {
-                QuietButton("移除", { onChange(value.deepCopy().apply { remove(entry.key) }) }, danger = true)
-            }
+            }, onDelete = { onChange(value.deepCopy().apply { remove(entry.key) }) })
         }
-        OutlineButton("添加字段", { previousKey = null; key = ""; raw = ""; type = ParameterType.STRING; error = null; editing = true })
+        ActionListRow("添加字段", { previousKey = null; key = ""; raw = ""; type = ParameterType.STRING; error = null; editing = true })
     }
-    if (editing && LocalScreenActive.current) AlertDialog(onDismissRequest = { editing = false }, shape = MaterialTheme.shapes.large,
-        title = { Text("编辑字段") }, text = {
-            DialogBody {
-                Field("字段名", key, { key = it; error = null })
-                ChoiceField("数据类型", type.name, ParameterType.entries.map { it.name to typeLabel(it) }) {
-                    type = ParameterType.valueOf(it)
-                    raw = when (type) { ParameterType.OBJECT -> "{}"; ParameterType.ARRAY -> "[]"; ParameterType.BOOLEAN -> "false"; else -> "" }
-                }
-                TypedValueField(type, raw, { raw = it; error = null })
-                InlineStatus(error, error = true)
+    if (editing) Sheet(if (previousKey == null) "添加字段" else "编辑字段", { editing = false }, confirm = "完成", onConfirm = {
+        runCatching {
+            val name = key.trim()
+            require(name.isNotBlank()) { "请输入字段名" }
+            require(name == previousKey || !value.has(name)) { "已有同名字段" }
+            val parsed = parseTyped(raw, type)
+            onChange(value.deepCopy().apply { previousKey?.let(::remove); add(name, parsed) })
+            editing = false
+        }.onFailure { error = it.message ?: "JSON 格式不正确" }
+    }) {
+        Section("") {
+            Field("字段名", key, { key = it; error = null })
+            ChoiceField("类型", type.name, ParameterType.entries.map { it.name to typeLabel(it) }) {
+                type = ParameterType.valueOf(it)
+                raw = when (type) { ParameterType.OBJECT -> "{}"; ParameterType.ARRAY -> "[]"; ParameterType.BOOLEAN -> "false"; else -> "" }
             }
-        }, confirmButton = { QuietButton("应用", {
-            runCatching {
-                val name = key.trim()
-                require(name.isNotBlank()) { "字段名不能为空" }
-                require(name == previousKey || !value.has(name)) { "字段名已存在" }
-                val parsed = parseTyped(raw, type)
-                onChange(value.deepCopy().apply { previousKey?.let(::remove); add(name, parsed) })
-                editing = false
-            }.onFailure { error = it.message ?: "JSON 格式不正确" }
-        }) }, dismissButton = { QuietButton("取消", { editing = false }) })
+            TypedValueField(type, raw, { raw = it; error = null })
+        }
+        InlineStatus(error, error = true)
+    }
 }
 
 internal fun JsonObject.atPath(path: String): JsonElement? = path.split('.').fold(this as JsonElement?) { value, part ->

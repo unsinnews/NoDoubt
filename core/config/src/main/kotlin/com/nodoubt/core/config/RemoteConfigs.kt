@@ -23,7 +23,7 @@ internal class RemoteConfigs {
     suspend fun fetch(url: String, previous: RemoteSource? = null): RemoteDocument = suspendCancellableCoroutine { continuation ->
         val parsed = url.toHttpUrlOrNull()
         if (parsed == null || parsed.username.isNotBlank() || parsed.password.isNotBlank()) {
-            continuation.resumeWithException(IllegalArgumentException("远程配置必须是有效的 HTTP/HTTPS 地址，不可包含用户名和密码"))
+            continuation.resumeWithException(IllegalArgumentException("地址无效，需为 HTTP/HTTPS 且不含账号密码"))
             return@suspendCancellableCoroutine
         }
         val request = Request.Builder().url(parsed).header("Accept", "application/json").apply {
@@ -34,7 +34,7 @@ internal class RemoteConfigs {
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                if (continuation.isActive) continuation.resumeWithException(IOException("无法获取远程配置，请检查地址和网络连接", e))
+                if (continuation.isActive) continuation.resumeWithException(IOException("获取失败，请检查地址和网络", e))
             }
 
             override fun onResponse(call: Call, response: Response) {

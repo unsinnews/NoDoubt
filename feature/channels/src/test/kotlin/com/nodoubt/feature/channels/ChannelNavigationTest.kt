@@ -31,6 +31,27 @@ class ChannelNavigationTest {
         assertFalse(editor.dirty)
     }
 
+    @Test fun untouchedNewChannelLeavesWithoutConfirmation() {
+        val editor = ChannelEditorState()
+        editor.open(null)
+        assertFalse(editor.dirty)
+        editor.back()
+        assertEquals(ChannelPage.LIST, editor.page)
+        assertFalse(editor.confirmExit)
+    }
+
+    @Test fun movingModelsKeepsRenameOrigins() {
+        val editor = ChannelEditorState()
+        editor.open(ChannelConfig("c", "Name", models = listOf(ModelConfig("a"), ModelConfig("b"), ModelConfig("c"))))
+        editor.moveModel(0, 2)
+        assertEquals(listOf("b", "c", "a"), editor.channel?.models?.map { it.id })
+        editor.modelIndex = 2
+        editor.updateModel(ModelConfig("a2"))
+        assertEquals("a2", editor.renamedModels["a"])
+        assertEquals("a2", editor.currentModelId("a"))
+        assertTrue(editor.dirty)
+    }
+
     @Test fun nestedParameterBackReturnsToModelAndKeepsEditedData() {
         val editor = ChannelEditorState()
         editor.open(ChannelConfig("c", "Name", models = listOf(ModelConfig("old"))))

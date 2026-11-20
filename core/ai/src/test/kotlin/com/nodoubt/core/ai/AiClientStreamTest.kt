@@ -72,7 +72,33 @@ class AiClientStreamTest {
         assertEquals(AiEvent.Complete, AiClient().stream(compatible).toList().last())
     }
 
-    @Test fun `retry occurs only when explicitly configured and before emitted content`() = runBlocking {
+    @Test fun `retries default to two like pi and stop before emitted content`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+        server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+        server.enqueue(MockResponse().setBody(fixture("completions.sse")))
+        assertEquals(AiEvent.Complete, AiClient().stream(request(Protocol.OPENAI_COMPLETIONS)).toList().last())
+        assertEquals(3, server.requestCount)
+    }
+
+    @Test fun `session affinity and anthropic beta headers follow pi`() = runBlocking {
+        server.enqueue(MockResponse().setBody(fixture("anthropic.sse")))
+        val anthropic = request(Protocol.ANTHROPIC_MESSAGES).let { it.copy(endpoint = it.endpoint.copy(
+            parameters = JsonParser.parseString("""{"thinking.type":"enabled","sessionId":"s1"}""").asJsonObject,
+            compat = JsonParser.parseString("""{"sendSessionAffinityHeaders":true}""").asJsonObject)) }
+        AiClient().stream(anthropic).toList()
+        val recorded = server.takeRequest()
+        assertEquals("interleaved-thinking-2025-05-14", recorded.getHeader("anthropic-beta"))
+        assertEquals("s1", recorded.getHeader("x-session-affinity"))
+        server.enqueue(MockResponse().setBody(fixture("responses.sse")))
+        val responses = request(Protocol.OPENAI_RESPONSES).let { it.copy(endpoint = it.endpoint.copy(
+            parameters = JsonParser.parseString("""{"sessionId":"s2"}""").asJsonObject)) }
+        AiClient().stream(responses).toList()
+        val second = server.takeRequest()
+        assertEquals("s2", second.getHeader("session-id"))
+        assertEquals("s2", second.getHeader("x-client-request-id"))
+    }
+
+    @Test fun `configured retries override the default`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
         server.enqueue(MockResponse().setBody(fixture("completions.sse")))
         val original = request(Protocol.OPENAI_COMPLETIONS)

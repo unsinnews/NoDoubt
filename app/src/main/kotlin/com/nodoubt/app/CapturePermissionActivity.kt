@@ -25,10 +25,10 @@ class CapturePermissionActivity : ComponentActivity() {
                     .putExtra(CaptureService.AUTO_CAPTURE, false)
                     .putExtra(CaptureService.SAVE_IMAGE, !appGraph.repository.state.value.preferences.autoDeleteScreenshot))
             } catch (_: RuntimeException) {
-                revealBubble(requestId, "无法启动截图授权，请重试。")
+                revealBubble(requestId, "无法打开截图授权")
             }
         } else {
-            revealBubble(requestId, "未授权截图，可随时重试。")
+            revealBubble(requestId, "未授权截图")
         }
         // This activity has its own task; removing it returns directly to the previous app.
         finishAndRemoveTask()

@@ -1,10 +1,6 @@
 package com.nodoubt.feature.channels
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.nodoubt.core.designsystem.*
 
 @Composable
@@ -16,32 +12,31 @@ internal fun KeyValueEditor(label: String, values: Map<String, String>, sensitiv
     var error by remember { mutableStateOf<String?>(null) }
     Section(label) {
         values.forEach { (entryKey, entryValue) ->
-            ItemRow(entryKey, if (sensitive || isSecretHeader(entryKey)) "已配置" else entryValue,
-                onClick = { editingKey = entryKey; key = entryKey; value = if (sensitive) "" else entryValue; open = true; error = null })
+            EditableRow(entryKey, if (sensitive || isSecretHeader(entryKey)) "已配置" else entryValue,
+                onClick = { editingKey = entryKey; key = entryKey; value = if (sensitive) "" else entryValue; open = true; error = null },
+                onDelete = { onChange(values - entryKey) })
         }
-        ActionListRow("添加", { editingKey = null; key = ""; value = ""; open = true; error = null })
+        ActionListRow("添加$label", { editingKey = null; key = ""; value = ""; open = true; error = null })
     }
-    if (open && LocalScreenActive.current) AlertDialog(onDismissRequest = { open = false }, shape = MaterialTheme.shapes.large,
-        title = { Text(label) }, text = {
-            DialogBody {
-                Field("名称", key, { key = it; error = null })
-                Field("值", value, { value = it }, secret = sensitive || isSecretHeader(key),
-                    hint = if (sensitive && editingKey != null) "留空保留已保存值" else "")
-                InlineStatus(error, error = true)
-                if (editingKey != null) ActionListRow("删除", { onChange(values - requireNotNull(editingKey)); open = false }, UiSymbol.TRASH, danger = true)
+    if (open) Sheet(if (editingKey == null) "添加$label" else "编辑$label", { open = false }, confirm = "完成", onConfirm = {
+        val normalized = key.trim()
+        when {
+            normalized.isBlank() -> error = "请输入名称"
+            normalized != editingKey && normalized in values -> error = "已有同名项目"
+            normalized.contains('\n') || value.contains('\n') -> error = "名称和值不能换行"
+            else -> {
+                val resolved = if (sensitive && value.isBlank() && editingKey != null) values[editingKey].orEmpty() else value
+                onChange((values - (editingKey ?: "")) + (normalized to resolved)); open = false
             }
-        }, confirmButton = { QuietButton("应用", {
-            val normalized = key.trim()
-            when {
-                normalized.isBlank() -> error = "名称不能为空"
-                normalized != editingKey && normalized in values -> error = "名称已存在"
-                normalized.contains('\n') || value.contains('\n') -> error = "名称和值不能包含换行"
-                else -> {
-                    val resolved = if (sensitive && value.isBlank() && editingKey != null) values[editingKey].orEmpty() else value
-                    onChange((values - (editingKey ?: "")) + (normalized to resolved)); open = false
-                }
-            }
-        }) }, dismissButton = { QuietButton("取消", { open = false }) })
+        }
+    }) {
+        Section("") {
+            Field("名称", key, { key = it; error = null }, hint = "例如 X-Api-Key")
+            Field("值", value, { value = it }, secret = sensitive || isSecretHeader(key),
+                hint = if (sensitive && editingKey != null) "留空不修改" else "输入值")
+        }
+        InlineStatus(error, error = true)
+    }
 }
 
 private fun isSecretHeader(key: String): Boolean = listOf("authorization", "api-key", "apikey", "token", "secret", "password")

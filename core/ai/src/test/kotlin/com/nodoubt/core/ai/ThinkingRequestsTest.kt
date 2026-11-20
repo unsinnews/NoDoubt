@@ -110,7 +110,7 @@ class ThinkingRequestsTest {
             prepare(Protocol.ANTHROPIC_MESSAGES, ThinkingOverride.Budget(2048), """{"max_tokens":8192,"extraBody":{"max_tokens":1024}}""")
         }
         val fallback = prepare(Protocol.ANTHROPIC_MESSAGES, ThinkingOverride.Budget(2048))
-        assertEquals(3072, wire(fallback).number("max_tokens"))
+        assertEquals(16384, wire(fallback).number("max_tokens"))
     }
 
     @Test fun `gemini level and budget cannot leak from the previous model setting`() {
@@ -126,7 +126,8 @@ class ThinkingRequestsTest {
     }
 
     @Test fun `snapshot reflects boolean compatibility and actual clipped budgets instead of selected labels`() {
-        val boolean = prepare(Protocol.OPENAI_COMPLETIONS, ThinkingOverride.Effort("low"), compat = """{"thinkingFormat":"qwen"}""")
+        val boolean = prepare(Protocol.OPENAI_COMPLETIONS, ThinkingOverride.Effort("low"),
+            compat = """{"thinkingFormat":"qwen","supportsReasoningEffort":false}""")
         assertEquals("已开启", boolean.snapshot.label)
         assertFalse(boolean.snapshot.controls.has("reasoning_effort"))
         assertEquals(true, boolean.snapshot.controls.flag("enable_thinking"))
@@ -182,7 +183,7 @@ class ThinkingRequestsTest {
     @Test fun `zai keeps extra body clear thinking priority without restoring its old strength`() {
         val parameters = """{"thinking":{"type":"disabled","clear_thinking":false},
             "extraBody":{"thinking":{"type":"disabled","clear_thinking":true}}}"""
-        val compat = """{"thinkingFormat":"zai"}"""
+        val compat = """{"thinkingFormat":"zai","supportsReasoningEffort":false}"""
         val selected = prepare(Protocol.OPENAI_COMPLETIONS, ThinkingOverride.Effort("high"), parameters, compat)
         assertEquals("enabled", wire(selected).obj("thinking")!!.text("type"))
         assertEquals(true, wire(selected).obj("thinking")!!.flag("clear_thinking"))

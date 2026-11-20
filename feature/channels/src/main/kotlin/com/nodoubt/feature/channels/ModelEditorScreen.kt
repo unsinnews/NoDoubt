@@ -28,8 +28,8 @@ internal fun ModelEditorScreen(
         }
         Section("") { ActionListRow("移除模型", { removing = true }, UiSymbol.TRASH, danger = true) }
     }
-    if (removing && active) ConfirmDialog("移除这个模型？", "保存服务后，这个模型会从解题模型中移除。", "移除",
-        { removing = false; onRemove() }, { removing = false })
+    if (removing && active) ConfirmDialog("移除“${model.name.ifBlank { model.id }}”？", "保存服务后生效。", "移除",
+        { removing = false; onRemove() }, { removing = false }, danger = true)
 }
 
 @Composable
@@ -37,7 +37,7 @@ internal fun ModelAdvancedScreen(
     model: ModelConfig, channel: ChannelConfig, onChange: (ModelConfig) -> Unit, onBack: () -> Unit, modifier: Modifier
 ) {
     Page("模型高级设置", modifier, onBack = onBack) {
-        Section("连接", "留空时使用服务的连接设置。") {
+        Section("连接", "留空则跟随服务") {
             ChoiceField("协议", model.protocol?.id ?: "inherit",
                 listOf("inherit" to "跟随服务") + Protocol.entries.map { it.id to it.label }) {
                 onChange(model.copy(protocol = if (it == "inherit") null else Protocol.fromId(it)))
@@ -46,7 +46,7 @@ internal fun ModelAdvancedScreen(
                 hint = channel.baseUrl, keyboardType = KeyboardType.Uri)
         }
         KeyValueEditor("请求头", model.headers) { onChange(model.copy(headers = it)) }
-        Section("模型容量", "每次回答的输出限制，可在请求参数中单独设置。") {
+        Section("模型容量", "Anthropic 未设输出上限时使用最大输出") {
             OptionalPositiveInteger("上下文窗口", model.contextWindow) { onChange(model.copy(contextWindow = it)) }
             OptionalPositiveInteger("最大输出", model.maxTokens) { onChange(model.copy(maxTokens = it)) }
         }

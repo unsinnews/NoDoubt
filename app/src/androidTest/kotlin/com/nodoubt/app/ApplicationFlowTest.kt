@@ -51,8 +51,8 @@ class ApplicationFlowTest {
         compose.onNodeWithText("思考").assertDoesNotExist()
         assertFalse(compose.activity.appGraph.repository.state.value.providers.any { it.name == "未保存渠道" })
         compose.onNodeWithContentDescription("返回").performClick()
-        compose.onNodeWithText("保存更改？").assertExists()
-        compose.onNodeWithText("放弃更改").performClick()
+        compose.onNodeWithText("保存修改？").assertExists()
+        compose.onNodeWithText("不保存").performClick()
     }
 
     @Test fun thinkingIsModelOnlyAndDefaultClearsOnlyThinking() {
@@ -76,6 +76,7 @@ class ApplicationFlowTest {
         compose.onNodeWithText("保存", substring = false).performClick()
         fun model() = repository.state.value.providers.single().models.single()
         assertEquals("high", model().parameters["reasoning_effort"]?.value?.asString)
+        compose.onNodeWithText("思考设置验证").performClick()
         compose.onNodeWithText("test-thinking").performClick()
         compose.onNodeWithText("思考设置").performClick()
         compose.onNodeWithText("默认", substring = false).performClick()
@@ -133,6 +134,35 @@ class ApplicationFlowTest {
             compose.onNodeWithText("题目 2").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("重截").assertIsDisplayed()
         } finally { server.shutdown() }
+    }
+
+    @Test fun usageCandidatesReorderByLongPressDragAndDeleteWithIcon() {
+        val repository = compose.activity.appGraph.repository
+        val first = ModelRef("order", "first-model")
+        val second = ModelRef("order", "second-model")
+        compose.runOnUiThread {
+            repository.save(AppConfig(id = repository.state.value.id,
+                providers = listOf(ChannelConfig("order", "排序验证", models = listOf(ModelConfig("first-model"), ModelConfig("second-model")))),
+                bindings = Usage.entries.associateWith { if (it == Usage.OCR) UsageBinding(listOf(first, second), first) else UsageBinding() }))
+        }
+        compose.onNode(hasText("我的") and hasClickAction()).performClick()
+        compose.onNodeWithText("模型服务").performClick()
+        compose.onNodeWithText("解题模型").performClick()
+        compose.onNodeWithText("first-model").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 100)
+            moveBy(androidx.compose.ui.geometry.Offset(0f, 1f))
+            repeat(10) { moveBy(androidx.compose.ui.geometry.Offset(0f, 30f)) }
+            up()
+        }
+        compose.waitForIdle()
+        val binding = repository.state.value.bindings.getValue(Usage.OCR)
+        assertEquals(listOf(second, first), binding.entries)
+        assertEquals(second, binding.selected)
+        compose.onNodeWithContentDescription("删除second-model").performClick()
+        assertEquals(listOf(first), repository.state.value.bindings.getValue(Usage.OCR).entries)
+        compose.onNodeWithText("撤销").performClick()
+        assertEquals(listOf(first, second), repository.state.value.bindings.getValue(Usage.OCR).entries)
     }
 
     private fun stream(vararg chunks: String, thinking: String? = null): MockResponse {

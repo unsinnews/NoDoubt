@@ -74,8 +74,8 @@ fun SolverScreen(
                             Column(Modifier.fillMaxWidth().padding(vertical = 24.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text("截图后，题目和解答会出现在这里", style = MaterialTheme.typography.titleMedium)
-                                Caption("开启悬浮球，切换到题目页面后点击截图。")
-                                QuietButton("配置渠道与模型", onConfigure)
+                                Caption("在题目页面点击悬浮球截图")
+                                QuietButton("设置模型服务", onConfigure)
                             }
                         }
                         state.questions.forEach { question ->
@@ -93,7 +93,7 @@ fun SolverScreen(
                                         controller.retry(question.id, usage).fold(
                                             onSuccess = { retryErrors.remove(inputKey) },
                                             onFailure = { retryErrors[inputKey] = RetryFailure(runId,
-                                                it.message ?: "无法重新解答，请检查模型配置") })
+                                                it.message ?: "重试失败，请检查模型") })
                                     },
                                     onModel = { retryErrors.remove(inputKey); controller.answer(question.id, usage, it) },
                                     onCopied = { copyFeedback++ },
