@@ -59,16 +59,31 @@ class SolveHistoryTest {
         assertEquals(listOf(old), history.entries.value)
         assertEquals(0, storage.writes)
 
-        history.delete("old")
+        val removed = history.delete(setOf("old"))
         runCurrent()
         assertTrue(storage.stored.isEmpty())
-        history.restore(old, 0)
+        history.restore(removed)
         runCurrent()
         assertEquals(listOf(old), storage.stored)
         assertEquals(listOf(old), HistoryCodec.decode(HistoryCodec.encode(storage.stored)))
         history.clear()
         runCurrent()
         assertTrue(storage.stored.isEmpty())
+    }
+
+    @Test fun `several selected entries delete together and undo restores their order`() = runTest {
+        val list = (1..5).map { HistoryEntry("e$it", it.toLong(), "q$it", listOf(HistoryAnswer(Usage.FAST, "", "a"))) }
+        val storage = MemoryStorage(list)
+        val history = SolveHistory(storage, backgroundScope, StandardTestDispatcher(testScheduler)) { 9L }
+        runCurrent()
+        val removed = history.delete(setOf("e1", "e3", "e5", "missing"))
+        runCurrent()
+        assertEquals(listOf("e2", "e4"), storage.stored.map { it.id })
+        assertEquals(listOf(0, 2, 4), removed.map { it.first })
+        history.restore(removed)
+        runCurrent()
+        assertEquals(list, storage.stored)
+        assertTrue(history.delete(emptySet()).isEmpty())
     }
 
     @Test fun `history keeps the newest entries within the limit`() {

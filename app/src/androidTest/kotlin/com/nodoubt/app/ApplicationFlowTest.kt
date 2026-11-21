@@ -171,6 +171,30 @@ class ApplicationFlowTest {
             compose.onNodeWithText("(计算题) 2+2=?").assertDoesNotExist()
             compose.onNodeWithText("撤销").performClick()
             compose.onNodeWithText("(计算题) 2+2=?").assertExists()
+
+            // Long-press starts multi-select; deleting the selection asks first and can be undone.
+            compose.onNodeWithText("(计算题) 2+2=?").performTouchInput { longClick() }
+            compose.onNodeWithText("已选 1 项").assertExists()
+            compose.onNodeWithText("全选").performClick()
+            compose.onNodeWithText("已选 2 项").assertExists()
+            compose.onNodeWithTag("history-delete-selected").performClick()
+            compose.onNodeWithText("删除 2 条记录？").assertExists()
+            compose.onNodeWithText("取消").performClick()
+            assertEquals(2, graph.history.entries.value.size)
+            compose.onNodeWithTag("history-delete-selected").performClick()
+            compose.onNodeWithText("删除").performClick()
+            compose.waitForIdle()
+            assertTrue(graph.history.entries.value.isEmpty())
+            compose.onNodeWithText("已删除 2 条记录").assertExists()
+            compose.onNodeWithText("撤销").performClick()
+            assertEquals(listOf("(计算题) 2+2=?", "(计算题) 1+1=?"), graph.history.entries.value.map { it.question })
+
+            // Clearing everything asks first.
+            compose.onNodeWithContentDescription("清空记录").performClick()
+            compose.onNodeWithText("清空解题记录？").assertExists()
+            compose.onNodeWithText("清空").performClick()
+            compose.waitForIdle()
+            assertTrue(graph.history.entries.value.isEmpty())
         } finally { server.shutdown() }
     }
 

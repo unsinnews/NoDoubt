@@ -81,11 +81,20 @@ class SolveHistory(
         }
     }
 
-    fun delete(id: String) = change { list -> list.filterNot { it.id == id } }
+    /** Removes [ids] and returns them with their positions, for [restore]. */
+    fun delete(ids: Set<String>): List<Pair<Int, HistoryEntry>> {
+        val removed = mutableEntries.value.withIndex().filter { it.value.id in ids }.map { it.index to it.value }
+        if (removed.isNotEmpty()) change { list -> list.filterNot { it.id in ids } }
+        return removed
+    }
 
-    fun restore(entry: HistoryEntry, index: Int) = change { list ->
-        if (list.any { it.id == entry.id }) list
-        else list.toMutableList().apply { add(index.coerceIn(0, size), entry) }
+    /** Puts removed entries back at their original positions, skipping any that already exist. */
+    fun restore(removed: List<Pair<Int, HistoryEntry>>) = change { list ->
+        val result = list.toMutableList()
+        removed.sortedBy { it.first }.forEach { (index, entry) ->
+            if (result.none { it.id == entry.id }) result.add(index.coerceIn(0, result.size), entry)
+        }
+        result.take(MAX_ENTRIES)
     }
 
     fun clear() = change { emptyList() }
@@ -96,7 +105,7 @@ class SolveHistory(
         if (mutableEntries.value !== before) saves.trySend(Unit)
     }
 
-    companion object { const val MAX_ENTRIES = 300 }
+    companion object { const val MAX_ENTRIES = 500 }
 }
 
 private val HISTORY_USAGES = listOf(Usage.FAST, Usage.DEEP)
