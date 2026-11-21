@@ -121,7 +121,7 @@ class ApplicationFlowTest {
             assertTrue(graph.solver.state.value.questions.all { question ->
                 question.answers.values.all { it.thinking == "先确认题意，再计算。" }
             })
-            // Thinking starts as a three-line preview; only the answer the user opens shows in full.
+            // Thinking starts as a two-line preview; only the answer the user opens shows in full.
             compose.onAllNodesWithTag("thinking-content").assertCountEquals(0)
             compose.onAllNodesWithTag("thinking-preview").assertCountEquals(2)
             compose.onAllNodesWithContentDescription("展开思考过程")[0].performClick()
@@ -133,6 +133,16 @@ class ApplicationFlowTest {
             compose.onNodeWithContentDescription("收起思考过程").performClick()
             compose.onAllNodesWithTag("thinking-content").assertCountEquals(0)
             compose.onNodeWithText("题目 1").assertExists()
+            // The question copies from its header, the answer from its footer; each confirms in place.
+            val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+            fun clip() = clipboard.primaryClip?.getItemAt(0)?.text?.toString()
+            compose.onAllNodesWithContentDescription("复制题目")[0].performClick()
+            compose.waitForIdle()
+            assertEquals("(计算题) 1+1=?", clip())
+            compose.onAllNodesWithContentDescription("已复制").assertCountEquals(1)
+            compose.onAllNodesWithContentDescription("复制答案")[0].performScrollTo().performClick()
+            compose.waitForIdle()
+            assertEquals("【答案】完成。", clip())
             compose.onNodeWithText("题目 2").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("重截").assertIsDisplayed()
         } finally { server.shutdown() }

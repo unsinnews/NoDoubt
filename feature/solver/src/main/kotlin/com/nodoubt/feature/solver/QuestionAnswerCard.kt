@@ -36,11 +36,17 @@ internal fun QuestionAnswerCard(
         shape = RoundedCornerShape(16.dp), color = tokens.raised,
         border = BorderStroke(.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))) {
         Column(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().background(tokens.inset).padding(horizontal = 14.dp, vertical = 12.dp),
+            val copyable = question.ready && question.text.isNotBlank()
+            Column(Modifier.fillMaxWidth().background(tokens.inset)
+                .padding(start = 14.dp, end = 8.dp, top = if (copyable) 4.dp else 12.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("题目 ${question.id}", style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                RichText(question.text, fontSize = config.preferences.answerFontSize, compact = true)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("题目 ${question.id}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (copyable) key(question.id) { CopyChip("题目", "复制题目", question.text.trim(), "copy-question", tokens.raised) }
+                }
+                RichText(question.text, Modifier.padding(end = 6.dp), fontSize = config.preferences.answerFontSize,
+                    compact = true)
                 if (!question.ready) {
                     InlineStatus(if (recognition == RunStatus.RUNNING) "正在识别题目…" else "识别未完成",
                         loading = recognition == RunStatus.RUNNING)
