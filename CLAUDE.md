@@ -7,7 +7,7 @@ NoDoubt is an Android screenshot-solving application. Read README.md and docs/re
 - Keep the two main destinations: 首页 and 我的. Model configuration lives at 我的 → 模型服务, with 解题模型 and 配置文件 below it.
 - Preserve the screenshot flow: a bubble opens a full-width, bottom-anchored answer sheet at two-thirds screen height. Its top handle adjusts height while its bottom remains anchored.
 - Show all questions in one vertical reading column per mode. The segmented control and horizontal swipes switch 极速解题 / 深度思考. Keep 重截 and status in the bottom bar; show the current-mode stop action while running and 收起 otherwise.
-- Separate the gray question area from the answer body. In both modes, any returned thinking content appears in its own collapsible region, expanded by default, regardless of whether request thinking parameters were configured.
+- Separate the gray question area from the answer body. In both modes, any returned thinking content appears in its own region: collapsed by default to a three-line window that scrolls with the newest text, expanded only when the user opens it, regardless of whether request thinking parameters were configured.
 - Use a restrained, iOS-like phone layout. User-facing theme names are 海蓝 (default), 暖橙 and 石墨, with light, dark and system appearance.
 - Configuration and the four protocol adapters are application infrastructure. Keep external project branding and export-format choices out of the product flow; the configuration screen exports the application's own JSON.
 

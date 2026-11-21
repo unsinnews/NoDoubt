@@ -121,15 +121,17 @@ class ApplicationFlowTest {
             assertTrue(graph.solver.state.value.questions.all { question ->
                 question.answers.values.all { it.thinking == "先确认题意，再计算。" }
             })
-            compose.onAllNodesWithTag("thinking-content").assertCountEquals(2)
-            compose.onAllNodesWithContentDescription("收起思考过程")[0].performClick()
+            // Thinking starts as a three-line preview; only the answer the user opens shows in full.
+            compose.onAllNodesWithTag("thinking-content").assertCountEquals(0)
+            compose.onAllNodesWithTag("thinking-preview").assertCountEquals(2)
+            compose.onAllNodesWithContentDescription("展开思考过程")[0].performClick()
             compose.onAllNodesWithTag("thinking-content").assertCountEquals(1)
             compose.onNodeWithText("深度思考").performClick()
-            compose.onAllNodesWithTag("thinking-content").assertCountEquals(2)
+            compose.onAllNodesWithTag("thinking-content").assertCountEquals(0)
             compose.onNodeWithText("极速解题").performClick()
             compose.onAllNodesWithTag("thinking-content").assertCountEquals(1)
-            compose.onNodeWithContentDescription("展开思考过程").performClick()
-            compose.onAllNodesWithTag("thinking-content").assertCountEquals(2)
+            compose.onNodeWithContentDescription("收起思考过程").performClick()
+            compose.onAllNodesWithTag("thinking-content").assertCountEquals(0)
             compose.onNodeWithText("题目 1").assertExists()
             compose.onNodeWithText("题目 2").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("重截").assertIsDisplayed()

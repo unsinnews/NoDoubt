@@ -78,3 +78,25 @@ private fun String.isEscaped(index: Int): Boolean {
     while (cursor >= 0 && this[cursor] == '\\') { backslashes++; cursor-- }
     return backslashes % 2 == 1
 }
+
+/**
+ * While an answer streams, cut a trailing formula whose closing `$$` has not arrived yet (input is
+ * already normalized), so the reader never sees raw LaTeX that turns into a formula a moment later.
+ */
+internal fun hideOpenMath(markdown: String): String {
+    var count = 0
+    var last = -1
+    var index = markdown.indexOf("$$")
+    while (index >= 0) {
+        if (!markdown.isEscaped(index)) { count++; last = index }
+        index = markdown.indexOf("$$", index + 2)
+    }
+    if (count % 2 == 1) return markdown.substring(0, last).trimEnd()
+    // A single-dollar formula still open on the last line has not been normalized yet; hide it too.
+    val lineStart = markdown.lastIndexOf('\n') + 1
+    val singles = (lineStart until markdown.length).filter { i ->
+        markdown[i] == '$' && !markdown.isEscaped(i) && markdown.getOrNull(i - 1) != '$' &&
+            markdown.getOrNull(i + 1).let { it != null && it != '$' && !it.isWhitespace() && !it.isDigit() }
+    }
+    return if (singles.size % 2 == 1) markdown.substring(0, singles.last()).trimEnd() else markdown
+}

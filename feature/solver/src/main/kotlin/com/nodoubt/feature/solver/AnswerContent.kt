@@ -10,7 +10,8 @@ import com.nodoubt.core.designsystem.*
 internal fun AnswerContent(answer: AnswerState, fontSize: Int, thinkingExpanded: Boolean, onThinkingExpandedChange: (Boolean) -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (answer.thinking.isNotBlank()) ThinkingDisclosure(answer, fontSize, thinkingExpanded, onThinkingExpandedChange)
-        if (answer.text.isNotBlank()) RichText(answer.text, fontSize = fontSize, compact = true)
+        if (answer.text.isNotBlank()) RichText(answer.text, fontSize = fontSize, compact = true,
+            streaming = answer.status == RunStatus.RUNNING)
         when (answer.status) {
             RunStatus.RUNNING, RunStatus.IDLE, RunStatus.STOPPED -> Unit
             RunStatus.ERROR -> InlineStatus(answer.error, error = true)

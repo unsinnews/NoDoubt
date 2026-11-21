@@ -11,17 +11,18 @@ import com.nodoubt.core.model.Usage
 internal class SolverReadingState(fastPosition: Int = 0, deepPosition: Int = 0) {
     private val fastScroll = ScrollState(fastPosition)
     private val deepScroll = ScrollState(deepPosition)
-    private val collapsed = mutableStateMapOf<String, Boolean>()
+    /** Thinking starts as a short scrolling preview; only answers the user opened are listed here. */
+    private val expanded = mutableStateMapOf<String, Boolean>()
 
     fun scrollFor(usage: Usage): ScrollState = if (usage == Usage.FAST) fastScroll else deepScroll
 
     fun isThinkingExpanded(usage: Usage, questionId: Int, runId: Int): Boolean =
-        collapsed[answerKey(usage, questionId, runId)] != true
+        expanded[answerKey(usage, questionId, runId)] == true
 
     fun setThinkingExpanded(usage: Usage, questionId: Int, runId: Int, expanded: Boolean) {
         val prefix = "${usage.name}:$questionId:"
-        collapsed.keys.filter { it.startsWith(prefix) }.forEach(collapsed::remove)
-        if (!expanded) collapsed[answerKey(usage, questionId, runId)] = true
+        this.expanded.keys.filter { it.startsWith(prefix) }.forEach(this.expanded::remove)
+        if (expanded) this.expanded[answerKey(usage, questionId, runId)] = true
     }
 
     private fun answerKey(usage: Usage, questionId: Int, runId: Int) = "${usage.name}:$questionId:$runId"
@@ -32,13 +33,13 @@ internal class SolverReadingState(fastPosition: Int = 0, deepPosition: Int = 0) 
                 buildMap<String, Any> {
                     put("fast", state.fastScroll.value)
                     put("deep", state.deepScroll.value)
-                    state.collapsed.keys.forEach { put("answer:$it", true) }
+                    state.expanded.keys.forEach { put("answer:$it", true) }
                 }
             },
             restore = { saved ->
                 SolverReadingState(saved["fast"] as Int, saved["deep"] as Int).apply {
                     saved.keys.filter { it.startsWith("answer:") }.forEach {
-                        collapsed[it.removePrefix("answer:")] = true
+                        expanded[it.removePrefix("answer:")] = true
                     }
                 }
             }

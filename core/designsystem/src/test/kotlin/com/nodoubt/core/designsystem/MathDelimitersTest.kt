@@ -42,4 +42,14 @@ class MathDelimitersTest {
     @Test fun escapedBackslashDoesNotCreateMath() {
         assertEquals("\\\\(literal\\\\)", normalizeMathDelimiters("\\\\(literal\\\\)"))
     }
+
+    @Test fun streamingHidesOnlyAnUnclosedTrailingFormula() {
+        val d = "\$"
+        assertEquals("由", hideOpenMath(normalizeMathDelimiters("由 ${d}\\frac{a")))
+        assertEquals("由 $d$d" + "x$d$d 得", hideOpenMath(normalizeMathDelimiters("由 ${d}x$d 得 \\(y")))
+        val closed = normalizeMathDelimiters("由 ${d}x$d 得 ${d}y$d")
+        assertEquals(closed, hideOpenMath(closed))
+        assertEquals("价格 ${d}5 与 ${d}6", hideOpenMath("价格 ${d}5 与 ${d}6"))
+        assertEquals("块", hideOpenMath("块\n$d$d\nx^2"))
+    }
 }
