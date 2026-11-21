@@ -15,7 +15,7 @@ import com.nodoubt.core.designsystem.*
 import com.nodoubt.core.model.AppPreferences
 
 @Composable
-internal fun SettingsScreen(repository: ConfigRepository, onOpen: (String) -> Unit) {
+internal fun SettingsScreen(repository: ConfigRepository, historyCount: Int, onOpen: (String) -> Unit) {
     val config by repository.state.collectAsState()
     var editing by remember { mutableStateOf(false) }
     Page("我的") {
@@ -37,6 +37,9 @@ internal fun SettingsScreen(repository: ConfigRepository, onOpen: (String) -> Un
         Section("模型") {
             ItemRow("模型服务", if (config.providers.isEmpty()) "尚未添加" else "${config.providers.size} 个服务",
                 onClick = { onOpen("channels") })
+        }
+        Section("记录") {
+            ItemRow("解题记录", if (historyCount == 0) "暂无记录" else "$historyCount 条", onClick = { onOpen("history") })
         }
         Section("偏好设置") {
             ItemRow("外观与阅读", "主题与字号", onClick = { onOpen("appearance") })

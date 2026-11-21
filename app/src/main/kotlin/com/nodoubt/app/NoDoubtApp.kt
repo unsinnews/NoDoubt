@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.nodoubt.core.designsystem.*
 import com.nodoubt.feature.channels.ChannelsScreen
+import com.nodoubt.feature.solver.HistoryScreen
 import com.nodoubt.platform.capture.CaptureBus
 
 @Composable
@@ -22,10 +23,11 @@ fun NoDoubtApp(graph: AppGraph, onAssistant: (Boolean) -> Unit, onStopCapture: (
     val config by graph.repository.state.collectAsState()
     val running by AssistantService.running.collectAsState()
     val capture by CaptureBus.status.collectAsState()
+    val historyCount = graph.history.entries.collectAsState().value.size
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(settingsRequest) { if (settingsRequest > 0) { tab = 1; page = "channels" } }
-    BackHandler(page != null && page != "channels") { page = null }
+    BackHandler(page != null && page != "channels" && page != "history") { page = null }
     NoDoubtTheme(config.preferences) {
         val view = LocalView.current
         val dark = LocalNoDoubtTokens.current.dark
@@ -55,9 +57,10 @@ fun NoDoubtApp(graph: AppGraph, onAssistant: (Boolean) -> Unit, onStopCapture: (
                     "channels" -> ChannelsScreen(graph.repository, graph.ai, onClose = { page = null })
                     "appearance" -> AppearanceScreen(graph.repository, onBack = { page = null })
                     "capture" -> CaptureSettingsScreen(graph.repository, capture.ready, onStopCapture, onBack = { page = null })
+                    "history" -> HistoryScreen(graph.history, config.preferences.answerFontSize, onBack = { page = null })
                     else -> if (tab == 0) HomeScreen(running, capture.ready, capture.error,
                         config.bindings.values.all { it.entries.isNotEmpty() }, onAssistant, { tab = 1; page = "channels" })
-                    else SettingsScreen(graph.repository, onOpen = { page = it })
+                    else SettingsScreen(graph.repository, historyCount, onOpen = { page = it })
                 }
             }
         }

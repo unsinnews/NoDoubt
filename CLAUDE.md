@@ -53,4 +53,4 @@ NoDoubt is an Android screenshot-solving application. Read README.md and docs/re
 
 - Use docs/manual-verification.md for device and real-service checks. Unchecked items are pending, not passing tests.
 - A successful JVM fixture test does not establish device permission behavior, theme rendering, SAF integration or real-provider interoperability.
-- The current answer session is in memory; there is no persistent answer-history screen.
+- The answer sheet session is in memory. 我的 → 解题记录 persists each question with its finished FAST/DEEP answers (newest 300, private app file, no thinking, no screenshots); a later finished answer for the same question updates its record, failures and stops keep the last finished one.

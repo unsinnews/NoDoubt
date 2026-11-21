@@ -102,6 +102,7 @@ class ApplicationFlowTest {
                         models = listOf(ModelConfig("fixture-model")))),
                     bindings = Usage.entries.associateWith { UsageBinding(listOf(ref), ref) })
                 graph.repository.saveChannel(config, "fixture", "test-only-key")
+                graph.history.clear()
                 graph.solver.prepareCapture()
                 compose.activity.setContent { AnswerOverlay(graph, {}, {}, {}) }
             }
@@ -145,6 +146,31 @@ class ApplicationFlowTest {
             assertEquals("【答案】完成。", clip())
             compose.onNodeWithText("题目 2").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("重截").assertIsDisplayed()
+
+            // Each finished question is kept in 解题记录 with both answers and without thinking.
+            val records = graph.history.entries.value
+            assertEquals(listOf("(计算题) 2+2=?", "(计算题) 1+1=?"), records.map { it.question })
+            assertTrue(records.all { r -> r.answers.map { it.usage } == listOf(Usage.FAST, Usage.DEEP) &&
+                r.answers.all { it.text == "【答案】完成。" } })
+            compose.waitUntil(5_000) {
+                java.io.File(compose.activity.filesDir, "history.json").let { it.exists() && it.readText().contains("2+2") }
+            }
+            assertFalse(java.io.File(compose.activity.filesDir, "history.json").readText().contains("先确认题意"))
+            compose.runOnUiThread {
+                compose.activity.setContent { NoDoubtApp(graph, {}, {}) }
+            }
+            compose.onNode(hasText("我的") and hasClickAction()).performClick()
+            compose.onNodeWithText("解题记录").performClick()
+            compose.onNodeWithText("今天").assertExists()
+            compose.onNodeWithText("(计算题) 2+2=?").performClick()
+            compose.onNodeWithTag("history-detail").assertExists()
+            compose.onNodeWithText("先确认题意，再计算。").assertDoesNotExist()
+            compose.onNodeWithContentDescription("复制深度思考答案").assertExists()
+            compose.onNodeWithContentDescription("删除记录").performClick()
+            compose.onNodeWithText("已删除 1 条记录").assertExists()
+            compose.onNodeWithText("(计算题) 2+2=?").assertDoesNotExist()
+            compose.onNodeWithText("撤销").performClick()
+            compose.onNodeWithText("(计算题) 2+2=?").assertExists()
         } finally { server.shutdown() }
     }
 
