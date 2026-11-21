@@ -24,10 +24,10 @@ import androidx.compose.ui.unit.dp
 import com.nodoubt.core.designsystem.*
 
 /** Lines of thinking visible in the collapsed preview. */
-private const val PREVIEW_LINES = 3
+private const val PREVIEW_LINES = 2
 
 /**
- * Thinking is collapsed by default into a three-line window that follows the newest text while it
+ * Thinking is collapsed by default into a two-line window that follows the newest text while it
  * streams. Tapping the header or the window shows the whole thinking; tapping the header again folds it.
  */
 @Composable
@@ -39,7 +39,9 @@ internal fun ThinkingDisclosure(answer: AnswerState, fontSize: Int, expanded: Bo
     }
     val tokens = LocalNoDoubtTokens.current
     val tint = tokens.foregroundAccent.copy(alpha = .025f).compositeOver(tokens.raised)
-    val textSize = (fontSize - 1).coerceAtLeast(12)
+    // Thinking is secondary: a smaller, muted face than the answer.
+    val textSize = (fontSize - 3).coerceAtLeast(11)
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.fillMaxWidth().background(tint, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 44.dp)
             .semantics {
@@ -60,24 +62,25 @@ internal fun ThinkingDisclosure(answer: AnswerState, fontSize: Int, expanded: Bo
             Symbol(UiSymbol.CHEVRON, Modifier.size(14.dp).rotate(if (expanded) 90f else 0f))
         }
         if (expanded) Box(Modifier.fillMaxWidth().testTag("thinking-content").padding(bottom = 10.dp)) {
-            RichText(answer.thinking, fontSize = textSize, compact = true, streaming = answer.status == RunStatus.RUNNING)
-        } else ThinkingPreview(answer.thinking, textSize, answer.status == RunStatus.RUNNING, tint) { onExpandedChange(true) }
+            RichText(answer.thinking, fontSize = textSize, compact = true, streaming = answer.status == RunStatus.RUNNING,
+                color = muted)
+        } else ThinkingPreview(answer.thinking, textSize, answer.status == RunStatus.RUNNING, tint, muted) { onExpandedChange(true) }
     }
 }
 
 /**
- * A three-line window that always shows the newest thinking, with a soft fade at its top once
+ * A two-line window that always shows the newest thinking, with a soft fade at its top once
  * earlier lines scroll out. Tapping it opens the full thinking.
  */
 @Composable
-private fun ThinkingPreview(text: String, textSize: Int, streaming: Boolean, background: Color, onOpen: () -> Unit) {
+private fun ThinkingPreview(text: String, textSize: Int, streaming: Boolean, background: Color, color: Color, onOpen: () -> Unit) {
     var overflowing by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth().padding(bottom = 10.dp).testTag("thinking-preview")) {
         RichText(text, fontSize = textSize, compact = true, streaming = streaming, tailLines = PREVIEW_LINES,
-            onLineCount = { overflowing = it > PREVIEW_LINES })
+            onLineCount = { overflowing = it > PREVIEW_LINES }, color = color)
         // Always composed so the fade never pops in; it is invisible until earlier lines scroll out.
         Box(Modifier.matchParentSize().graphicsLayer { alpha = if (overflowing) 1f else 0f }
-            .background(Brush.verticalGradient(0f to background, .3f to background.copy(alpha = 0f))))
+            .background(Brush.verticalGradient(0f to background, .45f to background.copy(alpha = 0f))))
         // Covers the text so a tap opens the full thinking.
         Box(Modifier.matchParentSize().clickable(onClickLabel = "展开思考过程", onClick = onOpen))
     }

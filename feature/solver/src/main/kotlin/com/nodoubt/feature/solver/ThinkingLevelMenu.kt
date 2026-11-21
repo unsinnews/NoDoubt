@@ -1,11 +1,17 @@
 package com.nodoubt.feature.solver
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -20,6 +26,10 @@ import com.nodoubt.core.model.ThinkingOverride
 import com.nodoubt.core.model.Usage
 import kotlin.math.roundToInt
 
+/**
+ * A compact popover: a header with the draft, the depth slider, then 默认 / 预算 chips and a primary
+ * 重新解答 button. Dragging and chips only change the draft; only the button sends a request.
+ */
 @Composable
 internal fun ThinkingLevelMenu(
     questionId: Int, usage: Usage, options: ThinkingOptions, current: ThinkingOverride?, actualLabel: String,
@@ -39,43 +49,61 @@ internal fun ThinkingLevelMenu(
     var showLevel by remember { mutableStateOf(initialIndex >= 0) }
     val tokens = LocalNoDoubtTokens.current
     DropdownMenu(true, onDismiss,
-        modifier = Modifier.width(248.dp).testTag("thinking-menu-${usage.name.lowercase()}-$questionId")
+        modifier = Modifier.width(264.dp).testTag("thinking-menu-${usage.name.lowercase()}-$questionId")
             .semantics { dismiss { onDismiss(); true } },
+        shape = RoundedCornerShape(16.dp), containerColor = tokens.raised, shadowElevation = 8.dp,
         properties = PopupProperties(focusable = false)) {
-        Column(Modifier.padding(horizontal = 10.dp)) {
-            Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("思考", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 2.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("思考强度", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(label, Modifier.weight(1f).testTag("thinking-draft-label"), textAlign = TextAlign.End,
-                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
                     color = tokens.foregroundAccent, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (options.efforts.size > 1) ThinkingDepthSlider(position, options.efforts.lastIndex, showLevel, label) { value ->
-                val index = value.roundToInt().coerceIn(options.efforts.indices)
-                position = index.toFloat()
-                draft = ThinkingOverride.Effort(options.efforts[index])
-                label = thinkingEffortLabel(options.efforts[index])
-                showLevel = true
+            if (options.efforts.size > 1) {
+                ThinkingDepthSlider(position, options.efforts.lastIndex, showLevel, label) { value ->
+                    val index = value.roundToInt().coerceIn(options.efforts.indices)
+                    position = index.toFloat()
+                    draft = ThinkingOverride.Effort(options.efforts[index])
+                    label = thinkingEffortLabel(options.efforts[index])
+                    showLevel = true
+                }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf(options.efforts.first(), options.efforts.last()).forEach {
+                        Text(thinkingEffortLabel(it), style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                DraftAction("默认", "thinking-option-default", draft == null, Modifier.weight(1f)) {
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                DraftChip("默认", "thinking-option-default", draft == null, Modifier.weight(1f)) {
                     draft = null; label = "默认"; showLevel = false
                 }
-                if (options.minimumBudget != null) DraftAction("预算", "thinking-option-budget",
+                if (options.minimumBudget != null) DraftChip("预算", "thinking-option-budget",
                     draft is ThinkingOverride.Budget, Modifier.weight(1f), onBudget)
-                DraftAction("确认", "confirm-thinking", true, Modifier.weight(1f)) { onConfirm(draft) }
+            }
+            Box(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp).heightIn(min = 44.dp)
+                .clip(RoundedCornerShape(12.dp)).background(tokens.action)
+                .clickable(role = Role.Button) { onConfirm(draft) }.testTag("confirm-thinking"),
+                contentAlignment = Alignment.Center) {
+                Text("重新解答", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
+                    color = tokens.onAction)
             }
         }
     }
 }
 
 @Composable
-private fun DraftAction(label: String, tag: String, checked: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun DraftChip(label: String, tag: String, checked: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val tokens = LocalNoDoubtTokens.current
-    TextButton(onClick, modifier.heightIn(min = 48.dp).testTag(tag).semantics { selected = checked },
-        contentPadding = PaddingValues(horizontal = 2.dp),
-        colors = ButtonDefaults.textButtonColors(contentColor = if (checked) tokens.foregroundAccent
-            else MaterialTheme.colorScheme.onSurfaceVariant)) {
-        Text(label, style = MaterialTheme.typography.bodyMedium,
+    val shape = RoundedCornerShape(10.dp)
+    Box(modifier.heightIn(min = 40.dp).clip(shape)
+        .background(if (checked) tokens.foregroundAccent.copy(alpha = .1f) else tokens.inset)
+        .then(if (checked) Modifier.border(1.dp, tokens.foregroundAccent.copy(alpha = .45f), shape) else Modifier)
+        .clickable(role = Role.Button, onClick = onClick).testTag(tag).semantics { selected = checked },
+        contentAlignment = Alignment.Center) {
+        Text(label, style = MaterialTheme.typography.labelLarge,
+            color = if (checked) tokens.foregroundAccent else MaterialTheme.colorScheme.onSurface,
             fontWeight = if (checked) FontWeight.SemiBold else FontWeight.Normal)
     }
 }

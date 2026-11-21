@@ -20,7 +20,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
-enum class UiSymbol { BACK, CHEVRON, ADD, MORE, CHECK, SERVER, SLIDERS, FOLDER, LINK, PLAY, KEY, TRASH, EDIT, DOWNLOAD, UPLOAD }
+enum class UiSymbol { BACK, CHEVRON, ADD, MORE, CHECK, SERVER, SLIDERS, FOLDER, LINK, PLAY, KEY, TRASH, EDIT, DOWNLOAD, UPLOAD, COPY, REFRESH }
 
 @Composable
 fun Symbol(symbol: UiSymbol, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
@@ -53,6 +53,14 @@ fun Symbol(symbol: UiSymbol, modifier: Modifier = Modifier, color: Color = Mater
                 UiSymbol.KEY -> { drawCircle(color, 4f, Offset(8f, 8f), style = stroke); path(11f, 11f, 20f, 20f, 21f, 17f); line(16f, 16f, 18f, 14f) }
                 UiSymbol.TRASH -> { line(4f, 6f, 20f, 6f); path(6f, 6f, 7f, 21f, 17f, 21f, 18f, 6f); path(9f, 6f, 9f, 3f, 15f, 3f, 15f, 6f) }
                 UiSymbol.EDIT -> { path(4f, 15f, 4f, 20f, 9f, 20f, 21f, 8f, 16f, 3f, 4f, 15f); line(13f, 6f, 18f, 11f) }
+                UiSymbol.COPY -> {
+                    drawRoundRect(color, Offset(8f, 8f), Size(12f, 13f), CornerRadius(2.5f), style = stroke)
+                    path(5f, 16f, 4f, 16f, 4f, 4f, 15f, 4f, 15f, 5f)
+                }
+                UiSymbol.REFRESH -> {
+                    drawArc(color, 40f, 290f, false, Offset(4.5f, 4.5f), Size(15f, 15f), style = stroke)
+                    path(19.5f, 4.5f, 19.5f, 9.5f, 14.5f, 9.5f)
+                }
                 UiSymbol.DOWNLOAD, UiSymbol.UPLOAD -> {
                     val a = if (symbol == UiSymbol.DOWNLOAD) 4f else 16f
                     val b = if (symbol == UiSymbol.DOWNLOAD) 16f else 4f

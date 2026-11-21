@@ -45,15 +45,6 @@ fun SolverScreen(
     }
     val running = answerModeIsRunning(state, usage)
     val status = answerModeStatus(state, usage)
-    var copyFeedback by remember { mutableStateOf(0) }
-    var showCopied by remember { mutableStateOf(false) }
-    LaunchedEffect(copyFeedback) {
-        if (copyFeedback > 0) {
-            showCopied = true
-            kotlinx.coroutines.delay(1400)
-            showCopied = false
-        }
-    }
     Surface(modifier.fillMaxSize(), shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().imePadding()) {
@@ -96,7 +87,6 @@ fun SolverScreen(
                                                 it.message ?: "重试失败，请检查模型") })
                                     },
                                     onModel = { retryErrors.remove(inputKey); controller.answer(question.id, usage, it) },
-                                    onCopied = { copyFeedback++ },
                                     thinkingOptions = controller.thinkingOptions(question.id, usage),
                                     onRetryWithThinking = { controller.retryWithThinking(question.id, usage, it) },
                                     onInputActiveChange = { active ->
@@ -105,12 +95,6 @@ fun SolverScreen(
                             }
                         }
                     }
-                if (showCopied) Surface(Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
-                    shape = MaterialTheme.shapes.small, shadowElevation = 3.dp,
-                    color = MaterialTheme.colorScheme.inverseSurface) {
-                    Text("已复制", Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                        color = MaterialTheme.colorScheme.inverseOnSurface, style = MaterialTheme.typography.bodyMedium)
-                }
             }
             AnswerBottomBar(status, running, onCapture, onStop = { controller.stopMode(usage) }, onDismiss = onDismiss)
         }

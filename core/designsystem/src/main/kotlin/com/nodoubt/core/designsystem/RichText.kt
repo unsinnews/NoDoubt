@@ -34,24 +34,26 @@ val LocalRichTextVisible = staticCompositionLocalOf { true }
 @Composable
 fun RichText(
     text: String, modifier: Modifier = Modifier, fontSize: Int = 16, compact: Boolean = false,
-    streaming: Boolean = false, tailLines: Int = 0, onLineCount: ((Int) -> Unit)? = null
+    streaming: Boolean = false, tailLines: Int = 0, onLineCount: ((Int) -> Unit)? = null,
+    color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified
 ) {
     if (!LocalRichTextVisible.current) return
     val context = LocalContext.current
     val density = LocalDensity.current
-    val color = MaterialTheme.colorScheme.onSurface.toArgb()
+    val textColor = (if (color == androidx.compose.ui.graphics.Color.Unspecified) MaterialTheme.colorScheme.onSurface
+        else color).toArgb()
     val linkColor = LocalNoDoubtTokens.current.foregroundAccent.toArgb()
     val executor = remember { Executors.newSingleThreadExecutor() }
     DisposableEffect(executor) { onDispose { executor.shutdownNow() } }
     val mathSize = fontSize * density.density * density.fontScale
-    val markwon = remember(context, fontSize, density.fontScale, color) {
+    val markwon = remember(context, fontSize, density.fontScale, textColor) {
         Markwon.builder(context)
             .usePlugin(MarkwonInlineParserPlugin.create())
             .usePlugin(JLatexMathPlugin.create(mathSize) {
                 it.inlinesEnabled(true)
                 it.blocksEnabled(true)
                 it.executorService(executor)
-                it.theme().textColor(color)
+                it.theme().textColor(textColor)
             })
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
@@ -59,7 +61,7 @@ fun RichText(
             .build()
     }
     // Formulas are drawn before a parse is shown, so updates never flash raw LaTeX or shift lines.
-    val renderedMath = remember(markwon) { RenderedMath(mathSize, color) }
+    val renderedMath = remember(markwon) { RenderedMath(mathSize, textColor) }
     val latestText by rememberUpdatedState(text)
     val latestStreaming by rememberUpdatedState(streaming)
     fun prepare(value: String, open: Boolean) = normalizeMathDelimiters(value).let { if (open) hideOpenMath(it) else it }
@@ -89,7 +91,7 @@ fun RichText(
             view.textSize = fontSize.toFloat()
             view.includeFontPadding = !compact
             view.setLineSpacing(0f, if (compact) 1.28f else 1.4f)
-            view.setTextColor(color)
+            view.setTextColor(textColor)
             view.setLinkTextColor(linkColor)
             val rendered = parsed
             if (view.tag !== rendered) {

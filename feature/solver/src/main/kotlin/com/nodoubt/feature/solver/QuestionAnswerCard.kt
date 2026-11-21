@@ -24,7 +24,7 @@ import com.nodoubt.core.model.Usage
 internal fun QuestionAnswerCard(
     question: QuestionState, usage: Usage, recognition: RunStatus, config: AppConfig,
     thinkingExpanded: Boolean, onThinkingExpandedChange: (Boolean) -> Unit,
-    onRetry: () -> Unit, onModel: (ModelRef) -> Unit, onCopied: () -> Unit,
+    onRetry: () -> Unit, onModel: (ModelRef) -> Unit,
     thinkingOptions: ThinkingOptions?, onRetryWithThinking: (ThinkingOverride?) -> Result<Unit>,
     onInputActiveChange: (Boolean) -> Unit, editorSession: Int, retryError: String?
 ) {
@@ -68,7 +68,7 @@ internal fun QuestionAnswerCard(
                         AnswerContent(answer, config.preferences.answerFontSize, thinkingExpanded, onThinkingExpandedChange)
                     }
                     if (finished) AnswerRetryError(retryError)
-                    if (finished) AnswerActions(question, usage, onRetry, onCopied)
+                    if (finished) AnswerActions(question, usage, onRetry)
                 }
             }
         }

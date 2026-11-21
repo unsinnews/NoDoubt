@@ -1,6 +1,7 @@
 package com.nodoubt.core.designsystem
 
 import android.graphics.drawable.Drawable
+import android.text.Spannable
 import android.text.Spanned
 import io.noties.markwon.ext.latex.JLatexAsyncDrawableSpan
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -15,7 +16,10 @@ import java.util.concurrent.Executors
  */
 internal class RenderedMath(private val textSize: Float, private val color: Int) {
 
-    /** Attaches finished formula drawables to [spanned]; unparseable formulas fall back to Markwon. */
+    /**
+     * Attaches finished formulas to [spanned]. Inline formulas are swapped for [CenteredMathSpan] so they
+     * sit on the text's centre line; unparseable formulas keep Markwon's own span and fallback.
+     */
     fun prerender(spanned: Spanned) = synchronized(MathThread) {
         spanned.getSpans(0, spanned.length, JLatexAsyncDrawableSpan::class.java).forEach { span ->
             val drawable = span.drawable
@@ -27,7 +31,13 @@ internal class RenderedMath(private val textSize: Float, private val color: Int)
                 JLatexMathDrawable.builder(drawable.destination).textSize(textSize).color(color)
                     .apply { if (block) align(JLatexMathDrawable.ALIGN_CENTER) }.build()
             }.getOrNull()?.also { MathThread.cache[key] = it } ?: return@forEach
-            drawable.result = result
+            val editable = spanned as? Spannable
+            if (block || editable == null) { drawable.result = result; return@forEach }
+            val start = editable.getSpanStart(span)
+            val end = editable.getSpanEnd(span)
+            val flags = editable.getSpanFlags(span)
+            editable.removeSpan(span)
+            editable.setSpan(CenteredMathSpan(result), start, end, flags)
         }
     }
 }
