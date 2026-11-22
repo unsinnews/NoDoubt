@@ -3,11 +3,9 @@ package com.nodoubt.platform.capture
 import android.content.Context
 import android.graphics.Bitmap
 import android.media.Image
-import android.os.Environment
 import android.util.Base64
 import com.nodoubt.core.model.ContentPart
 import java.io.ByteArrayOutputStream
-import java.io.File
 
 internal object CaptureImages {
     fun bitmap(image: Image): Bitmap {
@@ -22,13 +20,8 @@ internal object CaptureImages {
 
     fun encode(context: Context, bitmap: Bitmap, save: Boolean): ContentPart.Image {
         try {
-            if (save) {
-                val directory = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "Screenshots")
-                check(directory.exists() || directory.mkdirs()) { "无法创建截图目录" }
-                File(directory, "screenshot-${System.currentTimeMillis()}.png").outputStream().use {
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
-                }
-            }
+            // A gallery write failure (e.g. revoked permission, full storage) must not block solving.
+            if (save) runCatching { GalleryScreenshots.save(context, bitmap) }
             val scale = (1600f / maxOf(bitmap.width, bitmap.height)).coerceAtMost(1f)
             val compressed = if (scale < 1f) Bitmap.createScaledBitmap(bitmap,
                 (bitmap.width * scale).toInt().coerceAtLeast(1),

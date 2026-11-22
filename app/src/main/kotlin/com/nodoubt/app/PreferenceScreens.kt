@@ -1,14 +1,19 @@
 package com.nodoubt.app
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.nodoubt.core.config.ConfigRepository
 import com.nodoubt.core.designsystem.*
 import com.nodoubt.core.model.*
+import com.nodoubt.platform.capture.GalleryScreenshots
 
 @Composable
 internal fun AppearanceScreen(repository: ConfigRepository, onBack: () -> Unit) {
@@ -52,9 +57,15 @@ internal fun CaptureSettingsScreen(repository: ConfigRepository, ready: Boolean,
                 value -> save { it.copy(bubbleSizeDp = value.toInt()) }
             }
         }
-        Section("截图", "不保留时，识题后即删除截图") {
-            ToggleRow("保留截图", !config.preferences.autoDeleteScreenshot,
-                { value -> save { it.copy(autoDeleteScreenshot = !value) } })
+        val context = LocalContext.current
+        val storage = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) save { it.copy(autoDeleteScreenshot = false) } else error = "需要存储权限才能保存截图到相册"
+        }
+        Section("截图", "开启后截图保存到相册「${GalleryScreenshots.ALBUM}」，关闭时不保存") {
+            ToggleRow("保留截图", !config.preferences.autoDeleteScreenshot, { value ->
+                if (value && !GalleryScreenshots.canSave(context)) storage.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                else save { it.copy(autoDeleteScreenshot = !value) }
+            })
             ItemRow("截图授权", if (ready) "已就绪" else "未授权") {
                 if (ready) QuietButton("关闭", onStop)
             }

@@ -10,6 +10,7 @@ Android AI 悬浮答题助手：在任意界面点一下悬浮球截图，即可
 - 显示模型的思考过程，可临时调整思考强度
 - 停止、重试、复制、切换模型
 - 解题记录：自动保存题目和答案，可查看、复制、多选删除
+- 可选保留截图到系统相册「不惑」
 - OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Google Gemini 四种接口
 - 多个服务与模型，失败时自动换用下一个
 - 配置导入导出、剪贴板导入、订阅同步，API Key 加密保存
