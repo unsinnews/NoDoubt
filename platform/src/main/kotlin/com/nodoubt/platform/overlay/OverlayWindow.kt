@@ -63,6 +63,7 @@ class OverlayWindow(private val context: Context) : LifecycleOwner, SavedStateRe
     }
     private var attached = false
     private var closed = false
+    private var composed = false
     private var dismiss: () -> Unit = {}
     private var screenHeight = displayHeight()
     private var requestedHeightFraction = 2f / 3f
@@ -94,7 +95,7 @@ class OverlayWindow(private val context: Context) : LifecycleOwner, SavedStateRe
         registry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
     }
 
-    /** Calling code cancels active work in onDismiss, then calls hide(). */
+    /** Calling code cancels active work in onDismiss, then calls hide(). [content] is used on the first show only. */
     fun show(onDismiss: () -> Unit = {}, content: @Composable () -> Unit) {
         check(!closed) { "This answer window has been closed." }
         dismiss = onDismiss
@@ -102,7 +103,9 @@ class OverlayWindow(private val context: Context) : LifecycleOwner, SavedStateRe
         requestedHeightFraction = 2f / 3f
         params.height = windowHeight()
         sheetHeight = requestedSheetHeight()
-        view.setContent { SheetFrame(content) }
+        // Compose once per window: hiding keeps the composition, so reopening shows the same
+        // mode, scroll position and expanded sections that were left; a new session resets them.
+        if (!composed) { view.setContent { SheetFrame(content) }; composed = true }
         val wasVisible = attached && view.visibility == View.VISIBLE
         if (!attached) {
             manager.addView(backdrop, backdropParams)

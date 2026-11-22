@@ -1,5 +1,6 @@
 package com.nodoubt.app
 
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -8,6 +9,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Rect
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
@@ -20,6 +22,9 @@ import com.nodoubt.core.model.Usage
 import com.nodoubt.feature.solver.RunStatus
 import com.nodoubt.platform.capture.CaptureBus
 import com.nodoubt.platform.capture.CaptureService
+import com.nodoubt.platform.overlay.BubbleMenu
+import com.nodoubt.platform.overlay.BubbleMenuColors
+import com.nodoubt.platform.overlay.BubbleMenuItem
 import com.nodoubt.platform.overlay.BubbleWindow
 import com.nodoubt.platform.overlay.OverlayWindow
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +41,7 @@ import kotlinx.coroutines.launch
 class AssistantService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var bubble: BubbleWindow
+    private lateinit var menu: BubbleMenu
     private var answerWindow: OverlayWindow? = null
     private var capturing = false
     private var answerVisible = false
@@ -47,7 +53,8 @@ class AssistantService : Service() {
         super.onCreate()
         if (!Settings.canDrawOverlays(this)) { stopSelf(); return }
         foreground()
-        bubble = BubbleWindow(this, ::capture)
+        menu = BubbleMenu(this)
+        bubble = BubbleWindow(this, onClick = { menu.dismiss(); capture() }, onLongPress = ::showMenu)
         mutableRunning.value = true
         val initialSession = appGraph.solver.state.value.session
         scope.launch { appGraph.repository.state.collect { updateBubble() } }
@@ -90,6 +97,7 @@ class AssistantService : Service() {
 
     private fun capture() {
         if (capturing) return
+        menu.dismiss()
         val candidates = appGraph.repository.state.value.bindings[Usage.OCR]?.entries.orEmpty()
         if (candidates.isEmpty()) {
             Toast.makeText(this, "请先设置截图识题模型", Toast.LENGTH_LONG).show()
@@ -153,6 +161,7 @@ class AssistantService : Service() {
 
     private fun showAnswer() {
         if (!Settings.canDrawOverlays(this)) return
+        menu.dismiss()
         val host = answerWindow ?: OverlayWindow(this).also { answerWindow = it }
         answerVisible = true
         bubble.hide()
@@ -164,6 +173,35 @@ class AssistantService : Service() {
             }, onResize = host::resizeBy, onInputActiveChange = host::setInputEnabled, onDismiss = ::dismissAnswer) }
     }
 
+    /** Long-press menu: reopen the last sheet exactly as it was left, or turn everything off. */
+    private fun showMenu(anchor: Rect) {
+        if (capturing || answerVisible) return
+        val palette = palette()
+        val state = appGraph.solver.state.value
+        val restorable = state.questions.isNotEmpty() || state.error != null
+        menu.show(anchor, BubbleMenuColors(palette.background, palette.text, palette.muted, palette.danger, palette.border), listOf(
+            BubbleMenuItem(if (restorable) "恢复上次解答" else "暂无可恢复的解答", enabled = restorable) { restoreAnswer() },
+            BubbleMenuItem("关闭悬浮球并退出", danger = true) { exitApp() }
+        ))
+    }
+
+    /** Shows the in-memory session as it was when closed; it never starts or replays a request. */
+    private fun restoreAnswer() {
+        val state = appGraph.solver.state.value
+        if (capturing || (state.questions.isEmpty() && state.error == null)) return
+        showAnswer()
+    }
+
+    /** Turns off the bubble and capture, closes app screens and drops the in-memory session. */
+    private fun exitApp() {
+        finishCapture()
+        CaptureBus.invalidateRequests()
+        appGraph.solver.clear()
+        stopService(Intent(this, CaptureService::class.java))
+        getSystemService(ActivityManager::class.java).appTasks.forEach { runCatching { it.finishAndRemoveTask() } }
+        stopSelf()
+    }
+
     private fun dismissAnswer() {
         finishCapture()
         CaptureBus.invalidateRequests()
@@ -173,8 +211,9 @@ class AssistantService : Service() {
         bubble.reveal()
     }
 
-    private fun updateBubble() {
-        if (!::bubble.isInitialized) return
+    private class OverlayPalette(val background: Int, val accent: Int, val border: Int, val text: Int, val muted: Int, val danger: Int)
+
+    private fun palette(): OverlayPalette {
         val prefs = appGraph.repository.state.value.preferences
         val dark = prefs.appearance == Appearance.DARK || (prefs.appearance == Appearance.SYSTEM &&
             resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
@@ -188,8 +227,15 @@ class AssistantService : Service() {
             ThemeFamily.VERCEL -> if (dark) "#EDEDED" else "#171717"
             ThemeFamily.APPLE -> "#0068D9"
         }
-        bubble.show(prefs.bubbleSizeDp, Color.parseColor(background), Color.parseColor(accent),
-            Color.parseColor(if (dark) "#3A3A40" else "#E0E0E4"))
+        fun c(value: String) = Color.parseColor(value)
+        return OverlayPalette(c(background), c(accent), c(if (dark) "#3A3A40" else "#E0E0E4"),
+            c(if (dark) "#F2F2F7" else "#1C1C1E"), c(if (dark) "#6E6E73" else "#AEAEB2"), c(if (dark) "#FF6961" else "#D70015"))
+    }
+
+    private fun updateBubble() {
+        if (!::bubble.isInitialized) return
+        val palette = palette()
+        bubble.show(appGraph.repository.state.value.preferences.bubbleSizeDp, palette.background, palette.accent, palette.border)
         if (capturing || answerVisible) bubble.hide()
     }
 
@@ -219,6 +265,7 @@ class AssistantService : Service() {
         CaptureBus.invalidateRequests()
         scope.cancel()
         appGraph.solver.stopAll()
+        if (::menu.isInitialized) menu.dismiss()
         if (::bubble.isInitialized) bubble.close()
         answerWindow?.close()
         super.onDestroy()

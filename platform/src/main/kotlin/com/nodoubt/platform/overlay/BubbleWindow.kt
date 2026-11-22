@@ -2,6 +2,7 @@ package com.nodoubt.platform.overlay
 
 import android.content.Context
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.util.DisplayMetrics
@@ -17,7 +18,9 @@ import com.nodoubt.platform.R
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-class BubbleWindow(private val context: Context, private val onClick: () -> Unit) {
+class BubbleWindow(
+    private val context: Context, private val onClick: () -> Unit, private val onLongPress: (Rect) -> Unit = {}
+) {
     private val manager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val preferences = context.applicationContext.getSharedPreferences("nodoubt_overlay_position", Context.MODE_PRIVATE)
     private val density get() = context.resources.displayMetrics.density
@@ -30,6 +33,8 @@ class BubbleWindow(private val context: Context, private val onClick: () -> Unit
     private var startX = 0
     private var startY = 0
     private var moved = false
+    private var longPressed = false
+    private val longPress = Runnable { if (!moved) { longPressed = true; view.performLongClick() } }
     private val params = WindowManager.LayoutParams(
         (48 * density).roundToInt(), (48 * density).roundToInt(),
         if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -50,9 +55,11 @@ class BubbleWindow(private val context: Context, private val onClick: () -> Unit
     private val view = ImageView(context).apply {
         setImageResource(R.drawable.ic_bubble)
         scaleType = ImageView.ScaleType.CENTER_INSIDE
-        contentDescription = "截图识题，可拖动"
+        contentDescription = "截图识题，可拖动，长按更多"
         elevation = 4 * density
         setOnClickListener { onClick() }
+        // Also reached by TalkBack's long-press action; performLongClick adds the haptic tick.
+        setOnLongClickListener { onLongPress(bounds()); true }
         setOnTouchListener { _, event -> touch(event) }
         setOnApplyWindowInsetsListener { _, insets ->
             refreshPosition()
@@ -72,7 +79,10 @@ class BubbleWindow(private val context: Context, private val onClick: () -> Unit
         view.visibility = View.VISIBLE
     }
 
-    fun hide() { if (attached) view.visibility = View.GONE }
+    fun hide() { if (attached) { view.removeCallbacks(longPress); view.visibility = View.GONE } }
+
+    /** The bubble's on-screen rectangle, used to place its menu beside it. */
+    fun bounds(): Rect = Rect(params.x, params.y, params.x + params.width, params.y + params.height)
     fun reveal() {
         if (attached) { refreshPosition(); view.visibility = View.VISIBLE }
     }
@@ -99,19 +109,25 @@ class BubbleWindow(private val context: Context, private val onClick: () -> Unit
             MotionEvent.ACTION_DOWN -> {
                 downX = event.rawX; downY = event.rawY; startX = params.x; startY = params.y
                 moved = false
+                longPressed = false
+                view.postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
             }
-            MotionEvent.ACTION_MOVE -> {
+            MotionEvent.ACTION_MOVE -> if (!longPressed) {
                 val dx = event.rawX - downX; val dy = event.rawY - downY
                 val slop = ViewConfiguration.get(context).scaledTouchSlop
-                if (abs(dx) > slop || abs(dy) > slop) moved = true
+                if (abs(dx) > slop || abs(dy) > slop) { moved = true; view.removeCallbacks(longPress) }
                 if (moved) dragTo(event.rawX, event.rawY)
             }
-            MotionEvent.ACTION_UP -> if (moved) {
-                // The final move can be coalesced on a busy device; release is authoritative.
-                dragTo(event.rawX, event.rawY)
-                savePosition()
-            } else view.performClick()
-            MotionEvent.ACTION_CANCEL -> { if (moved) savePosition(); moved = true }
+            MotionEvent.ACTION_UP -> {
+                view.removeCallbacks(longPress)
+                if (longPressed) Unit
+                else if (moved) {
+                    // The final move can be coalesced on a busy device; release is authoritative.
+                    dragTo(event.rawX, event.rawY)
+                    savePosition()
+                } else view.performClick()
+            }
+            MotionEvent.ACTION_CANCEL -> { view.removeCallbacks(longPress); if (moved) savePosition(); moved = true }
         }
         return true
     }
